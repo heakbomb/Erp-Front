@@ -20,6 +20,7 @@ dist-ssr
 /coverage
 .vite
 
+
 # =========================================
 # Local environment variables
 # =========================================
@@ -50,3 +51,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Next.js build output
+/.next/
