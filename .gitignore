@@ -51,5 +51,5 @@ Thumbs.db
 *.sln
 *.sw?
 
-# 서버 빌드 캐시 및 로그 파일
-server/chunks/ssr/
+# Next.js build output
+/.next/
