@@ -28,6 +28,7 @@ const navigation = [
   { name: "대시보드", href: "/owner/dashboard", icon: LayoutDashboard },
   { name: "사업장 관리", href: "/owner/stores", icon: Store },
   { name: "직원 관리", href: "/owner/employees", icon: Users },
+  { name: "문서 관리", href: "/owner/documents"},
   { name: "재고 관리", href: "/owner/inventory", icon: Package },
   { name: "메뉴 관리", href: "/owner/menu", icon: FileText },
   { name: "매출 관리", href: "/owner/sales", icon: DollarSign },
@@ -85,6 +86,9 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href
+              // [수정] item.icon을 대문자로 시작하는 변수에 할당합니다.
+              const Icon = item.icon 
+
               return (
                 <Link
                   key={item.name}
@@ -94,10 +98,13 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                    // [수정] Icon 변수를 기준으로 왼쪽 패딩을 조정합니다.
+                    !Icon && "pl-[2.75rem]" // 44px
                   )}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <item.icon className="h-5 w-5" />
+                  {/* [수정] 대문자 변수 Icon을 렌더링합니다. */}
+                  {Icon && <Icon className="h-5 w-5" />}
                   {item.name}
                 </Link>
               )
