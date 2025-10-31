@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar } from "@/components/ui/calendar"
 import { Clock, Users, AlertCircle, Download, FileText } from "lucide-react"
-import type { DayContentProps } from "react-day-picker"
+
 
 const todayAttendance = [
   { id: 1, name: "김직원", role: "주방", checkIn: "09:00", checkOut: "-", status: "근무중", hours: "5.5" },
@@ -247,9 +247,7 @@ export default function AttendancePage() {
                   selected={date}
                   onSelect={setDate}
                   className="rounded-md border"
-                  components={{
-                    DayContent: ({ date }: DayContentProps) => renderDayContent(date),
-                  }}
+                 
                 />
                 <div className="w-full p-3 rounded-lg bg-muted space-y-2">
                   <p className="text-sm font-medium mb-2">출근 상태 표시</p>
