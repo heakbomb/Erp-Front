@@ -93,6 +93,12 @@ export default function StoresPage() {
   const [openVerify, setOpenVerify] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [verifyForm, setVerifyForm] = useState({ bizNo: "", phone: "" })
+  // ✅ [추가] 인증 단계 state
+  const [verifyStep, setVerifyStep] = useState<"PHONE" | "CODE" | "BIZNO">("PHONE");
+  // ✅ [추가] 백엔드에서 받은 랜덤 문자열
+  const [authCode, setAuthCode] = useState<string | null>(null);
+  // ✅ [추가] Polling을 중지하기 위한 interval ID
+  const [pollingIntervalId, setPollingIntervalId] = useState<NodeJS.Timeout | null>(null);
   const [verifiedInfo, setVerifiedInfo] = useState<any | null>(null)
   const [verifyError, setVerifyError] = useState<string>("")
 
@@ -113,36 +119,100 @@ export default function StoresPage() {
     fetchStores()
   }, [])
 
-  // 사업자번호 인증
-  const handleVerifyBiz = async () => {
-    if (!verifyForm.bizNo.trim()) {
-      alert("사업자번호를 입력하세요. (‘-’ 없이 10자리)")
-      return
-    }
+  // ✅ 1. 인증 문자열 요청
+  const handleRequestCode = async () => {
+    setVerifying(true);
+    setVerifyError("");
     try {
-      setVerifying(true)
-      setVerifyError("")
+      // 1-1. API 호출
+      const res = await axios.post(`${API_BASE}/api/phone-verify/request`, {
+        phoneNumber: verifyForm.phone,
+      });
+      
+      // 1-2. 문자열 저장 및 UI 변경
+      setAuthCode(res.data.authCode); // "A1B2C3" 저장
+      setVerifyStep("CODE"); // UI를 '문자열 표시' 단계로 변경
+
+      // 1-3. 폴링 시작
+      const intervalId = setInterval(() => {
+        // 3초마다 checkAuthStatus(res.data.authCode) 호출
+        checkAuthStatus(res.data.authCode); 
+      }, 3000);
+      setPollingIntervalId(intervalId);
+
+    } catch (e: any) {
+      setVerifyError(extractErrorMessage(e));
+    } finally {
+      // 1단계 로딩은 여기서 끝나지만, 버튼은 'CODE' 단계이므로 계속 비활성화됨
+      setVerifying(false); 
+    }
+  };
+
+  // ✅ 2. 인증 상태 폴링
+  const checkAuthStatus = async (code: string) => {
+    try {
+      // 2-1. API 호출
+      const res = await axios.get(`${API_BASE}/api/phone-verify/status`, {
+        params: { code: code },
+      });
+      
+      const status = res.data.status;
+
+      // 2-2. 인증 완료!
+      if (status === "VERIFIED") {
+        if (pollingIntervalId) clearInterval(pollingIntervalId); // 폴링 중지
+        setPollingIntervalId(null);
+        setAuthCode(null); // 문자열 숨김
+        setVerifyStep("BIZNO"); // UI를 '사업자번호 입력' 단계로 변경
+      }
+      // (PENDING이면 아무것도 안 함)
+
+    } catch (e: any) {
+      // (EXPIRED 등 예외 처리...)
+      if (pollingIntervalId) clearInterval(pollingIntervalId);
+      setVerifyError("인증이 만료되었거나 실패했습니다.");
+      setVerifyStep("PHONE"); // 처음으로
+    }
+  };
+
+  // ✅ 3. 최종 사업자 인증
+  const handleFinalVerify = async () => {
+    if (!verifyForm.bizNo) {
+      alert("사업자번호를 입력하세요.");
+      return;
+    }
+    setVerifying(true);
+    setVerifyError("");
+    try {
+      // 3-1. API 호출 (phone 필드 포함)
       const res = await axios.post(`${API_BASE}/api/business-number/verify`, {
         bizNo: verifyForm.bizNo,
-        phone: verifyForm.phone || "",
-      })
-      const bn = res.data
-      if (!bn || typeof bn.bizId !== "number") {
-        setVerifyError("인증은 완료됐지만 응답 형식이 예상과 다릅니다.")
-      } else {
-        setAddForm((p) => ({ ...p, bizId: String(bn.bizId) }))
-        setVerifiedInfo(bn)
-        alert("✅ 사업자 인증이 완료되었습니다.")
-        setOpenVerify(false)
-      }
+        phone: verifyForm.phone, // phone이 필수임
+      });
+
+      // 3-2. 성공
+      setVerifiedInfo(res.data);
+      setOpenVerify(false); // 모달 닫기
+      
     } catch (e: any) {
-      const msg = extractErrorMessage(e)
-      setVerifyError(msg)
-      setVerifiedInfo(null)
+      setVerifyError(extractErrorMessage(e));
     } finally {
-      setVerifying(false)
+      setVerifying(false);
     }
-  }
+  };
+
+  // ✅ 모달이 닫힐 때 모든 상태 초기화
+  const handleModalClose = (open: boolean) => {
+    if (!open) {
+      if (pollingIntervalId) clearInterval(pollingIntervalId); // ★★★ 폴링 제거
+      setPollingIntervalId(null);
+      setVerifyStep("PHONE");
+      setAuthCode(null);
+      setVerifyForm({ bizNo: "", phone: "" });
+      setVerifyError("");
+    }
+    setOpenVerify(open);
+  };
 
   // CRUD
   const handleCopyCode = (id: number) => {
@@ -277,65 +347,92 @@ export default function StoresPage() {
 
         <div className="flex items-center gap-2">
           {/* 사업자 인증 다이얼로그 */}
-          <Dialog open={openVerify} onOpenChange={setOpenVerify}>
+          {/* ✅ 수정: onOpenChange에 handleModalClose 연결 */}
+          <Dialog open={openVerify} onOpenChange={handleModalClose}>
             <DialogTrigger asChild>
               <Button variant="outline">사업자 인증</Button>
             </DialogTrigger>
             <DialogContent>
+              {/* ✅ 추가: 접근성을 위한 DialogHeader 및 Title */}
               <DialogHeader>
-                <DialogTitle>사업자 번호 인증</DialogTitle>
+                <DialogTitle>사업자 인증</DialogTitle>
                 <DialogDescription>
-                  국세청 Open API로 진위여부 검증 후 DB에 저장합니다.
+                  본인 확인 및 사업자 정보 인증을 시작합니다.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4 py-2">
+              {/* --- 1. 전화번호 입력 --- */}
+              <div className="space-y-2">
+                <Label htmlFor="verify-phone">전화번호</Label>
+                <Input
+                  id="verify-phone"
+                  value={verifyForm.phone}
+                  onChange={(e) => setVerifyForm((p) => ({ ...p, phone: e.target.value }))}
+                  placeholder="예) 010-1234-5678"
+                  // 'PHONE' 단계가 아니면 수정 불가
+                  disabled={verifyStep !== "PHONE"}
+                />
+              </div>
+
+              {/* --- 2. 인증 문자열 표시 --- */}
+              {verifyStep === "CODE" && authCode && (
+                <div className="p-3 rounded-lg bg-gray-100 text-center">
+                  <p className="text-sm text-gray-600">
+                    csmtask@gmail.com으로 아래 문자열을 전송해주세요.
+                  </p>
+                  <p className="text-lg font-bold text-blue-600 my-2">{authCode}</p>
+                  <p className="text-xs text-gray-500">
+                    (이메일 확인 후 자동으로 다음 단계로 이동합니다)
+                  </p>
+                </div>
+              )}
+
+              {/* --- 3. 사업자 번호 입력 --- */}
+              {verifyStep === "BIZNO" && (
                 <div className="space-y-2">
                   <Label htmlFor="verify-bizNo">사업자번호(‘-’ 없이 10자리)</Label>
                   <Input
                     id="verify-bizNo"
-                    inputMode="numeric"
                     value={verifyForm.bizNo}
                     onChange={(e) =>
-                      setVerifyForm((p) => ({
-                        ...p,
-                        bizNo: e.target.value.replace(/[^0-9]/g, ""),
-                      }))
+                      setVerifyForm((p) => ({ ...p, bizNo: e.target.value.replace(/[^0-9]/g, "") }))
                     }
                     placeholder="예) 1234567890"
                     maxLength={10}
                   />
                 </div>
+              )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="verify-phone">전화번호</Label>
-                  <Input
-                    id="verify-phone"
-                    value={verifyForm.phone}
-                    onChange={(e) =>
-                      setVerifyForm((p) => ({ ...p, phone: e.target.value }))
-                    }
-                    placeholder="예) 010-1234-5678"
-                  />
-                </div>
-
-                <p className="text-xs text-muted-foreground">
-                  ✅ 인증 성공 시 DB에 저장되고, 추가 폼의 사업자 ID가 자동으로 채워집니다.
+              {/* 에러 메시지 표시 */}
+              {verifyError && (
+                <p className="text-sm text-red-600 whitespace-pre-wrap">
+                  {verifyError}
                 </p>
+              )}
 
-                {verifyError && (
-                  <p className="text-sm text-red-600 whitespace-pre-wrap">
-                    {verifyError}
-                  </p>
-                )}
-              </div>
-
+              {/* --- 하단 버튼 --- */}
               <DialogFooter>
-                <Button variant="outline" onClick={() => setOpenVerify(false)}>
-                  닫기
+                {/* ✅ 수정: 닫기 버튼 추가 및 로직 수정 */}
+                <Button
+                  variant="outline"
+                  onClick={() => handleModalClose(false)} // 닫기 버튼
+                  disabled={verifying && verifyStep !== "CODE"} // 'CODE' 단계에선 닫기 허용
+                >
+                  취소
                 </Button>
-                <Button onClick={handleVerifyBiz} disabled={verifying}>
-                  {verifying ? "인증 중..." : "인증 후 저장"}
+                <Button
+                  onClick={
+                    verifyStep === "PHONE" ? handleRequestCode :
+                    verifyStep === "BIZNO" ? handleFinalVerify :
+                    undefined
+                  }
+                  // 'CODE' 단계(인증 대기)이거나 API 통신 중일 때 비활성화
+                  disabled={verifying || verifyStep === "CODE"}
+                >
+                  {verifying ? "처리 중..." :
+                  verifyStep === "PHONE" ? "인증 요청" :
+                  verifyStep === "CODE" ? "인증 대기 중..." :
+                  "최종 인증"}
                 </Button>
               </DialogFooter>
             </DialogContent>
