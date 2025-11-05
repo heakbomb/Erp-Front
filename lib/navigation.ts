@@ -42,5 +42,6 @@ export const adminNavigation = [
   { name: "대시보드", href: "/admin/dashboard", icon: TrendingUp },
   { name: "사용자 관리", href: "/admin/users", icon: Users },
   { name: "사업장 관리", href: "/admin/stores", icon: Store },
+  { name: "구독 관리", href: "/admin/subscriptions", icon: DollarSign },
   { name: "시스템 설정", href: "/admin/settings", icon: Settings },
 ];
