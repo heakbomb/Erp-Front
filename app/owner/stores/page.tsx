@@ -16,7 +16,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Store, MapPin, Phone, Mail, Edit, Trash2, Copy } from "lucide-react"
+import { Store, MapPin, Phone, Edit, Trash2, Copy } from "lucide-react"
+
+const API_BASE = "http://localhost:8080"
+const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID // 환경변수에서 가져옴
 
 type StoreType = {
   storeId: number
@@ -26,9 +29,9 @@ type StoreType = {
   posVendor: string | null
   status: string
   approvedAt?: string | null
+  latitude?: number | null
+  longitude?: number | null
 }
-
-const API_BASE = "http://localhost:8080"
 
 function statusToKorean(status?: string) {
   switch (status) {
@@ -56,12 +59,104 @@ function extractErrorMessage(e: any): string {
   if (data && typeof data === "object") {
     try {
       return JSON.stringify(data)
-    } catch {
-      /* noop */
-    }
+    } catch {}
   }
   if (typeof e?.message === "string") return e.message
   return "유효하지 않은 사업자번호이거나 서버 오류가 발생했습니다."
+}
+
+/* ===========================
+   네이버 지도 스크립트 로더
+   =========================== */
+function useNaverLoader() {
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    // 이미 있는 경우
+    if ((window as any).naver?.maps) {
+      setLoaded(true)
+      return
+    }
+
+    if (!NAVER_CLIENT_ID) {
+      console.warn("⚠️ NEXT_PUBLIC_NAVER_MAP_CLIENT_ID가 설정되지 않았습니다.")
+      return
+    }
+
+    const script = document.createElement("script")
+    // 여기서 인코딩 한 번 해줌
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(NAVER_CLIENT_ID)}`
+    script.async = true
+    script.onload = () => {
+      setLoaded(true)
+    }
+    document.head.appendChild(script)
+  }, [])
+
+  return loaded
+}
+
+
+/* ===========================
+   실제 지도 컴포넌트
+   =========================== */
+function NaverMapPicker({
+  onSelect,
+  mapId = "naver-map-picker",
+  defaultLat = 37.5665,
+  defaultLng = 126.978,
+}: {
+  onSelect: (lat: number, lng: number) => void
+  mapId?: string
+  defaultLat?: number
+  defaultLng?: number
+}) {
+  const loaded = useNaverLoader()
+  const [mapInited, setMapInited] = useState(false)
+
+  useEffect(() => {
+    if (!loaded) return
+    if (mapInited) return
+
+    const el = document.getElementById(mapId)
+    if (!el) return
+
+    const { naver } = window as any
+    const map = new naver.maps.Map(el, {
+      center: new naver.maps.LatLng(defaultLat, defaultLng),
+      zoom: 15,
+    })
+
+    const marker = new naver.maps.Marker({
+      position: new naver.maps.LatLng(defaultLat, defaultLng),
+      map,
+    })
+
+    naver.maps.Event.addListener(map, "click", (e: any) => {
+      const lat = e.coord.lat()
+      const lng = e.coord.lng()
+      marker.setPosition(e.coord)
+      onSelect(lat, lng)
+    })
+
+    setMapInited(true)
+  }, [loaded, mapInited, mapId, onSelect, defaultLat, defaultLng])
+
+  return (
+    <div
+      id={mapId}
+      style={{
+        width: "100%",
+        height: "320px",
+        borderRadius: "0.5rem",
+        background: loaded ? "#eee" : "#f3f4f6",
+      }}
+    >
+      {!loaded && <p className="p-2 text-xs text-muted-foreground">지도를 불러오는 중…</p>}
+    </div>
+  )
 }
 
 export default function StoresPage() {
@@ -75,8 +170,11 @@ export default function StoresPage() {
     storeName: "",
     industry: "",
     posVendor: "",
+    latitude: "",
+    longitude: "",
   })
   const [savingAdd, setSavingAdd] = useState(false)
+  const [openAddMap, setOpenAddMap] = useState(false)
 
   // 수정 모달
   const [openEdit, setOpenEdit] = useState(false)
@@ -86,8 +184,11 @@ export default function StoresPage() {
     storeName: "",
     industry: "",
     posVendor: "",
+    latitude: "",
+    longitude: "",
   })
   const [savingEdit, setSavingEdit] = useState(false)
+  const [openEditMap, setOpenEditMap] = useState(false)
 
   // 사업자 인증
   const [openVerify, setOpenVerify] = useState(false)
@@ -96,6 +197,7 @@ export default function StoresPage() {
   const [verifiedInfo, setVerifiedInfo] = useState<any | null>(null)
   const [verifyError, setVerifyError] = useState<string>("")
 
+  // 목록 불러오기
   const fetchStores = async () => {
     try {
       setLoading(true)
@@ -113,7 +215,7 @@ export default function StoresPage() {
     fetchStores()
   }, [])
 
-  // 사업자번호 인증
+  // 사업자 인증
   const handleVerifyBiz = async () => {
     if (!verifyForm.bizNo.trim()) {
       alert("사업자번호를 입력하세요. (‘-’ 없이 10자리)")
@@ -144,32 +246,29 @@ export default function StoresPage() {
     }
   }
 
-  // CRUD
+  // 사업장 코드 복사
   const handleCopyCode = (id: number) => {
     navigator.clipboard.writeText(String(id))
     alert("사업장 코드가 복사되었습니다!")
   }
 
-  // ✅ 삭제 호출 개선: id 정규화 + query param(force) 사용 + 상세 에러 표시
+  // 삭제
   const handleDelete = async (id: number) => {
     if (!confirm("정말로 삭제하시겠습니까?")) return
     try {
-      // 혹시 문자열로 넘어온 경우 대비(16:1 같은 형태 방지)
       const storeId = Number(String(id).replace(/[^0-9]/g, ""))
       if (!Number.isFinite(storeId)) {
         alert("잘못된 사업장 ID 입니다.")
         return
       }
 
-      // 우선 안전 삭제(자식 있으면 409 메시지 받음)
       try {
         await axios.delete(`${API_BASE}/api/store/${storeId}`, { params: { force: false } })
       } catch (err: any) {
-        // 자식 레코드로 인해 차단되면 안내 후 강제 삭제 선택
         const status = err?.response?.status
         const msg = extractErrorMessage(err)
         if (status === 409) {
-          const goForce = confirm(`${msg}\n\n강제 삭제를 진행할까요? (관련 신청/배정 먼저 정리 후 삭제)`)
+          const goForce = confirm(`${msg}\n\n강제 삭제를 진행할까요?`)
           if (!goForce) return
           await axios.delete(`${API_BASE}/api/store/${storeId}`, { params: { force: true } })
         } else {
@@ -186,6 +285,49 @@ export default function StoresPage() {
     }
   }
 
+  // 추가 모달 - 현재 위치
+  const getCurrentForAdd = () => {
+    if (!navigator.geolocation) {
+      alert("이 브라우저에서는 위치를 사용할 수 없습니다.")
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setAddForm((p) => ({
+          ...p,
+          latitude: pos.coords.latitude.toString(),
+          longitude: pos.coords.longitude.toString(),
+        }))
+      },
+      () => {
+        alert("위치를 가져오지 못했습니다. 직접 입력하거나 지도에서 선택하세요.")
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    )
+  }
+
+  // 수정 모달 - 현재 위치
+  const getCurrentForEdit = () => {
+    if (!navigator.geolocation) {
+      alert("이 브라우저에서는 위치를 사용할 수 없습니다.")
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setEditForm((p) => ({
+          ...p,
+          latitude: pos.coords.latitude.toString(),
+          longitude: pos.coords.longitude.toString(),
+        }))
+      },
+      () => {
+        alert("위치를 가져오지 못했습니다. 직접 입력하거나 지도에서 선택하세요.")
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    )
+  }
+
+  // 추가
   const handleCreate = async () => {
     if (!addForm.bizId.trim() || !addForm.storeName.trim() || !addForm.industry.trim()) {
       alert("사업자 ID, 사업장명, 업종은 필수입니다.")
@@ -198,9 +340,18 @@ export default function StoresPage() {
         storeName: addForm.storeName,
         industry: addForm.industry,
         posVendor: addForm.posVendor || null,
+        latitude: addForm.latitude ? Number(addForm.latitude) : null,
+        longitude: addForm.longitude ? Number(addForm.longitude) : null,
       })
       setOpenAdd(false)
-      setAddForm({ bizId: "", storeName: "", industry: "", posVendor: "" })
+      setAddForm({
+        bizId: "",
+        storeName: "",
+        industry: "",
+        posVendor: "",
+        latitude: "",
+        longitude: "",
+      })
       await fetchStores()
       alert("사업장이 추가되었습니다.")
     } catch (e) {
@@ -211,6 +362,7 @@ export default function StoresPage() {
     }
   }
 
+  // 수정 모달 열기
   const openEditModal = (s: StoreType) => {
     setEditingId(s.storeId)
     setEditForm({
@@ -218,10 +370,13 @@ export default function StoresPage() {
       storeName: s.storeName ?? "",
       industry: s.industry ?? "",
       posVendor: s.posVendor ?? "",
+      latitude: s.latitude != null ? String(s.latitude) : "",
+      longitude: s.longitude != null ? String(s.longitude) : "",
     })
     setOpenEdit(true)
   }
 
+  // 수정 저장
   const handleUpdate = async () => {
     if (!editingId) return
     if (!editForm.bizId.trim() || !editForm.storeName.trim() || !editForm.industry.trim()) {
@@ -235,6 +390,8 @@ export default function StoresPage() {
         storeName: editForm.storeName,
         industry: editForm.industry,
         posVendor: editForm.posVendor || null,
+        latitude: editForm.latitude ? Number(editForm.latitude) : null,
+        longitude: editForm.longitude ? Number(editForm.longitude) : null,
       })
       setOpenEdit(false)
       setEditingId(null)
@@ -260,9 +417,15 @@ export default function StoresPage() {
             <CardDescription>국세청 인증을 통해 확인된 사업자 정보입니다.</CardDescription>
           </CardHeader>
           <CardContent className="text-sm space-y-1">
-            <p><b>사업자번호:</b> {verifiedInfo.bizNo}</p>
-            <p><b>상태:</b> {verifiedInfo.openStatus}</p>
-            <p><b>과세유형:</b> {verifiedInfo.taxType}</p>
+            <p>
+              <b>사업자번호:</b> {verifiedInfo.bizNo}
+            </p>
+            <p>
+              <b>상태:</b> {verifiedInfo.openStatus}
+            </p>
+            <p>
+              <b>과세유형:</b> {verifiedInfo.taxType}
+            </p>
             <p className="text-xs text-muted-foreground">(사업자 ID: {verifiedInfo.bizId})</p>
           </CardContent>
         </Card>
@@ -284,9 +447,7 @@ export default function StoresPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>사업자 번호 인증</DialogTitle>
-                <DialogDescription>
-                  국세청 Open API로 진위여부 검증 후 DB에 저장합니다.
-                </DialogDescription>
+                <DialogDescription>국세청 Open API로 진위여부 검증 후 DB에 저장합니다.</DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4 py-2">
@@ -312,9 +473,7 @@ export default function StoresPage() {
                   <Input
                     id="verify-phone"
                     value={verifyForm.phone}
-                    onChange={(e) =>
-                      setVerifyForm((p) => ({ ...p, phone: e.target.value }))
-                    }
+                    onChange={(e) => setVerifyForm((p) => ({ ...p, phone: e.target.value }))}
                     placeholder="예) 010-1234-5678"
                   />
                 </div>
@@ -323,11 +482,7 @@ export default function StoresPage() {
                   ✅ 인증 성공 시 DB에 저장되고, 추가 폼의 사업자 ID가 자동으로 채워집니다.
                 </p>
 
-                {verifyError && (
-                  <p className="text-sm text-red-600 whitespace-pre-wrap">
-                    {verifyError}
-                  </p>
-                )}
+                {verifyError && <p className="text-sm text-red-600 whitespace-pre-wrap">{verifyError}</p>}
               </div>
 
               <DialogFooter>
@@ -365,9 +520,6 @@ export default function StoresPage() {
                     onChange={(e) => setAddForm((p) => ({ ...p, bizId: e.target.value }))}
                     placeholder="예) 1001"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    사업자 번호를 아직 인증하지 않았다면 <span className="font-medium">오른쪽 상단의 ‘사업자 인증’</span>을 먼저 진행하세요.
-                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -398,6 +550,37 @@ export default function StoresPage() {
                     onChange={(e) => setAddForm((p) => ({ ...p, posVendor: e.target.value }))}
                     placeholder="예) 포스시스템A"
                   />
+                </div>
+
+                {/* 위도/경도 입력 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="add-latitude">위도</Label>
+                    <Input
+                      id="add-latitude"
+                      value={addForm.latitude}
+                      onChange={(e) => setAddForm((p) => ({ ...p, latitude: e.target.value }))}
+                      placeholder="37.5..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="add-longitude">경도</Label>
+                    <Input
+                      id="add-longitude"
+                      value={addForm.longitude}
+                      onChange={(e) => setAddForm((p) => ({ ...p, longitude: e.target.value }))}
+                      placeholder="126.9..."
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={getCurrentForAdd}>
+                    현재 위치 가져오기
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setOpenAddMap(true)}>
+                    지도에서 선택
+                  </Button>
                 </div>
               </div>
 
@@ -452,19 +635,26 @@ export default function StoresPage() {
                   </p>
                 </div>
 
-                {/* 간단 정보 (주소/전화/메일은 아직 없음 → POS만) */}
+                {/* 정보 */}
                 <div className="space-y-3">
+                  {/* POS */}
                   <div className="flex items-start gap-2 text-sm">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <span className="text-muted-foreground">POS {store.posVendor ? store.posVendor : "미등록"}</span>
                   </div>
+
+                  {/* 좌표 표시 */}
+                  <div className="flex items-start gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <span className="text-muted-foreground">
+                      lat: {store.latitude ?? "-"}, lng: {store.longitude ?? "-"}
+                    </span>
+                  </div>
+
+                  {/* 전화 더미 */}
                   <div className="flex items-center gap-2 text-sm opacity-50">
                     <Phone className="h-4 w-4" />
                     <span className="text-muted-foreground">전화번호 필드 없음</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm opacity-50">
-                    <Mail className="h-4 w-4" />
-                    <span className="text-muted-foreground">이메일 필드 없음</span>
                   </div>
                 </div>
 
@@ -538,6 +728,37 @@ export default function StoresPage() {
                 onChange={(e) => setEditForm((p) => ({ ...p, posVendor: e.target.value }))}
               />
             </div>
+
+            {/* 위도/경도 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-latitude">위도</Label>
+                <Input
+                  id="edit-latitude"
+                  value={editForm.latitude}
+                  onChange={(e) => setEditForm((p) => ({ ...p, latitude: e.target.value }))}
+                  placeholder="37.5..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-longitude">경도</Label>
+                <Input
+                  id="edit-longitude"
+                  value={editForm.longitude}
+                  onChange={(e) => setEditForm((p) => ({ ...p, longitude: e.target.value }))}
+                  placeholder="126.9..."
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={getCurrentForEdit}>
+                현재 위치 가져오기
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setOpenEditMap(true)}>
+                지도에서 선택
+              </Button>
+            </div>
           </div>
 
           <DialogFooter>
@@ -546,6 +767,60 @@ export default function StoresPage() {
             </Button>
             <Button onClick={handleUpdate} disabled={savingEdit}>
               {savingEdit ? "저장 중..." : "저장"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ 추가용 지도 다이얼로그 */}
+      <Dialog open={openAddMap} onOpenChange={setOpenAddMap}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>지도에서 위치 선택</DialogTitle>
+            <DialogDescription>지도를 클릭하면 위도/경도가 위 폼에 들어갑니다.</DialogDescription>
+          </DialogHeader>
+          <NaverMapPicker
+            mapId="naver-map-picker-add"
+            onSelect={(lat, lng) => {
+              setAddForm((p) => ({
+                ...p,
+                latitude: lat.toString(),
+                longitude: lng.toString(),
+              }))
+            }}
+            defaultLat={addForm.latitude ? Number(addForm.latitude) : 37.5665}
+            defaultLng={addForm.longitude ? Number(addForm.longitude) : 126.978}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenAddMap(false)}>
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ 수정용 지도 다이얼로그 */}
+      <Dialog open={openEditMap} onOpenChange={setOpenEditMap}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>지도에서 위치 선택</DialogTitle>
+            <DialogDescription>지도를 클릭하면 위도/경도가 수정 폼에 들어갑니다.</DialogDescription>
+          </DialogHeader>
+          <NaverMapPicker
+            mapId="naver-map-picker-edit"
+            onSelect={(lat, lng) => {
+              setEditForm((p) => ({
+                ...p,
+                latitude: lat.toString(),
+                longitude: lng.toString(),
+              }))
+            }}
+            defaultLat={editForm.latitude ? Number(editForm.latitude) : 37.5665}
+            defaultLng={editForm.longitude ? Number(editForm.longitude) : 126.978}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenEditMap(false)}>
+              닫기
             </Button>
           </DialogFooter>
         </DialogContent>

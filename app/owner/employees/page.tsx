@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, MoreVertical } from "lucide-react"
+import { Search, MoreVertical, QrCode } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,6 +78,14 @@ export default function EmployeesPage() {
   const [openDelete, setOpenDelete] = useState(false)
   const [targetToDelete, setTargetToDelete] = useState<Employee | null>(null)
 
+  // ✅ QR 다이얼로그 상태
+  const [openQr, setOpenQr] = useState(false)
+  const [qrStoreId, setQrStoreId] = useState<string>("11") // 테스트용 기본값
+  const [qrToken, setQrToken] = useState<string>("")
+  const [qrLoading, setQrLoading] = useState(false)
+  const [qrExpireAt, setQrExpireAt] = useState<string | null>(null)   // 🔴 추가
+  const [qrRemainingSec, setQrRemainingSec] = useState<number>(0)     // 🔴 추가
+
   // 직원 목록 조회
   const fetchEmployees = async () => {
     try {
@@ -101,10 +109,12 @@ export default function EmployeesPage() {
     }
     try {
       setLoadingPending(true)
-      const res = await axios.get<PendingRequest[]>(`${API_BASE}/api/assignments/pending`, { params: { storeId: target } })
+      const res = await axios.get<PendingRequest[]>(`${API_BASE}/api/assignments/pending`, {
+        params: { storeId: target },
+      })
       setPending(res.data || [])
-    } catch (e) {
-      console.error("신청 대기 목록 불러오기 실패:", e)
+    } catch (e: any) {
+      console.warn("신청 대기 목록 불러오기 실패, 무시:", e?.response?.data || e?.message)
       setPending([])
     } finally {
       setLoadingPending(false)
@@ -186,20 +196,17 @@ export default function EmployeesPage() {
     setTimeout(() => setBanner(null), 2400)
   }
 
-  // ✅ 승인/거절 (낙관적 업데이트 + 롤백)
+  // ✅ 승인/거절
   const approve = async (assignmentId: number) => {
     const target = pending.find((p) => p.assignmentId === assignmentId)
     if (!target) return
-    // 낙관적 제거
     setPending((prev) => prev.filter((p) => p.assignmentId !== assignmentId))
     try {
       await axios.post(`${API_BASE}/api/assignments/${assignmentId}/approve`)
       setRecentApproved((prev) => [{ ...target, status: "APPROVED" }, ...prev].slice(0, 8))
-      // 직원 목록도 갱신(선택)
       fetchEmployees()
       bannerShow({ type: "success", message: `${target.name ?? "직원"} 승인 완료` })
     } catch (e) {
-      // 롤백
       setPending((prev) => [target, ...prev])
       console.error("승인 실패:", e)
       bannerShow({ type: "error", message: "승인 중 오류가 발생했습니다." })
@@ -209,19 +216,83 @@ export default function EmployeesPage() {
   const reject = async (assignmentId: number) => {
     const target = pending.find((p) => p.assignmentId === assignmentId)
     if (!target) return
-    // 낙관적 제거
     setPending((prev) => prev.filter((p) => p.assignmentId !== assignmentId))
     try {
       await axios.post(`${API_BASE}/api/assignments/${assignmentId}/reject`)
       setRecentRejected((prev) => [{ ...target, status: "REJECTED" }, ...prev].slice(0, 8))
       bannerShow({ type: "success", message: `${target.name ?? "직원"} 거절 처리` })
     } catch (e) {
-      // 롤백
       setPending((prev) => [target, ...prev])
       console.error("거절 실패:", e)
       bannerShow({ type: "error", message: "거절 중 오류가 발생했습니다." })
     }
   }
+
+  // ✅ QR 토큰 받아오기 (버튼 누르는 즉시)
+  const fetchStoreQr = async (refresh = false) => {
+    const idNum = Number(qrStoreId)
+    if (!qrStoreId || Number.isNaN(idNum)) {
+      bannerShow({ type: "error", message: "유효한 사업장 ID를 입력하세요." })
+      return
+    }
+    try {
+      setQrLoading(true)
+      // 백엔드: GET /api/store/{id}/qr?refresh=true|false
+      const res = await axios.get(`${API_BASE}/api/store/${idNum}/qr`, {
+        params: { refresh },
+      })
+
+      // 백엔드가 {qrToken, expireAt} 구조로 준다고 가정
+      const data = res.data
+      const token = typeof data === "string" ? data : data?.qrToken
+      setQrToken(token ?? "")
+
+      if (data?.expireAt) {
+        setQrExpireAt(data.expireAt)
+        const diffMs = new Date(data.expireAt).getTime() - Date.now()
+        setQrRemainingSec(Math.max(0, Math.floor(diffMs / 1000)))
+      } else {
+        setQrExpireAt(null)
+        setQrRemainingSec(0)
+      }
+    } catch (e: any) {
+      console.error("QR 불러오기 실패:", e)
+      const msg = e?.response?.data || e?.message || "QR을 불러오지 못했습니다."
+      bannerShow({ type: "error", message: msg })
+      setQrToken("")
+      setQrExpireAt(null)
+      setQrRemainingSec(0)
+    } finally {
+      setQrLoading(false)
+    }
+  }
+
+  // ✅ 다이얼로그 열려있는 동안 5분마다 새로 불러오기 (기존 로직 유지)
+  useEffect(() => {
+    if (!openQr) return
+    if (!qrStoreId) return
+
+    // 열리자마자 한 번
+    fetchStoreQr(false)
+
+    const timer = setInterval(() => {
+      fetchStoreQr(false)
+    }, 5 * 60 * 1000)
+
+    return () => clearInterval(timer)
+  }, [openQr, qrStoreId])
+
+  // ✅ 남은 시간 1초씩 줄이기
+  useEffect(() => {
+    if (!openQr) return
+    if (qrRemainingSec <= 0) return
+
+    const t = setInterval(() => {
+      setQrRemainingSec((prev) => (prev <= 1 ? 0 : prev - 1))
+    }, 1000)
+
+    return () => clearInterval(t)
+  }, [openQr, qrRemainingSec])
 
   const formatDate = (iso?: string) => (iso ? iso.slice(0, 10) : "-")
 
@@ -263,19 +334,25 @@ export default function EmployeesPage() {
         <TabsContent value="employees" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle>직원 목록</CardTitle>
                   <CardDescription>전체 {employees.length}명의 직원이 등록되어 있습니다</CardDescription>
                 </div>
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="직원 검색..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="relative w-64">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="직원 검색..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                  {/* ✅ 사업장 QR 버튼 */}
+                  <Button variant="outline" size="icon" onClick={() => setOpenQr(true)} title="사업장 QR 보기">
+                    <QrCode className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -356,7 +433,9 @@ export default function EmployeesPage() {
                   className="w-40"
                 />
                 <Button onClick={() => fetchPending()}>조회</Button>
-                <Badge variant="secondary" className="ml-2">대기 {pending.length}</Badge>
+                <Badge variant="secondary" className="ml-2">
+                  대기 {pending.length}
+                </Badge>
               </div>
             </CardHeader>
             <CardContent>
@@ -387,7 +466,9 @@ export default function EmployeesPage() {
                           <Badge variant="secondary">{r.status ?? "PENDING"}</Badge>
                         </TableCell>
                         <TableCell className="text-right space-x-2">
-                          <Button size="sm" onClick={() => approve(r.assignmentId)}>승인</Button>
+                          <Button size="sm" onClick={() => approve(r.assignmentId)}>
+                            승인
+                          </Button>
                           <Button size="sm" variant="outline" onClick={() => reject(r.assignmentId)}>
                             거절
                           </Button>
@@ -400,7 +481,6 @@ export default function EmployeesPage() {
             </CardContent>
           </Card>
 
-          {/* ✅ 최근 처리 내역 */}
           {(recentApproved.length > 0 || recentRejected.length > 0) && (
             <div className="grid md:grid-cols-2 gap-4">
               {recentApproved.length > 0 && (
@@ -525,6 +605,67 @@ export default function EmployeesPage() {
             </Button>
             <Button className="bg-red-600 text-white hover:bg-red-700" onClick={confirmDelete}>
               삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ 사업장 QR 다이얼로그 */}
+      <Dialog open={openQr} onOpenChange={setOpenQr}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>사업장 QR</DialogTitle>
+            <DialogDescription>직원 모바일에서 이 QR 문자열을 찍도록 안내하세요.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex gap-2 items-center">
+              <Input
+                className="w-32"
+                value={qrStoreId}
+                onChange={(e) => setQrStoreId(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder="사업장 ID"
+              />
+              <Button size="sm" onClick={() => fetchStoreQr(false)} disabled={qrLoading}>
+                {qrLoading ? "불러오는 중..." : "불러오기"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => fetchStoreQr(true)} disabled={qrLoading}>
+                재발급
+              </Button>
+            </div>
+            {qrToken ? (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">QR 값</Label>
+                <div className="p-2 rounded border bg-muted break-all text-sm">{qrToken}</div>
+
+                {/* 🔴 남은 시간 표시 */}
+                <div className="text-xs">
+                  {qrRemainingSec > 0 ? (
+                    <span className="text-green-600">
+                      남은 시간{" "}
+                      {Math.floor(qrRemainingSec / 60)
+                        .toString()
+                        .padStart(2, "0")}
+                      :
+                      {(qrRemainingSec % 60).toString().padStart(2, "0")}
+                    </span>
+                  ) : (
+                    <span className="text-red-600">만료됨. 재발급 버튼을 눌러 새 QR을 받으세요.</span>
+                  )}
+                </div>
+
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrToken)}`}
+                  alt="QR"
+                  className="mt-2 rounded border"
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">사업장 ID를 입력하고 불러오기를 누르세요.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenQr(false)}>
+              닫기
             </Button>
           </DialogFooter>
         </DialogContent>

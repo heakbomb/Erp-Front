@@ -43,7 +43,7 @@ const navigation = [
   { name: "대시보드", href: "/owner/dashboard", icon: LayoutDashboard },
   { name: "사업장 관리", href: "/owner/stores", icon: Store },
   { name: "직원 관리", href: "/owner/employees", icon: Users },
-  { name: "문서 관리", href: "/owner/documents"},
+  { name: "문서 관리", href: "/owner/documents" },
   { name: "재고 관리", href: "/owner/inventory", icon: Package },
   { name: "메뉴 관리", href: "/owner/menu", icon: FileText },
   { name: "매출 관리", href: "/owner/sales", icon: DollarSign },
@@ -61,29 +61,32 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   const [stores, setStores] = useState<StoreLite[]>([])
   const [activeStoreId, setActiveStoreId] = useState<number | null>(null)
   const activeStoreName = useMemo(
-    () => stores.find(s => s.storeId === activeStoreId)?.storeName ?? "",
-    [stores, activeStoreId]
+    () => stores.find((s) => s.storeId === activeStoreId)?.storeName ?? "",
+    [stores, activeStoreId],
   )
+
+  // ✅ 여기만 새로: 마운트 여부
+  const [mounted, setMounted] = useState(false)
 
   // 처음 진입 시 저장된 선택값 로드 + 목록 조회
   useEffect(() => {
+    setMounted(true) // 👈 브라우저에서만 true
+
     const savedId = Number(localStorage.getItem("activeStoreId"))
     if (!Number.isNaN(savedId)) setActiveStoreId(savedId)
 
-    // 목록 조회
     ;(async () => {
       try {
         const res = await fetch(`${API_BASE}/api/store/by-owner/${MOCK_OWNER_ID}`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data: StoreLite[] = await res.json()
         setStores(data || [])
-        // 저장된 값이 없으면 첫 번째로 세팅
         if ((savedId == null || Number.isNaN(savedId)) && data?.length) {
           setActiveStoreId(data[0].storeId)
           localStorage.setItem("activeStoreId", String(data[0].storeId))
           localStorage.setItem("activeStoreName", data[0].storeName)
         } else if (data?.length) {
-          const found = data.find(s => s.storeId === savedId)
+          const found = data.find((s) => s.storeId === savedId)
           if (found) localStorage.setItem("activeStoreName", found.storeName)
         }
       } catch (e) {
@@ -103,19 +106,16 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   // 링크에 storeId 자동 부착
   const withStore = (href: string) => {
     if (!activeStoreId) return href
-    // 이미 쿼리가 있으면 & 로, 없으면 ? 로 이어붙임
     const hasQuery = href.includes("?")
     return `${href}${hasQuery ? "&" : "?"}storeId=${activeStoreId}`
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed top-0 left-0 z-50 h-full w-64 bg-card border-r border-border transition-transform duration-300 lg:translate-x-0",
@@ -123,9 +123,12 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
           <div className="flex items-center justify-between p-4 border-b border-border">
-            <Link href={withStore("/owner/dashboard")} className="flex items-center gap-2" onClick={() => setSidebarOpen(false)}>
+            <Link
+              href={withStore("/owner/dashboard")}
+              className="flex items-center gap-2"
+              onClick={() => setSidebarOpen(false)}
+            >
               <Store className="h-6 w-6 text-primary" />
               <span className="font-bold text-lg">요식업 ERP</span>
             </Link>
@@ -134,58 +137,67 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             </Button>
           </div>
 
-          {/* User info + 사업장 선택 드롭다운 */}
           <div className="p-4 border-b border-border">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="w-full">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-medium">홍</span>
+            {mounted ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-sm font-medium">홍</span>
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-sm font-medium truncate">홍길동 사장님</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {activeStoreName ? activeStoreName : "사업장 선택"}
+                        </p>
+                      </div>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="text-sm font-medium truncate">홍길동 사장님</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {activeStoreName ? activeStoreName : "사업장 선택"}
-                      </p>
-                    </div>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64" align="start">
-                <DropdownMenuLabel>내 사업장</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {stores.length === 0 && (
-                  <DropdownMenuItem disabled>등록된 사업장이 없습니다</DropdownMenuItem>
-                )}
-                {stores.map((s) => (
-                  <DropdownMenuItem
-                    key={s.storeId}
-                    onClick={() => selectStore(s)}
-                    className={cn(activeStoreId === s.storeId && "font-semibold")}
-                  >
-                    <div className="flex flex-col">
-                      <span className="truncate">{s.storeName}</span>
-                      <span className="text-xs text-muted-foreground">코드: {s.storeId}</span>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-                {stores.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/owner/stores" onClick={() => setSidebarOpen(false)}>
-                        사업장 관리로 이동
-                      </Link>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64" align="start">
+                  <DropdownMenuLabel>내 사업장</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {stores.length === 0 && <DropdownMenuItem disabled>등록된 사업장이 없습니다</DropdownMenuItem>}
+                  {stores.map((s) => (
+                    <DropdownMenuItem
+                      key={s.storeId}
+                      onClick={() => selectStore(s)}
+                      className={cn(activeStoreId === s.storeId && "font-semibold")}
+                    >
+                      <div className="flex flex-col">
+                        <span className="truncate">{s.storeName}</span>
+                        <span className="text-xs text-muted-foreground">코드: {s.storeId}</span>
+                      </div>
                     </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  ))}
+                  {stores.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/owner/stores" onClick={() => setSidebarOpen(false)}>
+                          사업장 관리로 이동
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              // 서버에서 먼저 그릴 때는 단순한 모양만 그려서 id 안 바뀌게
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-sm font-medium">홍</span>
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-medium truncate">홍길동 사장님</p>
+                  <p className="text-xs text-muted-foreground truncate">사업장 선택</p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href
@@ -201,7 +213,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                    !Icon && "pl-[2.75rem]" // 44px
+                    !Icon && "pl-[2.75rem]",
                   )}
                   onClick={() => setSidebarOpen(false)}
                 >
@@ -212,7 +224,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             })}
           </nav>
 
-          {/* Logout */}
           <div className="p-4 border-t border-border">
             <Button variant="ghost" className="w-full justify-start" asChild>
               <Link href="/login">
@@ -224,9 +235,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Main content */}
       <div className="lg:pl-64">
-        {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-background px-4 lg:px-6">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
@@ -240,7 +249,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           </Button>
         </header>
 
-        {/* Page content */}
         <main className="p-4 lg:p-6">{children}</main>
       </div>
     </div>
