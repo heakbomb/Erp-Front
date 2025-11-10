@@ -82,7 +82,7 @@ export default function EmployeesPage() {
   const fetchEmployees = async () => {
     try {
       setLoading(true)
-      const res = await axios.get<Employee[]>(`${API_BASE}/api/employees`)
+      const res = await axios.get<Employee[]>(`${API_BASE}/employees`)
       setEmployees(res.data || [])
     } catch (e) {
       console.error("직원 목록 불러오기 실패:", e)
@@ -101,7 +101,7 @@ export default function EmployeesPage() {
     }
     try {
       setLoadingPending(true)
-      const res = await axios.get<PendingRequest[]>(`${API_BASE}/api/assignments/pending`, { params: { storeId: target } })
+      const res = await axios.get<PendingRequest[]>(`${API_BASE}/assignments/pending`, { params: { storeId: target } })
       setPending(res.data || [])
     } catch (e) {
       console.error("신청 대기 목록 불러오기 실패:", e)
@@ -170,7 +170,7 @@ export default function EmployeesPage() {
   const confirmDelete = async () => {
     if (!targetToDelete) return
     try {
-      await axios.delete(`${API_BASE}/api/employees/${targetToDelete.employeeId}`)
+      await axios.delete(`${API_BASE}/employees/${targetToDelete.employeeId}`)
       setOpenDelete(false)
       await fetchEmployees()
       bannerShow({ type: "success", message: "직원이 삭제되었습니다." })
@@ -193,7 +193,7 @@ export default function EmployeesPage() {
     // 낙관적 제거
     setPending((prev) => prev.filter((p) => p.assignmentId !== assignmentId))
     try {
-      await axios.post(`${API_BASE}/api/assignments/${assignmentId}/approve`)
+      await axios.post(`${API_BASE}/assignments/${assignmentId}/approve`)
       setRecentApproved((prev) => [{ ...target, status: "APPROVED" }, ...prev].slice(0, 8))
       // 직원 목록도 갱신(선택)
       fetchEmployees()
@@ -212,7 +212,7 @@ export default function EmployeesPage() {
     // 낙관적 제거
     setPending((prev) => prev.filter((p) => p.assignmentId !== assignmentId))
     try {
-      await axios.post(`${API_BASE}/api/assignments/${assignmentId}/reject`)
+      await axios.post(`${API_BASE}/assignments/${assignmentId}/reject`)
       setRecentRejected((prev) => [{ ...target, status: "REJECTED" }, ...prev].slice(0, 8))
       bannerShow({ type: "success", message: `${target.name ?? "직원"} 거절 처리` })
     } catch (e) {
