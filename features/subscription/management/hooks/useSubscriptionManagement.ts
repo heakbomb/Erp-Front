@@ -1,27 +1,29 @@
 // features/subscription/management/hooks/useSubscriptionManagement.ts
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
-import { useRouter } from "next/navigation"
-import { Zap, Crown, Sparkles } from "lucide-react"
-import { getCurrentSubscription } from "../subscriptionManagementService"
+import { useQuery } from "@tanstack/react-query"; // ⭐️ [FIX]
+import { useRouter } from "next/navigation"; // ⭐️ [FIX]
+import { Zap, Crown, Sparkles } from "lucide-react"; // ⭐️ [FIX]
+import { getCurrentSubscription } from "../subscriptionManagementService"; // ⭐️ [FIX]
 
-// ⭐️ API 응답 대신 기존 상수 사용 (필요시 API로 대체)
+// ⭐️ 'subId'가 포함된 'plans' 상수를 정의합니다.
 export const plans = [
   {
     id: "basic",
+    subId: 1, // ⭐️ DB ID
     name: "베이직",
     price: 29000,
-    icon: Zap,
+    icon: Zap, // ⭐️
     description: "소규모 사업장에 적합한 기본 플랜",
     features: ["사업장 1개 등록", "직원 5명까지", "기본 재고 관리", "매출/매입 관리", "월간 리포트", "이메일 지원"],
     popular: false,
   },
   {
     id: "pro",
+    subId: 2, // ⭐️ DB ID
     name: "프로",
     price: 59000,
-    icon: Crown,
+    icon: Crown, // ⭐️
     description: "성장하는 사업장을 위한 프로 플랜",
     features: [
       "사업장 3개 등록",
@@ -37,9 +39,10 @@ export const plans = [
   },
   {
     id: "enterprise",
+    subId: 3, // ⭐️ DB ID
     name: "엔터프라이즈",
     price: 99000,
-    icon: Sparkles,
+    icon: Sparkles, // ⭐️
     description: "대규모 사업장을 위한 프리미엄 플랜",
     features: [
       "사업장 무제한",
@@ -56,21 +59,18 @@ export const plans = [
 ]
 
 export function useSubscriptionManagement() {
-  const router = useRouter()
+  const router = useRouter() // ⭐️ [FIX]
 
-  // ⭐️ 1. 현재 구독 상태 조회 (API 연동)
-  const {
-    data: currentPlanData,
-    isLoading: isCurrentPlanLoading,
-    error: currentPlanError
-  } = useQuery({
+  const { 
+    data: currentPlanData, 
+    isLoading: isCurrentPlanLoading, 
+    error: currentPlanError 
+  } = useQuery({ // ⭐️ [FIX]
     queryKey: ["currentSubscription"],
-    queryFn: getCurrentSubscription,
-    // (임시) 훅에서 API 대신 목업 데이터 반환
-    // queryFn: async () => ({ planId: "basic", price: 29000, nextPaymentDate: "2024-05-15" }),
+    queryFn: getCurrentSubscription, // ⭐️ [FIX]
   })
 
-  // ⭐️ 2. 플랜 선택 핸들러 (결제 페이지로 이동)
+  // 플랜 선택 핸들러는 'plan.id' (string)를 사용합니다.
   const handleSelectPlan = (planId: string) => {
     router.push(`/owner/subscription/checkout?plan=${planId}`)
   }

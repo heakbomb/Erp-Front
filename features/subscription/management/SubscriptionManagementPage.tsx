@@ -1,18 +1,17 @@
 // features/subscription/management/SubscriptionManagementPage.tsx
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react" // ⭐️ [FIX]
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card"
 import { Button } from "../../../components/ui/button"
 import { Badge } from "../../../components/ui/badge"
-import { Check, Zap, Crown, Sparkles, Loader2 } from "lucide-react"
+import { Check, Zap, Crown, Sparkles, Loader2 } from "lucide-react" // ⭐️ [FIX]
 import { useSubscriptionManagement } from "./hooks/useSubscriptionManagement"
 
-// ⭐️ 훅에서 plans 상수를 가져오거나, 훅 내부에서 관리
-import { plans } from "./hooks/useSubscriptionManagement"
+// 'plans' 상수는 훅에서 임포트합니다.
+import { plans } from "./hooks/useSubscriptionManagement" 
 
 export default function SubscriptionManagementPage() {
-  // Radix UI SSR 오류 방지
   const [mounted, setMounted] = useState(false);
   React.useEffect(() => { setMounted(true) }, []);
 
@@ -22,26 +21,24 @@ export default function SubscriptionManagementPage() {
     handleSelectPlan,
   } = useSubscriptionManagement()
 
-  // ⭐️ 로딩 및 데이터 상태에 따른 UI 처리
-  const currentPlanId = currentPlanData?.planId ?? "basic" // 예시
-  const currentPlanPrice = currentPlanData?.price ?? 29000 // 예시
-  const nextPaymentDate = currentPlanData?.nextPaymentDate ?? "2024-05-15" // 예시
+  // (이하 로직은 이전과 동일)
+  const currentSubId = currentPlanData?.subId; 
+  const currentPlanName = isCurrentPlanLoading 
+    ? "불러오는 중..." 
+    : (currentPlanData?.subName ?? "플랜 없음");
+  const currentPlanPrice = currentPlanData?.monthlyPrice ?? 0;
+  const nextPaymentDate = currentPlanData?.expiryDate ?? "N/A";
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">구독 플랜</h1>
-        <p className="text-muted-foreground">사업장에 맞는 플랜을 선택하세요</p>
-      </div>
-
-      {/* Current Plan */}
+      {/* ... (Current Plan 카드) ... */}
       <Card className="border-primary">
         <CardHeader>
           <CardTitle>현재 플랜</CardTitle>
           <CardDescription>
-            {isCurrentPlanLoading
-              ? "현재 플랜을 불러오는 중..."
-              : `${plans.find(p => p.id === currentPlanId)?.name ?? ""} 플랜을 사용 중입니다`}
+            {isCurrentPlanLoading 
+              ? "현재 플랜을 불러오는 중..." 
+              : `${currentPlanName} 플랜을 사용 중입니다`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -69,8 +66,8 @@ export default function SubscriptionManagementPage() {
       {/* Available Plans */}
       <div className="grid gap-6 md:grid-cols-3">
         {plans.map((plan) => {
-          const Icon = plan.icon
-          const isCurrentPlan = plan.id === currentPlanId
+          const Icon = plan.icon // ⭐️ Zap, Crown, Sparkles 사용
+          const isCurrentPlan = plan.subId === currentSubId
 
           return (
             <Card key={plan.id} className={plan.popular ? "border-primary shadow-lg" : ""}>
@@ -101,7 +98,6 @@ export default function SubscriptionManagementPage() {
                 </ul>
               </CardContent>
               <CardFooter>
-                {/* ⭐️ mounted 상태 확인 추가 */}
                 {mounted && (
                   isCurrentPlan ? (
                     <Button variant="outline" className="w-full bg-transparent" disabled>
@@ -109,7 +105,7 @@ export default function SubscriptionManagementPage() {
                     </Button>
                   ) : (
                     <Button className="w-full" onClick={() => handleSelectPlan(plan.id)}>
-                      {plan.price > (plans.find((p) => p.id === currentPlanId)?.price ?? 0) ? "업그레이드" : "다운그레이드"}
+                      {plan.price > currentPlanPrice ? "업그레이드" : "다운그레이드"}
                     </Button>
                   )
                 )}

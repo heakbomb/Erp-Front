@@ -1,34 +1,26 @@
 // features/subscription/cancel/subscriptionCancelService.ts
 import { apiClient } from "../../../lib/api/client"
 
-// ⭐️ 구독 취소 요청 DTO
 interface CancelRequest {
   reason: string;
   feedback?: string;
 }
 
-// ⭐️ 구독 취소 응답 DTO (예시)
 interface CancelResponse {
   success: boolean;
   message: string;
-  expiryDate: string; // 취소 후 만료되는 날짜
+  expiryDate: string; // 취소 후 만료되는 날짜 
 }
 
 /**
  * (Owner) 구독 취소 요청
- * POST /owner/subscription/cancel
+ * ⭐️ 1. POST /owner/subscriptions/cancel (경로 수정)
  */
 export const cancelSubscription = async (data: CancelRequest) => {
-  // const res = await apiClient.post<CancelResponse>("/owner/subscription/cancel", data);
-  // return res.data;
+  // ⭐️ 2. API 경로를 복수형으로 수정 (백엔드에 이 엔드포인트가 필요함)
+  const res = await apiClient.post<CancelResponse>("/owner/subscriptions/cancel", data);
+  
+  // (목업 코드 삭제)
 
-  // (임시) 목업 API 시뮬레이션
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  const mockResponse: CancelResponse = {
-    success: true,
-    message: "구독이 정상적으로 취소되었습니다.",
-    expiryDate: "2024-05-15",
-  };
-  return mockResponse;
+  return res.data;
 }
