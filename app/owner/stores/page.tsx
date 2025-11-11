@@ -105,7 +105,7 @@ export default function StoresPage() {
   const fetchStores = async () => {
     try {
       setLoading(true)
-      const res = await axios.get(`${API_BASE}/api/store`)
+      const res = await axios.get(`${API_BASE}/store`)
       setStores(res.data)
     } catch (e) {
       console.error("사업장 목록 불러오기 실패:", e)
@@ -125,7 +125,7 @@ export default function StoresPage() {
     setVerifyError("");
     try {
       // 1-1. API 호출
-      const res = await axios.post(`${API_BASE}/api/phone-verify/request`, {
+      const res = await axios.post(`${API_BASE}/phone-verify/request`, {
         phoneNumber: verifyForm.phone,
       });
       
@@ -152,7 +152,7 @@ export default function StoresPage() {
   const checkAuthStatus = async (code: string) => {
     try {
       // 2-1. API 호출
-      const res = await axios.get(`${API_BASE}/api/phone-verify/status`, {
+      const res = await axios.get(`${API_BASE}/phone-verify/status`, {
         params: { code: code },
       });
       
@@ -300,7 +300,7 @@ export default function StoresPage() {
     }
     try {
       setSavingEdit(true)
-      await axios.put(`${API_BASE}/api/store/${editingId}`, {
+      await axios.put(`${API_BASE}/store/${editingId}`, {
         bizId: Number(editForm.bizId),
         storeName: editForm.storeName,
         industry: editForm.industry,
