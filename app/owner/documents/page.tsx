@@ -27,8 +27,6 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 
-const API_BASE = "http://localhost:8080"
-
 // API 응답 데이터 타입
 interface Document {
   documentId: number
@@ -82,7 +80,7 @@ export default function DocumentManagementPage() {
     setError(null);
     try {
       // API 호출 시 모든 파라미터 전달
-      const response = await axios.get<DocumentPage>(`${API_BASE}/hr/documents/store/${currentStoreId}`, {
+      const response = await axios.get<DocumentPage>(`/api/hr/documents/store/${currentStoreId}`, {
         params: {
           page: currentPage,
           size: pageSize,

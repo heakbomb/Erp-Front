@@ -5,8 +5,9 @@ import axios from "axios"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2, Crosshair, QrCode } from "lucide-react"
+// @ts-expect-error 프로젝트 공용 toast 유틸
 import { toast } from "@/components/ui/use-toast"
-import jsQR from "jsqr" // 
+import jsQR from "jsqr"
 
 // ✅ API 주소 자동 결정
 const resolveApiBase = () => {
@@ -20,7 +21,6 @@ const resolveApiBase = () => {
 }
 const API_BASE = resolveApiBase()
 
-// axios 인스턴스
 const api = axios.create({
   baseURL: API_BASE,
   timeout: 8000,
@@ -28,12 +28,6 @@ const api = axios.create({
 })
 
 type Item = { recordTime: string; recordType: "IN" | "OUT" }
-
-// 
-// ──────────────────────────────────────────────────────────────────
-//   [ 1. ✅ jsqr로 수정된 SimpleQrScanner 컴포넌트 ]
-// ──────────────────────────────────────────────────────────────────
-//
 
 function SimpleQrScanner({
   onDetected,
@@ -43,7 +37,7 @@ function SimpleQrScanner({
   onClose: () => void
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null) // ✅ Canvas 참조 추가
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -53,7 +47,6 @@ function SimpleQrScanner({
 
     const start = async () => {
       try {
-        // 1) 카메라 켜기
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
           audio: false,
@@ -63,7 +56,6 @@ function SimpleQrScanner({
           await videoRef.current.play()
         }
 
-        // 2) jsqr 스캔 루프 시작
         const loop = () => {
           if (stopped) return
           if (!videoRef.current || !canvasRef.current) {
@@ -73,36 +65,25 @@ function SimpleQrScanner({
 
           const video = videoRef.current
           const canvas = canvasRef.current
-          // 비디오가 준비될 때까지 기다림
           if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            // Canvas 크기를 비디오 크기에 맞춤
             canvas.height = video.videoHeight
             canvas.width = video.videoWidth
-            
             const ctx = canvas.getContext("2d")
             if (ctx) {
-              // Canvas에 현재 비디오 프레임을 그림
               ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-              
-              // Canvas에서 이미지 데이터를 가져옴
               const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-              
-              // jsqr로 QR 코드 해독
               const code = jsQR(imageData.data, imageData.width, imageData.height, {
                 inversionAttempts: "dontInvert",
               })
-
               if (code) {
-                // QR 코드 인식 성공!
                 onDetected(code.data)
-                return // 루프 중지
+                return
               }
             }
           }
           raf = requestAnimationFrame(loop)
         }
         raf = requestAnimationFrame(loop)
-
       } catch (e: any) {
         setError(e?.message || "카메라를 열 수 없습니다.")
       }
@@ -127,13 +108,11 @@ function SimpleQrScanner({
         playsInline
         muted
       />
-      {/* ✅ jsqr을 위한 숨겨진 Canvas */}
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {error ? (
         <p className="text-xs text-red-600">{error}</p>
       ) : (
-        // ✅ BarcodeDetector가 필요 없으므로 hasDetector 관련 로직 제거
         <p className="text-xs text-muted-foreground">QR을 화면 가운데에 맞춰주세요.</p>
       )}
       <Button variant="outline" size="sm" onClick={onClose}>
@@ -143,66 +122,48 @@ function SimpleQrScanner({
   )
 }
 
-// 
-// ──────────────────────────────────────────────────────────────────
-//   [ 2. DigitalClock 컴포넌트 (이전과 동일) ]
-// ──────────────────────────────────────────────────────────────────
-//
-
 function DigitalClock() {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
+    const t = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
 
-  const time = useMemo(() => now.toLocaleTimeString("ko-KR", { hour12: false }), [now]);
-  const date = useMemo(() => now.toLocaleDateString("ko-KR"), [now]);
+  const time = useMemo(() => now.toLocaleTimeString("ko-KR", { hour12: false }), [now])
+  const date = useMemo(() => now.toLocaleDateString("ko-KR"), [now])
 
   return (
     <div className="text-center mt-2 select-none">
       <div className="text-4xl font-bold tracking-tight">{time}</div>
       <div className="text-sm text-muted-foreground">{date}</div>
     </div>
-  );
+  )
 }
-
-
-// 
-// ──────────────────────────────────────────────────────────────────
-//   [ 3. MobilePunchPage 컴포넌트 (이전과 동일) ]
-// ──────────────────────────────────────────────────────────────────
-//
 
 export default function MobilePunchPage() {
   const [mounted, setMounted] = useState(false)
   const [canScan, setCanScan] = useState(false)
 
-  // 로그인 붙이기 전 임시값
   const [employeeId] = useState<number>(3)
   const [storeId] = useState<number>(11)
 
-  // QR / 위치
   const [qrCode, setQrCode] = useState("")
   const [showScanner, setShowScanner] = useState(false)
   const [latitude, setLatitude] = useState<number | null>(null)
   const [longitude, setLongitude] = useState<number | null>(null)
   const [gettingLocation, setGettingLocation] = useState(false)
 
-  // 기록 / 배너
   const [recent, setRecent] = useState<Item[]>([])
   const [banner, setBanner] = useState<{ type: "info" | "error" | "success"; msg: string } | null>({
     type: "info",
     msg: "사업장 QR을 스캔하고 위치를 가져온 뒤 출퇴근을 기록하세요.",
   })
 
-  // ───────── 공통 마운트 ─────────
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // 카메라 가능 여부
   useEffect(() => {
     if (!mounted) return
     const ok =
@@ -214,7 +175,6 @@ export default function MobilePunchPage() {
     setCanScan(ok)
   }, [mounted])
 
-  // 최근 기록
   const fetchRecent = useCallback(async () => {
     try {
       const res = await api.get<Item[]>("/api/attendance/recent", {
@@ -233,7 +193,6 @@ export default function MobilePunchPage() {
     fetchRecent()
   }, [mounted, fetchRecent])
 
-  // 위치
   const getLocation = () => {
     if (!navigator.geolocation) {
       setBanner({ type: "error", msg: "이 브라우저에서는 위치를 사용할 수 없습니다." })
@@ -255,11 +214,10 @@ export default function MobilePunchPage() {
     )
   }
 
-  // 출퇴근 기록
   const sendPunch = async (kind: "IN" | "OUT") => {
     if (!qrCode) {
-        setBanner({ type: "error", msg: "QR 코드가 없습니다. 먼저 스캔해주세요." })
-        return
+      setBanner({ type: "error", msg: "QR 코드가 없습니다. 먼저 스캔해주세요." })
+      return
     }
     try {
       await api.post("/api/attendance/punch", {
@@ -285,19 +243,18 @@ export default function MobilePunchPage() {
     }
   }
 
-  // ✅ QR 관련 콜백 함수들 (useCallback으로 보호)
   const handleScanSuccess = useCallback((text: string) => {
     if (!text) return
     setQrCode(text)
     setShowScanner(false)
     setBanner({ type: "success", msg: "QR을 인식했습니다. 출/퇴근 버튼을 눌러주세요." })
-  }, []) 
+  }, [])
 
   const handleCloseScanner = useCallback(() => {
     setShowScanner(false)
   }, [])
 
-  const canPunch = !!qrCode && latitude !== null && longitude !== null;
+  const canPunch = !!qrCode && latitude !== null && longitude !== null
 
   if (!mounted) return null
 
@@ -307,9 +264,7 @@ export default function MobilePunchPage() {
         <div
           className={
             "rounded-md px-3 py-2 text-sm " +
-            (banner.type === "success"
-              ? "bg-green-100 text-green-800"
-              : "bg-blue-100 text-blue-800")
+            (banner.type === "success" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800")
           }
         >
           {banner.msg}
