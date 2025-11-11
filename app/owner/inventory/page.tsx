@@ -6,4 +6,3 @@ export default function InventoryPage() {
   // ⭐️ 2. 실제 UI 컴포넌트를 렌더링합니다.
   return <InventoryPageFeature />;
 }
-
