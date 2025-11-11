@@ -1,98 +1,159 @@
 // features/menu/menuService.ts
+"use client";
 
-// paths updated from:
-// "./client" -> "../../../lib/api/client"
-// "../types/api" -> "../../../lib/types/api"
-// "../types/database" -> "../../../lib/types/database"
+import axios from "axios";
 
-import { apiClient } from "../../lib/api/client";
-import type { PageResponse as ApiPageResponse } from "../../lib/types/api"; 
-import type {
-  MenuItem,
-  RecipeIngredient,
-  Inventory,
-} from "../../lib/types/database";
+export const API_BASE = "http://localhost:8080";
+export const STORE_ID = 11;
 
-/**
- * 메뉴 목록 조회 (페이징)
- */
-export const getMenus = async (params: {
-  storeId: number;
-  q: string;
-  page: number;
+export type ActiveStatus = "ACTIVE" | "INACTIVE";
+export type CostingMethod = "AVERAGE" | "LAST";
+
+export type PageResponse<T> = {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
   size: number;
-  sort?: string;
-}) => {
-  const res = await apiClient.get<ApiPageResponse<MenuItem>>(
-    "/owner/menu",
-    { params }
-  );
-  return res.data;
+  number: number;
 };
 
-// ... (MenuCreateBody 타입 정의)
-type MenuCreateBody = {
+export type MenuItemResponse = {
+  menuId: number;
   storeId: number;
   menuName: string;
   price: number;
+  calculatedCost?: number;
+  status: ActiveStatus;
 };
 
-// ... (createMenu, updateMenu, deleteMenu 함수는 동일)
-// (내부 로직은 변경 없음)
-export const createMenu = async (body: MenuCreateBody) => { 
-  const res = await apiClient.post<MenuItem>("/owner/menu", body);
-  return res.data;
-};
-export const updateMenu = async (menuId: number, body: MenuCreateBody) => { 
-  const res = await apiClient.patch<MenuItem>(`/owner/menu/${menuId}`, body);
-  return res.data;
-};
-export const deleteMenu = async (menuId: number) => { 
-  await apiClient.delete(`/owner/menu/${menuId}`);
-};
-
-
-/**
- * 메뉴의 레시피 목록 조회
- */
-export const getRecipeIngredients = async (menuId: number) => {
-  const res = await apiClient.get<RecipeIngredient[]>(
-    `/owner/menu/${menuId}/recipeIngredients`
-  );
-  return res.data;
-};
-
-// ... (RecipeCreateBody 타입 정의)
-type RecipeCreateBody = {
+export type RecipeIngredientResponse = {
+  recipeId: number;
   menuId: number;
   itemId: number;
   consumptionQty: number;
 };
 
-// ... (addRecipeIngredient, updateRecipeIngredient, deleteRecipeIngredient 함수는 동일)
-// (내부 로직은 변경 없음)
-export const addRecipeIngredient = async (menuId: number, body: RecipeCreateBody) => { 
-  const res = await apiClient.post<RecipeIngredient>(`/owner/menu/${menuId}/recipeIngredients`, body);
-  return res.data;
-};
-export const updateRecipeIngredient = async (recipeId: number, body: { consumptionQty: number }) => { 
-  const res = await apiClient.patch<RecipeIngredient>(`/owner/menu/recipeIngredients/${recipeId}`, body);
-  return res.data;
-};
-export const deleteRecipeIngredient = async (recipeId: number) => { 
-  await apiClient.delete(`/owner/menu/recipeIngredients/${recipeId}`);
+export type InventoryResponse = {
+  itemId: number;
+  storeId: number;
+  itemName: string;
+  itemType: string;
+  stockType: string;
+  stockQty: number;
+  safetyQty: number;
+  status: ActiveStatus;
+  avgUnitCost?: number;
+  lastUnitCost?: number;
 };
 
+// ===== 메뉴 =====
+type MenuListParams = {
+  storeId: number;
+  q?: string;
+  status?: ActiveStatus;
+  page?: number;
+  size?: number;
+  sort?: string;
+};
 
-/**
- * (Helper) 레시피 추가 모달용 재고 목록 조회
- */
-export const getInventoryOptionsForMenu = async (storeId: number) => {
-  const res = await apiClient.get<ApiPageResponse<Inventory>>(
-    "/owner/inventory",
+export async function fetchMenus(params: MenuListParams) {
+  const res = await axios.get<PageResponse<MenuItemResponse>>(
+    `${API_BASE}/owner/menu`,
+    { params }
+  );
+  return res.data;
+}
+
+export async function createMenu(body: {
+  storeId: number;
+  menuName: string;
+  price: number;
+}) {
+  const res = await axios.post<MenuItemResponse>(
+    `${API_BASE}/owner/menu`,
+    body
+  );
+  return res.data;
+}
+
+export async function updateMenu(
+  menuId: number,
+  body: { storeId: number; menuName: string; price: number }
+) {
+  const res = await axios.patch<MenuItemResponse>(
+    `${API_BASE}/owner/menu/${menuId}`,
+    body,
     {
-      params: { storeId, page: 0, size: 1000, sort: "itemName,asc" },
+      params: { storeId: body.storeId },
     }
   );
   return res.data;
-};
+}
+
+export async function deactivateMenu(menuId: number, storeId: number) {
+  await axios.post(
+    `${API_BASE}/owner/menu/${menuId}/deactivate`,
+    null,
+    { params: { storeId } }
+  );
+}
+
+export async function reactivateMenu(menuId: number, storeId: number) {
+  await axios.post(
+    `${API_BASE}/owner/menu/${menuId}/reactivate`,
+    null,
+    { params: { storeId } }
+  );
+}
+
+// ===== 인벤토리(원가 포함) =====
+export async function fetchInventory(storeId: number) {
+  const res = await axios.get<PageResponse<InventoryResponse>>(
+    `${API_BASE}/owner/inventory`,
+    {
+      params: {
+        storeId,
+        page: 0,
+        size: 1000,
+        sort: "itemName,asc",
+      },
+    }
+  );
+  return res.data.content ?? [];
+}
+
+// ===== 레시피 =====
+export async function fetchRecipeIngredients(menuId: number) {
+  const res = await axios.get<RecipeIngredientResponse[]>(
+    `${API_BASE}/owner/menu/${menuId}/recipeIngredients`
+  );
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function addRecipeIngredient(
+  menuId: number,
+  body: { menuId: number; itemId: number; consumptionQty: number }
+) {
+  const res = await axios.post<RecipeIngredientResponse>(
+    `${API_BASE}/owner/menu/${menuId}/recipeIngredients`,
+    body
+  );
+  return res.data;
+}
+
+export async function updateRecipeIngredient(
+  recipeId: number,
+  body: { consumptionQty: number }
+) {
+  const res = await axios.patch<RecipeIngredientResponse>(
+    `${API_BASE}/owner/menu/recipeIngredients/${recipeId}`,
+    body
+  );
+  return res.data;
+}
+
+export async function deleteRecipeIngredient(recipeId: number) {
+  await axios.delete(
+    `${API_BASE}/owner/menu/recipeIngredients/${recipeId}`
+  );
+}

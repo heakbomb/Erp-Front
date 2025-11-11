@@ -4,19 +4,21 @@ import { apiClient } from "../../lib/api/client"; // ⭐️ 경로 수정
 import type { Inventory } from "../../lib/types/database"; // ⭐️ 경로 수정
 import type { PageResponse } from "../../lib/types/api"; // ⭐️ 경로 수정
 
+// ⭐️ 1. 'status' 파라미터 추가
 type InventoryParams = {
   storeId: number;
   q: string;
   page: number;
   size: number;
   sort?: string;
+  status: "ACTIVE" | "INACTIVE"; // ⭐️ '기존 코드'의 로직 추가
 };
 
 /**
  * 재고 목록 조회 (페이징)
  */
 export const getInventory = async (params: InventoryParams) => {
-  // ⭐️ 백엔드 컨트롤러가 "/owner/inventory"를 사용하므로 경로 유지
+  // ⭐️ 'status'가 params에 포함되어 백엔드로 전달됨
   const res = await apiClient.get<PageResponse<Inventory>>(
     "/owner/inventory", 
     { params }
@@ -24,8 +26,6 @@ export const getInventory = async (params: InventoryParams) => {
   return res.data;
 };
 
-// ... (이하 createInventory, updateInventory, deleteInventory 함수들은
-//     경로 수정 없이 그대로 사용합니다.)
 
 type InventoryCreateBody = {
   storeId: number;
@@ -46,6 +46,21 @@ export const updateInventory = async (itemId: number, body: InventoryCreateBody)
   return res.data;
 };
 
-export const deleteInventory = async (itemId: number) => {
-  await apiClient.delete(`/owner/inventory/${itemId}`);
+// ⭐️ 2. 'deleteInventory' 대신 'deactivate/reactivate' 함수로 교체
+/**
+ * 재고 비활성화
+ */
+export const deactivateInventory = async ({ itemId, storeId }: { itemId: number; storeId: number }) => {
+  await apiClient.post(`/owner/inventory/${itemId}/deactivate`, null, {
+    params: { storeId },
+  });
+};
+
+/**
+ * 재고 활성화
+ */
+export const reactivateInventory = async ({ itemId, storeId }: { itemId: number; storeId: number }) => {
+  await apiClient.post(`/owner/inventory/${itemId}/reactivate`, null, {
+    params: { storeId },
+  });
 };
