@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2, Crosshair, QrCode } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
-import jsQR from "jsqr" // ✅ jsqr 라이브러리 임포트
+import jsQR from "jsqr" // 
 
 // ✅ API 주소 자동 결정
 const resolveApiBase = () => {
