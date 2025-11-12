@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import axios from "axios"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -16,36 +15,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Store as StoreIcon } from "lucide-react"
 
-const API_BASE = "http://localhost:8080"
-const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID
+// ✅ hooks/services로 분리
+import useNaverLoader from "@/features/owner/stores/hooks/useNaverLoader"
+import { createStore } from "@/features/owner/stores/services/storesService"
 
-// 네이버 지도 로더
-function useNaverLoader() {
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    if ((window as any).naver?.maps) {
-      setLoaded(true)
-      return
-    }
-    if (!NAVER_CLIENT_ID) {
-      console.warn("NEXT_PUBLIC_NAVER_MAP_CLIENT_ID가 없습니다.")
-      return
-    }
-    const script = document.createElement("script")
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(
-      NAVER_CLIENT_ID
-    )}`
-    script.async = true
-    script.onload = () => setLoaded(true)
-    document.head.appendChild(script)
-  }, [])
-
-  return loaded
-}
-
-// 지도 컴포넌트
+// 지도 컴포넌트 (로더는 훅으로 교체)
 function NaverMapPicker({
   onSelect,
   mapId = "naver-map-picker-add",
@@ -148,7 +122,8 @@ export default function StoresAdd({
     }
     try {
       setSaving(true)
-      await axios.post(`${API_BASE}/api/store`, {
+      // ✅ services 사용 (UI/UX 변화 없음)
+      await createStore({
         bizId: Number(form.bizId),
         storeName: form.storeName,
         industry: form.industry,

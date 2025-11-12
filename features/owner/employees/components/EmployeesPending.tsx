@@ -1,96 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import axios from "axios"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-const API_BASE = "http://localhost:8080"
-
-type PendingRequest = {
-  assignmentId: number
-  employeeId: number
-  storeId: number
-  role?: string
-  status?: string
-  name?: string
-  email?: string
-  phone?: string
-  requestedAt?: string
-}
-
-type Banner = { type: "success" | "error"; message: string } | null
+import useEmployeesPending from "@/features/owner/employees/hooks/useEmployeesPending"
 
 export default function EmployeesPending() {
-  const [pending, setPending] = useState<PendingRequest[]>([])
-  const [loadingPending, setLoadingPending] = useState(false)
-  const [storeIdForPending, setStoreIdForPending] = useState<string>("1")
-
-  const [recentApproved, setRecentApproved] = useState<PendingRequest[]>([])
-  const [recentRejected, setRecentRejected] = useState<PendingRequest[]>([])
-  const [banner, setBanner] = useState<Banner>(null)
-
-  const bannerShow = (b: Banner) => {
-    setBanner(b)
-    setTimeout(() => setBanner(null), 2400)
-  }
-
-  const fetchPending = async (storeId?: number) => {
-    const target = typeof storeId === "number" ? storeId : Number(storeIdForPending)
-    if (Number.isNaN(target)) {
-      setPending([])
-      return
-    }
-    try {
-      setLoadingPending(true)
-      const res = await axios.get<PendingRequest[]>(`${API_BASE}/api/assignments/pending`, {
-        params: { storeId: target },
-      })
-      setPending(res.data || [])
-    } catch (e: any) {
-      console.warn("신청 대기 목록 불러오기 실패, 무시:", e?.response?.data || e?.message)
-      setPending([])
-    } finally {
-      setLoadingPending(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchPending()
-  }, [])
-
-  const approve = async (assignmentId: number) => {
-    const target = pending.find((p) => p.assignmentId === assignmentId)
-    if (!target) return
-    setPending((prev) => prev.filter((p) => p.assignmentId !== assignmentId))
-    try {
-      await axios.post(`${API_BASE}/api/assignments/${assignmentId}/approve`)
-      setRecentApproved((prev) => [{ ...target, status: "APPROVED" }, ...prev].slice(0, 8))
-      bannerShow({ type: "success", message: `${target.name ?? "직원"} 승인 완료` })
-    } catch (e) {
-      setPending((prev) => [target, ...prev])
-      console.error("승인 실패:", e)
-      bannerShow({ type: "error", message: "승인 중 오류가 발생했습니다." })
-    }
-  }
-
-  const reject = async (assignmentId: number) => {
-    const target = pending.find((p) => p.assignmentId === assignmentId)
-    if (!target) return
-    setPending((prev) => prev.filter((p) => p.assignmentId !== assignmentId))
-    try {
-      await axios.post(`${API_BASE}/api/assignments/${assignmentId}/reject`)
-      setRecentRejected((prev) => [{ ...target, status: "REJECTED" }, ...prev].slice(0, 8))
-      bannerShow({ type: "success", message: `${target.name ?? "직원"} 거절 처리` })
-    } catch (e) {
-      setPending((prev) => [target, ...prev])
-      console.error("거절 실패:", e)
-      bannerShow({ type: "error", message: "거절 중 오류가 발생했습니다." })
-    }
-  }
+  const {
+    pending, loadingPending, storeIdForPending,
+    recentApproved, recentRejected, banner,
+    setStoreIdForPending,
+    fetchPending, approve, reject,
+  } = useEmployeesPending()
 
   return (
     <div className="space-y-6">

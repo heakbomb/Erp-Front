@@ -1,7 +1,5 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import axios from "axios"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,121 +22,20 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 
-const API_BASE = "http://localhost:8080"
-
-type Employee = {
-  employeeId: number
-  name: string
-  email: string
-  phone: string
-  provider: string
-  createdAt: string
-}
-
-type Banner = { type: "success" | "error"; message: string } | null
+import useEmployeesAll from "@/features/owner/employees/hooks/useEmployeesAll"
 
 export default function EmployeesAll() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [loading, setLoading] = useState(false)
-
-  const [banner, setBanner] = useState<Banner>(null)
-
-  const [openEdit, setOpenEdit] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "", provider: "" })
-  const [saving, setSaving] = useState(false)
-
-  const [openDelete, setOpenDelete] = useState(false)
-  const [targetToDelete, setTargetToDelete] = useState<Employee | null>(null)
-
-  const fetchEmployees = async () => {
-    try {
-      setLoading(true)
-      const res = await axios.get<Employee[]>(`${API_BASE}/employees`)
-      setEmployees(res.data || [])
-    } catch (e) {
-      console.error("직원 목록 불러오기 실패:", e)
-      alert("직원 목록을 불러오지 못했습니다.")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchEmployees()
-  }, [])
-
-  const filtered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q) return employees
-    return employees.filter(
-      (e) =>
-        e.name.toLowerCase().includes(q) ||
-        e.email.toLowerCase().includes(q) ||
-        e.phone.toLowerCase().includes(q) ||
-        (e.provider || "").toLowerCase().includes(q),
-    )
-  }, [employees, searchQuery])
-
-  const bannerShow = (b: Banner) => {
-    setBanner(b)
-    setTimeout(() => setBanner(null), 2400)
-  }
-
-  const openEditDialog = (emp: Employee) => {
-    setEditingId(emp.employeeId)
-    setEditForm({
-      name: emp.name ?? "",
-      email: emp.email ?? "",
-      phone: emp.phone ?? "",
-      provider: emp.provider ?? "",
-    })
-    setOpenEdit(true)
-  }
-
-  const handleUpdate = async () => {
-    if (!editingId) return
-    if (!editForm.name.trim() || !editForm.email.trim() || !editForm.phone.trim() || !editForm.provider.trim()) {
-      alert("이름/이메일/전화/Provider는 필수입니다.")
-      return
-    }
-    try {
-      setSaving(true)
-      await axios.put(`${API_BASE}/api/employees/${editingId}`, {
-        employeeId: editingId,
-        name: editForm.name,
-        email: editForm.email,
-        phone: editForm.phone,
-        provider: editForm.provider,
-      })
-      setOpenEdit(false)
-      setEditingId(null)
-      await fetchEmployees()
-      bannerShow({ type: "success", message: "직원 정보가 수정되었습니다." })
-    } catch (e: any) {
-      console.error("직원 수정 실패:", e)
-      const msg = e?.response?.data?.message || e?.message || "수정 중 오류가 발생했습니다."
-      bannerShow({ type: "error", message: String(msg) })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const confirmDelete = async () => {
-    if (!targetToDelete) return
-    try {
-      await axios.delete(`${API_BASE}/api/employees/${targetToDelete.employeeId}`)
-      setOpenDelete(false)
-      await fetchEmployees()
-      bannerShow({ type: "success", message: "직원이 삭제되었습니다." })
-    } catch (e) {
-      console.error("직원 삭제 실패:", e)
-      bannerShow({ type: "error", message: "삭제 중 오류가 발생했습니다." })
-    }
-  }
-
-  const formatDate = (iso?: string) => (iso ? iso.slice(0, 10) : "-")
+  const {
+    // state
+    searchQuery, employees, loading, banner,
+    openEdit, editForm, saving, openDelete, targetToDelete,
+    // setters
+    setSearchQuery, setOpenEdit, setEditForm, setOpenDelete, setTargetToDelete,
+    // derived
+    filtered, formatDate,
+    // actions
+    openEditDialog, handleUpdate, confirmDelete,
+  } = useEmployeesAll()
 
   return (
     <div className="space-y-6">
@@ -242,7 +139,7 @@ export default function EmployeesAll() {
         </CardContent>
       </Card>
 
-      {/* 수정 다이얼로그 */}
+      {/* 수정 다이얼로그 (UI 동일) */}
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
         <DialogContent>
           <DialogHeader>
@@ -279,14 +176,14 @@ export default function EmployeesAll() {
             <Button variant="outline" onClick={() => setOpenEdit(false)}>
               취소
             </Button>
-            <Button onClick={handleUpdate} disabled={saving}>
-              {saving ? "저장 중..." : "저장"}
+            <Button onClick={handleUpdate}>
+              저장
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 삭제 확인 다이얼로그 */}
+      {/* 삭제 확인 다이얼로그 (UI 동일) */}
       <Dialog open={openDelete} onOpenChange={setOpenDelete}>
         <DialogContent>
           <DialogHeader>

@@ -1,7 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import axios from "axios"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -15,83 +13,14 @@ import {
 import { Label } from "@/components/ui/label"
 import { QrCode } from "lucide-react"
 
-const API_BASE = "http://localhost:8080"
-
-type Banner = { type: "success" | "error"; message: string } | null
+import useEmployeesQr from "@/features/owner/employees/hooks/useEmployeesQr"
 
 export default function EmployeesQr() {
-  const [banner, setBanner] = useState<Banner>(null)
-
-  const [openQr, setOpenQr] = useState(false)
-  const [qrStoreId, setQrStoreId] = useState<string>("11")
-  const [qrToken, setQrToken] = useState<string>("")
-  const [qrLoading, setQrLoading] = useState(false)
-  const [qrExpireAt, setQrExpireAt] = useState<string | null>(null)
-  const [qrRemainingSec, setQrRemainingSec] = useState<number>(0)
-
-  const bannerShow = (b: Banner) => {
-    setBanner(b)
-    setTimeout(() => setBanner(null), 2400)
-  }
-
-  const fetchStoreQr = async (refresh = false) => {
-    const idNum = Number(qrStoreId)
-    if (!qrStoreId || Number.isNaN(idNum)) {
-      bannerShow({ type: "error", message: "유효한 사업장 ID를 입력하세요." })
-      return
-    }
-    try {
-      setQrLoading(true)
-      const res = await axios.get(`${API_BASE}/api/store/${idNum}/qr`, {
-        params: { refresh },
-      })
-      const data = res.data
-      const token = typeof data === "string" ? data : data?.qrToken
-      setQrToken(token ?? "")
-
-      if (data?.expireAt) {
-        setQrExpireAt(data.expireAt)
-        const diffMs = new Date(data.expireAt).getTime() - Date.now()
-        setQrRemainingSec(Math.max(0, Math.floor(diffMs / 1000)))
-      } else {
-        setQrExpireAt(null)
-        setQrRemainingSec(0)
-      }
-    } catch (e: any) {
-      console.error("QR 불러오기 실패:", e)
-      const msg = e?.response?.data || e?.message || "QR을 불러오지 못했습니다."
-      bannerShow({ type: "error", message: msg })
-      setQrToken("")
-      setQrExpireAt(null)
-      setQrRemainingSec(0)
-    } finally {
-      setQrLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (!openQr) return
-    if (!qrStoreId) return
-
-    fetchStoreQr(false)
-
-    const timer = setInterval(() => {
-      fetchStoreQr(false)
-    }, 5 * 60 * 1000)
-
-    return () => clearInterval(timer)
-  }, [openQr, qrStoreId])
-
-  useEffect(() => {
-    if (!openQr) return
-    if (qrRemainingSec <= 0) return
-
-    const t = setInterval(() => {
-      setQrRemainingSec((prev) => (prev <= 1 ? 0 : prev - 1))
-    }, 1000)
-
-    return () => clearInterval(t)
-  }, [openQr, qrRemainingSec])
+  const {
+    banner, openQr, qrStoreId, qrToken, qrLoading, qrExpireAt, qrRemainingSec,
+    setOpenQr, setQrStoreId,
+    loadQr,
+  } = useEmployeesQr()
 
   return (
     <div className="space-y-4">
@@ -125,10 +54,10 @@ export default function EmployeesQr() {
                 onChange={(e) => setQrStoreId(e.target.value.replace(/[^0-9]/g, ""))}
                 placeholder="사업장 ID"
               />
-              <Button size="sm" onClick={() => fetchStoreQr(false)} disabled={qrLoading}>
+              <Button size="sm" onClick={() => loadQr(false)} disabled={qrLoading}>
                 {qrLoading ? "불러오는 중..." : "불러오기"}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => fetchStoreQr(true)} disabled={qrLoading}>
+              <Button size="sm" variant="outline" onClick={() => loadQr(true)} disabled={qrLoading}>
                 재발급
               </Button>
             </div>

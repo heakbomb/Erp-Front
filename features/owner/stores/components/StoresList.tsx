@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import axios from "axios"
+// axios 직접 호출 → services 사용으로 치환
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,19 +17,9 @@ import {
 } from "@/components/ui/dialog"
 import { Store, MapPin, Phone, Edit, Trash2, Copy } from "lucide-react"
 
-const API_BASE = "http://localhost:8080"
-const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID
-
-type StoreType = {
-  storeId: number
-  bizId?: number
-  storeName: string
-  industry: string
-  posVendor: string | null
-  status: string
-  latitude?: number | null
-  longitude?: number | null
-}
+// ✅ hooks/services로 분리
+import useNaverLoader from "@/features/owner/stores/hooks/useNaverLoader"
+import { fetchStores, updateStore, deleteStore, StoreType } from "@/features/owner/stores/services/storesService"
 
 function statusToKorean(status?: string) {
   switch (status) {
@@ -57,27 +47,7 @@ function extractErrorMessage(e: any): string {
   return "오류가 발생했습니다."
 }
 
-// 네이버 지도 로더
-function useNaverLoader() {
-  const [loaded, setLoaded] = useState(false)
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    if ((window as any).naver?.maps) {
-      setLoaded(true)
-      return
-    }
-    if (!NAVER_CLIENT_ID) return
-    const script = document.createElement("script")
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(
-      NAVER_CLIENT_ID
-    )}`
-    script.async = true
-    script.onload = () => setLoaded(true)
-    document.head.appendChild(script)
-  }, [])
-  return loaded
-}
-
+// 지도 픽커 (로더는 훅으로 교체)
 function NaverMapPicker({
   onSelect,
   mapId,
@@ -153,11 +123,12 @@ export default function StoresList({
   const [savingEdit, setSavingEdit] = useState(false)
   const [openEditMap, setOpenEditMap] = useState(false)
 
-  const fetchStores = async () => {
+  const loadStores = async () => {
     try {
       setLoading(true)
-      const res = await axios.get(`${API_BASE}/api/store`)
-      setStores(res.data)
+      // ✅ services 사용
+      const data = await fetchStores()
+      setStores(data)
     } catch (e) {
       console.error("사업장 목록 불러오기 실패:", e)
     } finally {
@@ -166,7 +137,7 @@ export default function StoresList({
   }
 
   useEffect(() => {
-    fetchStores()
+    loadStores()
   }, [version])
 
   const hasData = useMemo(() => stores && stores.length > 0, [stores])
@@ -179,14 +150,15 @@ export default function StoresList({
   const handleDelete = async (id: number) => {
     if (!confirm("정말로 삭제하시겠습니까?")) return
     try {
-      await axios.delete(`${API_BASE}/api/store/${id}`, { params: { force: false } })
+      // ✅ 안전 삭제(자식 있으면 409)
+      await deleteStore(id, false)
     } catch (err: any) {
       const status = err?.response?.status
       const msg = extractErrorMessage(err)
       if (status === 409) {
         const go = confirm(`${msg}\n\n강제 삭제를 진행할까요?`)
         if (go) {
-          await axios.delete(`${API_BASE}/api/store/${id}`, { params: { force: true } })
+          await deleteStore(id, true)
         } else {
           return
         }
@@ -195,7 +167,7 @@ export default function StoresList({
         return
       }
     }
-    await fetchStores()
+    await loadStores()
     onChangedAction?.()
   }
 
@@ -220,7 +192,8 @@ export default function StoresList({
     }
     try {
       setSavingEdit(true)
-      await axios.put(`${API_BASE}/api/store/${editingId}`, {
+      // ✅ services 사용
+      await updateStore(editingId, {
         bizId: Number(editForm.bizId),
         storeName: editForm.storeName,
         industry: editForm.industry,
@@ -230,7 +203,7 @@ export default function StoresList({
       })
       setOpenEdit(false)
       setEditingId(null)
-      await fetchStores()
+      await loadStores()
       onChangedAction?.()
     } catch (e) {
       console.error("사업장 수정 실패:", e)
