@@ -8,24 +8,29 @@ import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { Badge } from "../../components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table"
-import { Plus, Search, AlertTriangle, Upload, Download, Edit, Trash2, Loader2 } from "lucide-react"
+import { Plus, Search, AlertTriangle, Upload, Download, Edit, Loader2 } from "lucide-react"
 
 // ⭐️ 2. (핵심) 훅 및 신규 컴포넌트 임포트
 import { useInventory } from "./hooks/useInventory";
 import { InventoryModal } from "./components/InventoryModal";
-import type { Inventory as InventoryResponse } from "../../lib/types/database";
+import type { Inventory } from "../../lib/types/database"; // ⭐️ 원본 Inventory 타입 임포트
 
-// ⭐️ 3. (핵심) 페이지네이션 상수 (훅으로 이동 가능)
+// ⭐️ 2-1. (ts-2339 에러 수정) 
+// 백엔드 DTO가 status를 포함하므로, Inventory 타입을 확장하는 로컬 타입을 정의
+type InventoryResponse = Inventory & {
+  status?: "ACTIVE" | "INACTIVE"; // ⭐️ DTO에만 있는 필드로, optional 처리
+};
+
+// ⭐️ 3. (핵심) 페이지네이션 상수
 const PAGE_WINDOW = 10;
 
-// ⭐️ 4. export default function 이름 변경 (기존 MenuPage -> MenuPageFeature)
+// ⭐️ 4. export default function 이름 변경
 export default function InventoryPageFeature() {
   // Radix UI SSR 오류 방지
   const [mounted, setMounted] = useState(false);
   React.useEffect(() => { setMounted(true) }, []);
 
-  // ⭐️ 5. (핵심) 훅 호출!
-  // (기존의 모든 useState, useEffect, fetch... 로직이 이 한 줄로 대체됨)
+  // ⭐️ 5. (핵심) 훅 호출! (반환값 수정됨)
   const {
     inventoryData,
     isInventoryLoading,
@@ -38,6 +43,8 @@ export default function InventoryPageFeature() {
     goToPage,
     searchQuery,
     handleSearch,
+    showInactiveOnly,
+    setShowInactiveOnly,
     isAddModalOpen,
     setIsAddModalOpen,
     isEditModalOpen,
@@ -47,14 +54,16 @@ export default function InventoryPageFeature() {
     openEditModal,
     handleCreate,
     handleUpdate,
-    handleDelete,
+    handleDeactivate,
+    handleReactivate,
     isCreating,
     isUpdating,
-    // isDeleting, // (필요 시 사용)
+    isDeactivating,
+    isReactivating,
   } = useInventory();
 
-  // ⭐️ 6. 훅에서 받아온 데이터 사용
-  const items = inventoryData?.content ?? [];
+  // ⭐️ 6. 훅에서 받아온 데이터 사용 (타입을 InventoryResponse로 단언)
+  const items = (inventoryData?.content ?? []) as InventoryResponse[];
   const totalPages = inventoryData?.totalPages ?? 0;
   const error = inventoryError as Error | null;
 
@@ -72,7 +81,6 @@ export default function InventoryPageFeature() {
         </div>
         {mounted && (
           <div className="flex gap-2">
-            {/* ( ... Excel 버튼들 ... ) */}
             <Button variant="outline" className="bg-transparent">
               <Upload className="mr-2 h-4 w-4" />
               Excel 가져오기
@@ -81,8 +89,6 @@ export default function InventoryPageFeature() {
               <Download className="mr-2 h-4 w-4" />
               Excel 내보내기
             </Button>
-            
-            {/* ⭐️ 8. (핵심) 모달 여는 버튼 (로직이 훅에 있음) */}
             <Button onClick={openAddModal}>
               <Plus className="mr-2 h-4 w-4" />
               재고 추가
@@ -92,13 +98,12 @@ export default function InventoryPageFeature() {
       </div>
 
       {/* ( ... 재고 부족 알림 ... ) */}
-      {/* ⭐️ 9. (핵심) 훅의 상태(lowStockItems) 사용 */}
       {(isLowStockLoading || lowStockItems.length > 0) && (
         <Card className="border-amber-2 00 bg-amber-50 dark:bg-amber-950/20">
           <CardHeader>
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
-              <CardTitle className="text-amber-900 dark:text-amber-100">재고 부족 알림 (전체)</CardTitle>
+              <CardTitle className="text-amber-900 dark:text-amber-100">재고 부족 알림 (활성 재고)</CardTitle>
             </div>
             <CardDescription className="text-amber-700 dark:text-amber-200">
               {isLowStockLoading ? "계산 중…" : `${lowStockItems.length}개 품목이 안전 재고 이하입니다`}
@@ -134,16 +139,26 @@ export default function InventoryPageFeature() {
             <div className="flex items-center gap-2">
               <div className="relative w-64">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                {/* ⭐️ 10. (핵심) 검색 핸들러 연결 (기존 onChange -> onKeyDown Enter) */}
                 <Input
                   placeholder="품목 검색..."
-                  defaultValue={searchQuery} // ⭐️ 제어되지 않는 컴포넌트로 변경 (선택 사항)
+                  defaultValue={searchQuery} 
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleSearch(e.currentTarget.value);
                   }}
                   className="pl-8"
                 />
               </div>
+
+              {/* ⭐️ 11. (핵심) '비활성만 보기' 체크박스 추가 */}
+              <label className="ml-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={showInactiveOnly}
+                  onChange={(e) => { setShowInactiveOnly(e.target.checked); goToPage(0); }}
+                />
+                비활성만 보기
+              </label>
+
               <label className="text-sm text-muted-foreground ml-2">표시 개수</label>
               <select
                 className="h-9 rounded-md border bg-background px-2 text-sm"
@@ -178,35 +193,76 @@ export default function InventoryPageFeature() {
                   {/* ⭐️ 12. (핵심) 훅에서 받아온 items 맵핑 */}
                   {items.map((i) => {
                     const isLow = Number(i.stockQty) < Number(i.safetyQty)
+                    
+                    // ⭐️ (ts-2339 에러 수정) 'i.status'가 optional이므로 ??를 사용하여 기본값 처리
+                    const status = i.status ?? (showInactiveOnly ? "INACTIVE" : "ACTIVE"); 
+
                     return (
-                      <TableRow key={i.itemId}>
+                      <TableRow 
+                        key={i.itemId}
+                        className={status === "INACTIVE" ? "opacity-50" : (isLow ? "bg-red-50/70 dark:bg-red-950/20" : "")}
+                      >
                         <TableCell className="font-medium">{i.itemName}</TableCell>
                         <TableCell>{i.itemType}</TableCell>
-                        <TableCell>{i.stockQty} {i.stockType}</TableCell>
+                        <TableCell>
+                          {i.stockQty} {i.stockType}
+                          {status === "ACTIVE" && isLow && (
+                            <div className="mt-1 flex items-center gap-1 text-xs text-red-600 dark:text-red-300">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              <span>안전재고 미만</span>
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell>{i.safetyQty} {i.stockType}</TableCell>
                         <TableCell>
-                          <Badge variant={isLow ? "destructive" : "default"}>
-                            {isLow ? "부족" : "정상"}
+                          {/* ⭐️ 13. (핵심) Badge 로직 수정 */}
+                          <Badge variant={status === "INACTIVE" ? "secondary" : isLow ? "destructive" : "default"}>
+                            {status === "INACTIVE" ? "비활성" : isLow ? "부족" : "정상"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            {/* ⭐️ 13. (핵심) 훅의 핸들러 연결 */}
-                            <Button variant="ghost" size="icon" onClick={() => openEditModal(i)}>
+                            {/* ⭐️ 13. (핵심) 훅의 핸들러 연결 (deactivate/reactivate) */}
+                            <Button variant="ghost" size="icon" onClick={() => openEditModal(i)} disabled={isDeactivating || isReactivating}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(i.itemId)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            
+                            {/* ⭐️ 14. (핵심) 'delete' 버튼 대신 조건부 버튼 */}
+                            {status === "ACTIVE" ? (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="bg-transparent" 
+                                onClick={() => handleDeactivate(i.itemId)}
+                                disabled={isDeactivating || isReactivating}
+                              >
+                                {isDeactivating ? "처리 중..." : "비활성화"}
+                              </Button>
+                            ) : (
+                              <Button 
+                                variant="default" 
+                                size="sm" 
+                                onClick={() => handleReactivate(i.itemId)}
+                                disabled={isDeactivating || isReactivating}
+                              >
+                                {isReactivating ? "처리 중..." : "비활성 해제"}
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
                     )
                   })}
+                  {!items.length && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                        데이터가 없습니다.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
               {/* ( ... 페이지네이션 ... ) */}
-              {/* ⭐️ 14. (핵심) 훅의 goToPage 핸들러 연결 */}
               <div className="mt-4 flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
                   페이지 {page + 1} / {Math.max(totalPages, 1)} · {pageSize}/페이지
@@ -215,7 +271,6 @@ export default function InventoryPageFeature() {
                   <Button variant="outline" disabled={page === 0} onClick={() => goToPage(0)}>
                     « 처음
                   </Button>
-                  {/* ... (기타 페이지네이션 버튼들) ... */}
                   <Button variant="outline" disabled={page <= 0} onClick={() => goToPage(page - 1)}>
                     ‹ 이전
                   </Button>
@@ -247,8 +302,7 @@ export default function InventoryPageFeature() {
         </CardContent>
       </Card>
 
-      {/* ⭐️ 15. (핵심) 분리된 모달 컴포넌트 렌더링 */}
-      {/* (기존의 긴 Dialog JSX가 이 4줄로 대체됨) */}
+      {/* ⭐️ 15. (핵심) 분리된 모달 컴포넌트 렌더링 (수정 없음) */}
       {mounted && (
         <>
           <InventoryModal
