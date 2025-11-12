@@ -1,11 +1,10 @@
 "use client";
 
-import React from "react"; // 👈 "import type"이 아닌 React를 임포트
 import { AppLayout } from "@/components/common/AppLayout";
-import { ownerNavigation } from "@/lib/navigation";
 import { StoreProvider } from "@/contexts/StoreContext"; // 👈 1. StoreProvider 임포트
-import { useAuth } from "@/contexts/AuthContext"; // 👈 Auth 컨텍스트
-import { Store, ChevronDown } from "lucide-react"; //
+import { ownerNavigation } from "@/lib/navigation";
+import { ChevronDown, Store } from "lucide-react"; //
+import React from "react"; // 👈 "import type"이 아닌 React를 임포트
 
 /**
  * 사장님 레이아웃 전용 사용자 정보 UI
