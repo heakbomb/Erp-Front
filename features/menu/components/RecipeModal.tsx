@@ -1,184 +1,362 @@
 // features/menu/components/RecipeModal.tsx
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-// paths updated from:
-// "@/contexts/StoreContext" -> "../../../../contexts/StoreContext"
-// "@/components/ui/..." -> "../../../../components/ui/..."
-// "@/lib/types/database" -> "../../../../lib/types/database"
-// "@/lib/api/menu.service" -> "../../menuService"
-
-import { useStore } from "../../../contexts/StoreContext";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "../../../components/ui/dialog";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { Plus, Trash2, Loader2 } from "lucide-react";
-import type { MenuItem, Inventory, RecipeIngredient } from "../../../lib/types/database";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Loader2 } from "lucide-react";
+import type {
+  InventoryResponse,
+  MenuItemResponse,
+  RecipeIngredientResponse,
+} from "../menuService";
 import {
-  getRecipeIngredients,
-  getInventoryOptionsForMenu,
   addRecipeIngredient,
   updateRecipeIngredient,
   deleteRecipeIngredient,
-} from "../menuService"; 
+  fetchRecipeIngredients,
+} from "../menuService";
 
-// ... (내부 로직은 변경 없음)
-interface RecipeModalProps {
-  menu: MenuItem | null;
+type RecipeModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
+  menu: MenuItemResponse | null;
+  invOptions: InventoryResponse[];
+  onRecipeUpdated: (
+    menuId: number,
+    list: RecipeIngredientResponse[]
+  ) => void;
+};
 
-export function RecipeModal({ menu, open, onOpenChange }: RecipeModalProps) {
-  const { currentStoreId } = useStore();
-  const queryClient = useQueryClient();
+export function RecipeModal({
+  open,
+  onOpenChange,
+  menu,
+  invOptions,
+  onRecipeUpdated,
+}: RecipeModalProps) {
+  const [recipeLoading, setRecipeLoading] =
+    useState(false);
+  const [recipeError, setRecipeError] =
+    useState<string | null>(null);
+  const [recipeList, setRecipeList] = useState<
+    RecipeIngredientResponse[]
+  >([]);
 
-  const [selectedItemId, setSelectedItemId] = useState<string>("");
-  const [consumptionQty, setConsumptionQty] = useState<number | "">("");
+  const [selectedItemId, setSelectedItemId] =
+    useState<number | "">("");
+  const [consumptionQty, setConsumptionQty] =
+    useState<number | "">("");
 
-  const {
-    data: recipeList = [],
-    isLoading: isRecipeLoading,
-    error: recipeError,
-  } = useQuery({
-    queryKey: ["recipeIngredients", menu?.menuId],
-    queryFn: () => getRecipeIngredients(menu!.menuId),
-    enabled: !!menu && open,
-  });
-
-  const { 
-    data: inventoryOptionsData, 
-    isLoading: isInvLoading 
-  } = useQuery({
-    queryKey: ["inventoryOptions", currentStoreId],
-    queryFn: () => getInventoryOptionsForMenu(currentStoreId!),
-    enabled: !!currentStoreId && open,
-  });
-  const invOptions = inventoryOptionsData?.content ?? [];
-
-  const onMutationSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ["recipeIngredients", menu?.menuId] });
-    queryClient.invalidateQueries({ queryKey: ["menus"] });
+  // 레시피 로드
+  const loadRecipeList = async (menuId: number) => {
+    setRecipeLoading(true);
+    setRecipeError(null);
+    try {
+      const list = await fetchRecipeIngredients(menuId);
+      setRecipeList(list);
+      onRecipeUpdated(menuId, list);
+    } catch (e: any) {
+      console.error(e);
+      const msg =
+        e?.response?.data?.message ??
+        e?.response?.data?.error ??
+        e?.message ??
+        "레시피를 불러오는 중 오류가 발생했습니다.";
+      setRecipeError(msg);
+    } finally {
+      setRecipeLoading(false);
+    }
   };
-  const onMutationError = (error: Error) => alert(error.message);
 
-  const addMutation = useMutation({
-    mutationFn: (body: { menuId: number; itemId: number; consumptionQty: number }) =>
-      addRecipeIngredient(body.menuId, body),
-    onSuccess: () => {
-      onMutationSuccess();
+  useEffect(() => {
+    if (open && menu) {
+      loadRecipeList(menu.menuId);
       setSelectedItemId("");
       setConsumptionQty("");
-    },
-    onError: onMutationError,
-  });
+    }
+  }, [open, menu]);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ recipeId, qty }: { recipeId: number; qty: number }) =>
-      updateRecipeIngredient(recipeId, { consumptionQty: qty }),
-    onSuccess: onMutationSuccess,
-    onError: onMutationError,
-  });
+  // 이미 포함된 재료 제외한 인벤토리 옵션
+  const existingItemIds = useMemo(
+    () => new Set(recipeList.map((r) => r.itemId)),
+    [recipeList]
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteRecipeIngredient,
-    onSuccess: onMutationSuccess,
-    onError: onMutationError,
-  });
+  const availableInvOptions = useMemo(
+    () =>
+      invOptions.filter(
+        (opt) =>
+          opt.status !== "INACTIVE" &&
+          !existingItemIds.has(opt.itemId)
+      ),
+    [invOptions, existingItemIds]
+  );
 
-  const handleAddRecipe = () => {
+  // 비활성 재고 포함 여부
+  const hasInactiveInRecipe = useMemo(() => {
+    const inactiveSet = new Set(
+      invOptions
+        .filter((o) => o.status === "INACTIVE")
+        .map((o) => o.itemId)
+    );
+    return recipeList.some((ri) =>
+      inactiveSet.has(ri.itemId)
+    );
+  }, [invOptions, recipeList]);
+
+  // 재료 추가
+  const [isAdding, setIsAdding] = useState(false);
+
+  const handleAddRecipe = async () => {
     if (!menu) return;
-    const qty = Number(consumptionQty);
-    const itemId = Number(selectedItemId);
-    if (!itemId || isNaN(itemId) || qty <= 0 || isNaN(qty)) {
+    if (
+      selectedItemId === "" ||
+      consumptionQty === "" ||
+      Number(consumptionQty) <= 0
+    ) {
       alert("재료와 수량을 올바르게 입력하세요.");
       return;
     }
-    addMutation.mutate({ menuId: menu.menuId, itemId, consumptionQty: qty });
-  };
-
-  const handleUpdateQty = (recipeId: number, newQty: number) => {
-    if (newQty > 0) {
-      updateMutation.mutate({ recipeId, qty: newQty });
+    try {
+      setIsAdding(true);
+      await addRecipeIngredient(menu.menuId, {
+        menuId: menu.menuId,
+        itemId: Number(selectedItemId),
+        consumptionQty: Number(consumptionQty),
+      });
+      setSelectedItemId("");
+      setConsumptionQty("");
+      await loadRecipeList(menu.menuId);
+    } catch (e: any) {
+      console.error(e);
+      const msg =
+        e?.response?.data?.message ??
+        e?.response?.data?.error ??
+        e?.message ??
+        "레시피 추가 중 오류가 발생했습니다.";
+      alert(msg);
+    } finally {
+      setIsAdding(false);
     }
   };
 
-  const handleDeleteRecipe = (recipeId: number) => {
-    if (confirm("이 재료를 레시피에서 제거할까요?")) {
-      deleteMutation.mutate(recipeId);
+  // 수량 수정
+  const handleUpdateRecipe = async (
+    recipeId: number,
+    newQty: number
+  ) => {
+    if (!menu) return;
+    if (newQty <= 0) return;
+    try {
+      await updateRecipeIngredient(recipeId, {
+        consumptionQty: Number(newQty),
+      });
+      await loadRecipeList(menu.menuId);
+    } catch (e: any) {
+      console.error(e);
+      const msg =
+        e?.response?.data?.message ??
+        e?.response?.data?.error ??
+        e?.message ??
+        "레시피 수정 중 오류가 발생했습니다.";
+      alert(msg);
     }
   };
+
+  // 삭제
+  const handleDeleteRecipe = async (
+    recipeId: number
+  ) => {
+    if (!menu) return;
+    if (
+      !window.confirm(
+        "이 재료를 레시피에서 제거할까요?"
+      )
+    )
+      return;
+    try {
+      await deleteRecipeIngredient(recipeId);
+      await loadRecipeList(menu.menuId);
+    } catch (e: any) {
+      console.error(e);
+      const msg =
+        e?.response?.data?.message ??
+        e?.response?.data?.error ??
+        e?.message ??
+        "삭제 중 오류가 발생했습니다.";
+      alert(msg);
+    }
+  };
+
+  const handleClose = (open: boolean) => {
+    if (!open) {
+      setRecipeList([]);
+      setRecipeError(null);
+      setSelectedItemId("");
+      setConsumptionQty("");
+    }
+    onOpenChange(open);
+  };
+
+  if (!menu) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>레시피 관리</DialogTitle>
           <DialogDescription>
-            {menu ? `${menu.menuName} (ID: ${menu.menuId})` : "메뉴를 선택하세요"}
+            {`${menu.menuName} (ID: ${menu.menuId})`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 max-h-60 overflow-y-auto p-1">
-          {isRecipeLoading && <div className="text-sm text-muted-foreground">레시피 불러오는 중…</div>}
-          {recipeError && <div className="text-sm text-red-500">{(recipeError as Error).message}</div>}
-          {!isRecipeLoading && !recipeError && (
-            recipeList.length === 0 ? (
-              <div className="text-sm text-muted-foreground p-4 text-center">등록된 재료가 없습니다.</div>
-            ) : (
-              recipeList.map((ri: RecipeIngredient) => { 
-                const inv = invOptions.find((o: Inventory) => o.itemId === ri.itemId); 
-                const invName = inv?.itemName ?? `#${ri.itemId}`;
-                const unit = inv?.stockType ?? "";
-                return (
-                  <div key={ri.recipeId} className="flex items-center justify-between rounded-md border p-3 bg-card">
-                    <div>
-                      <div className="font-medium">{invName}</div>
-                      <div className="text-sm text-muted-foreground">소모 수량: {ri.consumptionQty}{unit ? ` ${unit}` : ""}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        className="w-24"
-                        defaultValue={ri.consumptionQty}
-                        onBlur={(e) => {
-                          const v = Number(e.currentTarget.value);
-                          if (!isNaN(v) && v > 0 && v !== ri.consumptionQty) handleUpdateQty(ri.recipeId, v);
-                        }}
-                      />
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteRecipe(ri.recipeId)} disabled={deleteMutation.isPending}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            )
+        {/* 비활성 재고 경고 */}
+        {hasInactiveInRecipe && (
+          <div className="rounded-md border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 p-3 text-sm">
+            비활성 재고가 포함되어 있습니다. 대체 재고로
+            교체해 주세요.
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {recipeLoading && (
+            <div className="text-sm text-muted-foreground">
+              불러오는 중…
+            </div>
+          )}
+          {recipeError && (
+            <div className="text-sm text-red-500">
+              {recipeError}
+            </div>
+          )}
+
+          {!recipeLoading && !recipeError && (
+            <>
+              {recipeList.length === 0 ? (
+                <div className="text-sm text-muted-foreground">
+                  등록된 재료가 없습니다. 아래에서
+                  추가하세요.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recipeList.map((ri) => {
+                    const inv = invOptions.find(
+                      (o) => o.itemId === ri.itemId
+                    );
+                    const invName =
+                      inv?.itemName ?? `#${ri.itemId}`;
+                    const unit =
+                      inv?.stockType ?? "";
+                    const invInactive =
+                      inv?.status === "INACTIVE";
+
+                    return (
+                      <div
+                        key={ri.recipeId}
+                        className="flex items-center justify-between rounded-md border p-3 bg-card"
+                      >
+                        <div>
+                          <div className="font-medium flex items-center gap-2">
+                            {invName}
+                            {invInactive && (
+                              <Badge variant="secondary">
+                                비활성
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            소모 수량:{" "}
+                            {ri.consumptionQty}
+                            {unit ? ` ${unit}` : ""}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            className="w-24"
+                            defaultValue={
+                              ri.consumptionQty
+                            }
+                            onBlur={(e) => {
+                              const v = Number(
+                                e.currentTarget.value
+                              );
+                              if (
+                                !isNaN(v) &&
+                                v > 0 &&
+                                v !==
+                                  ri.consumptionQty
+                              ) {
+                                handleUpdateRecipe(
+                                  ri.recipeId,
+                                  v
+                                );
+                              }
+                            }}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleDeleteRecipe(
+                                ri.recipeId
+                              )
+                            }
+                          >
+                            제거
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
 
+        {/* 재료 추가 폼 */}
         <div className="space-y-3 pt-4 border-t">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>재료 선택</Label>
-              <Select value={selectedItemId} onValueChange={setSelectedItemId} disabled={isInvLoading}>
-                <SelectTrigger>
-                  <SelectValue placeholder={isInvLoading ? "재고 로딩중..." : "-- 재료 선택 --"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {invOptions.map((opt: Inventory) => ( 
-                    <SelectItem key={opt.itemId} value={String(opt.itemId)}>
-                      {opt.itemName} ({opt.stockType})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                className="h-9 rounded-md border bg-background px-2 text-sm w-full"
+                value={selectedItemId}
+                onChange={(e) =>
+                  setSelectedItemId(
+                    e.target.value === ""
+                      ? ""
+                      : Number(e.target.value)
+                  )
+                }
+              >
+                <option value="">
+                  -- 재료 선택 --
+                </option>
+                {availableInvOptions.map((opt) => (
+                  <option
+                    key={opt.itemId}
+                    value={opt.itemId}
+                  >
+                    {opt.itemName} ({opt.stockType})
+                    {" • 재고 "}
+                    {opt.stockQty}
+                    {opt.stockType}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <Label>소모 수량</Label>
@@ -186,20 +364,39 @@ export function RecipeModal({ menu, open, onOpenChange }: RecipeModalProps) {
                 type="number"
                 placeholder="예) 0.035"
                 value={consumptionQty}
-                onChange={(e) => setConsumptionQty(e.target.value === "" ? "" : Number(e.target.value))}
+                onChange={(e) =>
+                  setConsumptionQty(
+                    e.target.value === ""
+                      ? ""
+                      : Number(e.target.value)
+                  )
+                }
               />
             </div>
           </div>
+
           <div className="flex justify-end">
-            <Button onClick={handleAddRecipe} disabled={addMutation.isPending}>
-              {addMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+            <Button
+              onClick={handleAddRecipe}
+              disabled={isAdding}
+            >
+              {isAdding ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-1" />
+              )}
               재료 추가
             </Button>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>닫기</Button>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
+            닫기
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
