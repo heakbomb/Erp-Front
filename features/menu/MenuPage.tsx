@@ -102,28 +102,6 @@ export default function MenuPage() {
               비활성만 보기
             </label>
 
-            {/* 원가 계산 방식 토글 */}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">
-                원가방식
-              </span>
-              <select
-                className="h-9 rounded-md border bg-background px-2 text-sm"
-                value={costingMethod}
-                onChange={(e) =>
-                  setCostingMethod(
-                    e.target.value as any
-                  )
-                }
-                title="평균가(가중평균) 또는 최신매입가 기준 원가"
-              >
-                <option value="AVERAGE">
-                  평균가
-                </option>
-                <option value="LAST">최신가</option>
-              </select>
-            </div>
-
             {/* 메뉴 추가 버튼 */}
             <Button onClick={openAddModal}>
               <Plus className="mr-2 h-4 w-4" />
@@ -251,12 +229,7 @@ export default function MenuPage() {
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">
-                            원가(
-                            {costingMethod ===
-                            "AVERAGE"
-                              ? "평균"
-                              : "최신"}
-                            )
+                            원가
                           </span>
                           <span className="font-medium">
                             ₩

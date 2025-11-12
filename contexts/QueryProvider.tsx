@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 
 // 쿼리 클라이언트를 생성하고 Provider로 children을 감싸는 컴포넌트
 export default function QueryProvider({
