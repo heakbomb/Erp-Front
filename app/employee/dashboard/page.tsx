@@ -62,31 +62,6 @@ export default function EmployeeDashboardPage() {
         </Card>
       </div>
 
-      {/* Attendance Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>출퇴근 관리</CardTitle>
-          <CardDescription>출근 및 퇴근 시간을 기록하세요</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <Button size="lg" className="flex-1">
-              <Clock className="mr-2 h-5 w-5" />
-              출근하기
-            </Button>
-            <Button size="lg" variant="outline" className="flex-1 bg-transparent">
-              <Clock className="mr-2 h-5 w-5" />
-              퇴근하기
-            </Button>
-          </div>
-          <div className="mt-4 p-4 rounded-lg bg-muted">
-            <p className="text-sm text-muted-foreground">
-              <strong>오늘의 근무:</strong> 09:00 출근 - 현재 근무중
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Recent Activity */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
@@ -115,38 +90,7 @@ export default function EmployeeDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>공지사항</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="p-3 rounded-lg border">
-                <div className="flex items-start gap-2">
-                  <FileText className="h-4 w-4 text-primary mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">이번 주 근무 일정 변경</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      4월 22일(월) 근무 시간이 10:00 - 19:00로 변경되었습니다.
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">2024-04-19</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg border">
-                <div className="flex items-start gap-2">
-                  <FileText className="h-4 w-4 text-primary mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">급여 지급 안내</p>
-                    <p className="text-xs text-muted-foreground mt-1">4월 급여는 5월 5일에 지급될 예정입니다.</p>
-                    <p className="text-xs text-muted-foreground mt-1">2024-04-18</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        
       </div>
     </div>
   )
