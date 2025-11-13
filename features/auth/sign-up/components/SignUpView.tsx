@@ -1,35 +1,16 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
 import Link from "next/link"
+import { Store } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Store } from "lucide-react"
 
-export default function RegisterPage() {
-  const [ownerData, setOwnerData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    businessName: "",
-    businessNumber: "",
-    phone: "",
-  })
+import useSignUp from "../hooks/useSignUp"
 
-  const handleOwnerRegister = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (ownerData.password !== ownerData.confirmPassword) {
-      alert("비밀번호가 일치하지 않습니다")
-      return
-    }
-    // TODO: Implement owner registration logic
-    console.log("Owner registration:", ownerData)
-  }
+export default function SignUpView() {
+  const { form, updateField, submit, loading, error, successMessage } = useSignUp()
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 py-12">
@@ -47,90 +28,105 @@ export default function RegisterPage() {
             </div>
             <CardDescription>사업장을 등록하고 관리를 시작하세요</CardDescription>
           </CardHeader>
+
           <CardContent>
-            <form onSubmit={handleOwnerRegister} className="space-y-4">
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            {successMessage && <p className="text-sm text-green-600">{successMessage}</p>}
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                submit()
+              }}
+              className="space-y-4"
+            >
+              {/* 이름 */}
               <div className="space-y-2">
                 <Label htmlFor="owner-name">이름</Label>
                 <Input
                   id="owner-name"
-                  type="text"
-                  placeholder="홍길동"
-                  value={ownerData.name}
-                  onChange={(e) => setOwnerData({ ...ownerData, name: e.target.value })}
+                  value={form.name}
+                  onChange={(e) => updateField("name", e.target.value)}
                   required
                 />
               </div>
+
+              {/* 이메일 */}
               <div className="space-y-2">
                 <Label htmlFor="owner-email">이메일</Label>
                 <Input
                   id="owner-email"
                   type="email"
-                  placeholder="example@email.com"
-                  value={ownerData.email}
-                  onChange={(e) => setOwnerData({ ...ownerData, email: e.target.value })}
+                  value={form.email}
+                  onChange={(e) => updateField("email", e.target.value)}
                   required
                 />
               </div>
+
+              {/* 전화번호 */}
               <div className="space-y-2">
                 <Label htmlFor="owner-phone">전화번호</Label>
                 <Input
                   id="owner-phone"
                   type="tel"
-                  placeholder="010-1234-5678"
-                  value={ownerData.phone}
-                  onChange={(e) => setOwnerData({ ...ownerData, phone: e.target.value })}
+                  value={form.phone}
+                  onChange={(e) => updateField("phone", e.target.value)}
                   required
                 />
               </div>
+
+              {/* 사업장명 */}
               <div className="space-y-2">
                 <Label htmlFor="business-name">사업장명</Label>
                 <Input
                   id="business-name"
-                  type="text"
-                  placeholder="홍길동 식당"
-                  value={ownerData.businessName}
-                  onChange={(e) => setOwnerData({ ...ownerData, businessName: e.target.value })}
+                  value={form.businessName}
+                  onChange={(e) => updateField("businessName", e.target.value)}
                   required
                 />
               </div>
+
+              {/* 사업자번호 */}
               <div className="space-y-2">
                 <Label htmlFor="business-number">사업자등록번호</Label>
                 <Input
                   id="business-number"
-                  type="text"
-                  placeholder="123-45-67890"
-                  value={ownerData.businessNumber}
-                  onChange={(e) => setOwnerData({ ...ownerData, businessNumber: e.target.value })}
+                  value={form.businessNumber}
+                  onChange={(e) => updateField("businessNumber", e.target.value)}
                   required
                 />
               </div>
+
+              {/* 비밀번호 */}
               <div className="space-y-2">
                 <Label htmlFor="owner-password">비밀번호</Label>
                 <Input
                   id="owner-password"
                   type="password"
-                  placeholder="••••••••"
-                  value={ownerData.password}
-                  onChange={(e) => setOwnerData({ ...ownerData, password: e.target.value })}
+                  value={form.password}
+                  onChange={(e) => updateField("password", e.target.value)}
                   required
                 />
               </div>
+
+              {/* 비밀번호 확인 */}
               <div className="space-y-2">
                 <Label htmlFor="owner-confirm-password">비밀번호 확인</Label>
                 <Input
                   id="owner-confirm-password"
                   type="password"
-                  placeholder="••••••••"
-                  value={ownerData.confirmPassword}
-                  onChange={(e) => setOwnerData({ ...ownerData, confirmPassword: e.target.value })}
+                  value={form.confirmPassword}
+                  onChange={(e) => updateField("confirmPassword", e.target.value)}
                   required
                 />
               </div>
-              <Button type="submit" className="w-full">
-                회원가입
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "회원가입 중..." : "회원가입"}
               </Button>
             </form>
           </CardContent>
+
           <CardFooter className="flex flex-col gap-2">
             <div className="text-sm text-muted-foreground w-full text-center">
               이미 계정이 있으신가요?{" "}
