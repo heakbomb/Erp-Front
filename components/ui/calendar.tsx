@@ -190,7 +190,8 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString()}
+      // ✅✅✅ FIX: 'ko-KR' 로케일을 명시하여 날짜 형식을 통일합니다.
+      data-day={day.date.toLocaleDateString('ko-KR')}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

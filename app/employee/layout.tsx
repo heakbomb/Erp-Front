@@ -3,7 +3,7 @@
 import { AppLayout } from "@/components/common/AppLayout"; // 👈 공용 레이아웃
 import { employeeNavigation } from "@/lib/navigation"; // 👈 공용 네비게이션
 import { ChevronDown, Clock } from "lucide-react"; //
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react" // 👈 1. useEffect 임포트
 // (DropdownMenu 등 필요한 shadcn 컴포넌트 임포트)
 //
 import {
@@ -20,6 +20,10 @@ import {
  * (app/employee/layout.tsx의 DropdownMenu 로직 포함)
  */
 function EmployeeInfo() {
+  // 👈 2. "mounted" 상태 추가
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true) }, []);
+
   // const { user } = useAuth();
   // 임시 유저/사업장 정보
   const user = { name: "김직원" };
@@ -28,6 +32,23 @@ function EmployeeInfo() {
     { id: 2, name: "카페 모카", role: "바리스타" },
   ];
   const [currentWorkplace, setCurrentWorkplace] = React.useState(mockWorkplaces[0]);
+
+  // 👈 3. mounted가 true일 때만 DropdownMenu 렌더링
+  if (!mounted) {
+    // 서버 렌더링 시 또는 하이드레이션 전에는 ID가 없는 플레이스홀더를 보여줌
+    return (
+      <div className="w-full flex items-center gap-3 rounded-lg p-2">
+        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+          <span className="text-sm font-medium">{user.name.charAt(0)}</span>
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-sm font-medium truncate">{user.name}</p>
+          <p className="text-xs text-muted-foreground truncate">{currentWorkplace.name}</p>
+        </div>
+        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <DropdownMenu>

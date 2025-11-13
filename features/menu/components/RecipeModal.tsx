@@ -20,6 +20,7 @@ import type {
   MenuItemResponse,
   RecipeIngredientResponse,
 } from "../menuService";
+// ⭐️ 서비스 함수는 훅이 아닌 모달이 직접 호출
 import {
   addRecipeIngredient,
   updateRecipeIngredient,
@@ -32,6 +33,7 @@ type RecipeModalProps = {
   onOpenChange: (open: boolean) => void;
   menu: MenuItemResponse | null;
   invOptions: InventoryResponse[];
+  // ⭐️ 부모(useMenu)의 recipeMap을 업데이트하기 위한 콜백
   onRecipeUpdated: (
     menuId: number,
     list: RecipeIngredientResponse[]
@@ -65,6 +67,7 @@ export function RecipeModal({
     try {
       const list = await fetchRecipeIngredients(menuId);
       setRecipeList(list);
+      // ⭐️ 부모(useMenu)의 상태(recipeMap)를 업데이트하여 원가 계산을 다시 실행
       onRecipeUpdated(menuId, list);
     } catch (e: any) {
       console.error(e);
@@ -137,7 +140,7 @@ export function RecipeModal({
       });
       setSelectedItemId("");
       setConsumptionQty("");
-      await loadRecipeList(menu.menuId);
+      await loadRecipeList(menu.menuId); // ⭐️ 목록 새로고침 (onRecipeUpdated 호출 포함)
     } catch (e: any) {
       console.error(e);
       const msg =
@@ -162,7 +165,7 @@ export function RecipeModal({
       await updateRecipeIngredient(recipeId, {
         consumptionQty: Number(newQty),
       });
-      await loadRecipeList(menu.menuId);
+      await loadRecipeList(menu.menuId); // ⭐️ 목록 새로고침
     } catch (e: any) {
       console.error(e);
       const msg =
@@ -187,7 +190,7 @@ export function RecipeModal({
       return;
     try {
       await deleteRecipeIngredient(recipeId);
-      await loadRecipeList(menu.menuId);
+      await loadRecipeList(menu.menuId); // ⭐️ 목록 새로고침
     } catch (e: any) {
       console.error(e);
       const msg =
