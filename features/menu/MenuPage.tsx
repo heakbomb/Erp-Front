@@ -25,6 +25,7 @@ export default function MenuPage() {
     setMounted(true);
   }, []);
 
+  // ⭐️ 1. 모든 로직을 훅에서 가져옵니다.
   const {
     items,
     loading,
@@ -305,7 +306,7 @@ export default function MenuPage() {
         </CardContent>
       </Card>
 
-      {/* 모달들 */}
+      {/* ⭐️ 2. 모달들은 별도 컴포넌트로 분리하여 렌더링합니다. */}
       {mounted && (
         <>
           <MenuModal

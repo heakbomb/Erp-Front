@@ -7,7 +7,7 @@ import type { Store, BusinessNumber } from "../types/database"; // ⬅️ 경로
  */
 export const getMyStores = async () => {
   // ⬇️ [수정] "/api/store" -> "/store"
-  const res = await apiClient.get<Store[]>("/store");
+  const res = await apiClient.get<Store[]>("/stores");
   return res.data;
 };
 
@@ -21,7 +21,7 @@ type StoreCreateBody = {
  */
 export const createStore = async (body: StoreCreateBody) => {
   // ⬇️ [수정] "/api/store" -> "/store"
-  const res = await apiClient.post<Store>("/store", body);
+  const res = await apiClient.post<Store>("/stores", body);
   return res.data;
 };
 
@@ -31,7 +31,7 @@ export const createStore = async (body: StoreCreateBody) => {
  */
 export const updateStore = async (storeId: number, body: StoreCreateBody) => {
   // ⬇️ [수정]
-  const res = await apiClient.put<Store>(`/store/${storeId}`, body);
+  const res = await apiClient.put<Store>(`/stores/${storeId}`, body);
   return res.data;
 };
 
@@ -41,7 +41,7 @@ export const updateStore = async (storeId: number, body: StoreCreateBody) => {
  */
 export const deleteStore = async (storeId: number, force: boolean = false) => {
   // ⬇️ [수정]
-  await apiClient.delete(`/store/${storeId}`, { params: { force } });
+  await apiClient.delete(`/stores/${storeId}`, { params: { force } });
 };
 
 /**
@@ -50,7 +50,7 @@ export const deleteStore = async (storeId: number, force: boolean = false) => {
  */
 export const getStoreById = async (storeId: number) => {
   // ⬇️ [수정]
-  const res = await apiClient.get<Store>(`/store/${storeId}`);
+  const res = await apiClient.get<Store>(`/stores/${storeId}`);
   return res.data;
 };
 

@@ -7,17 +7,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "../../../components/ui/dialog"; // ⭐️ 경로 수정
+} from "@/components/ui/dialog";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "../../../components/ui/form"; // ⭐️ 경로 수정
-import { Button } from "../../../components/ui/button"; // ⭐️ 경로 수정
-import { Input } from "../../../components/ui/input"; // ⭐️ 경로 수정
-import { Label } from "../../../components/ui/label"; // ⭐️ 경로 수정
-import type { InventoryFormValues } from "../hooks/useInventory"; // ⭐️ 훅에서 타입 임포트
-import type { Inventory } from "../../../lib/types/database"; // ⭐️ 경로 수정
+} from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2 } from "lucide-react";
+import type { InventoryFormValues } from "../hooks/useInventory";
+import type { Inventory } from "../../../lib/types/database";
 
-// ⭐️ 1. Zod 스키마 정의 (기존 수동 유효성 검사 대체)
+// 1. Zod 스키마 정의 (유효성 검사)
 const inventorySchema = z.object({
   itemName: z.string().min(1, "품목명은 필수입니다."),
   itemType: z.string().min(1, "품목 타입은 필수입니다."),
@@ -32,7 +32,7 @@ const inventorySchema = z.object({
   ),
 });
 
-// ⭐️ 2. Props 정의 (MenuModal과 유사)
+// 2. Props 정의
 interface InventoryModalProps {
   mode: "add" | "edit";
   open: boolean;
@@ -51,7 +51,7 @@ export function InventoryModal({
   defaultValues,
 }: InventoryModalProps) {
   
-  // ⭐️ 3. react-hook-form 설정 (기존 fItemName 등 useState 대체)
+  // 3. react-hook-form 설정 (기존 useState 폼 대체)
   const form = useForm<InventoryFormValues>({
     resolver: zodResolver(inventorySchema),
     defaultValues: {
@@ -63,7 +63,7 @@ export function InventoryModal({
     },
   });
 
-  // ⭐️ 4. 모달이 열리거나 defaultValues가 바뀔 때 폼 리셋
+  // 4. 모달이 열리거나 defaultValues가 바뀔 때 폼 리셋
   useEffect(() => {
     if (open) {
       if (mode === "edit" && defaultValues) {
@@ -88,7 +88,7 @@ export function InventoryModal({
 
   const title = mode === "add" ? "재고 추가" : "재고 수정";
 
-  // ⭐️ 5. Form 컴포넌트 렌더링
+  // 5. Form 컴포넌트 렌더링
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -98,6 +98,7 @@ export function InventoryModal({
         </DialogHeader>
         
         <Form {...form}>
+          {/* ⭐️ handleSubmit(onSubmit)으로 래핑 */}
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
             {/* FormField: itemName */}
             <FormField
@@ -146,7 +147,7 @@ export function InventoryModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>현재 재고</FormLabel>
-                    <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
+                    <FormControl><Input type="number" step="0.001" placeholder="0" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -157,7 +158,7 @@ export function InventoryModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>안전 재고</FormLabel>
-                    <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
+                    <FormControl><Input type="number" step="0.001" placeholder="0" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -169,6 +170,7 @@ export function InventoryModal({
                 취소
               </Button>
               <Button type="submit" disabled={isPending}>
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isPending ? "저장 중..." : (mode === "add" ? "추가" : "저장")}
               </Button>
             </DialogFooter>

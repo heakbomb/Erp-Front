@@ -1,7 +1,7 @@
 // features/inventory/hooks/useInventory.ts
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "../../../contexts/StoreContext"; 
 import {
@@ -12,7 +12,9 @@ import {
   reactivateInventory,
 } from "../inventoryService"; 
 import type { Inventory } from "../../../lib/types/database"; 
+import { DEFAULT_PAGE_SIZE } from "../../../lib/constants"; // ⭐️
 
+// react-hook-form에서 사용할 폼 타입
 export type InventoryFormValues = {
   itemName: string;
   itemType: string;
@@ -25,41 +27,41 @@ export function useInventory() {
   const { currentStoreId } = useStore();
   const queryClient = useQueryClient();
 
+  // 1. 목록 필터링 상태 (페이지, 검색, 탭)
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchQuery, setSearchQuery] = useState("");
-  const sort = "itemName,asc";
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState(""); // ⭐️ API 호출용
   const [showInactiveOnly, setShowInactiveOnly] = useState(false);
-
+  const sort = "itemName,asc";
+  
+  // 2. 모달 상태
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Inventory | null>(null);
 
-  // ⭐️ 1. (ts-2345 에러 수정) status 타입을 명확히 추론하도록 변수 분리
+  // 3. API 요청 파라미터
   const currentStatus: "ACTIVE" | "INACTIVE" = showInactiveOnly ? "INACTIVE" : "ACTIVE";
-
-  // ⭐️ 3. API 요청 파라미터 (status 추가)
   const queryParams = {
     storeId: currentStoreId!,
     q: searchQuery,
     page,
     size: pageSize,
     sort,
-    status: currentStatus, // ⭐️ 'string'이 아닌 'ACTIVE'|'INACTIVE' 타입으로 추론됨
+    status: currentStatus,
   };
 
-  // ⭐️ 4. (핵심) 재고 목록 조회: useQuery
+  // 4. (Query) 재고 목록 조회
   const {
     data: inventoryData,
     isLoading: isInventoryLoading,
     error: inventoryError,
   } = useQuery({
-    queryKey: ["inventory", queryParams], 
+    queryKey: ["inventory", queryParams], // ⭐️ queryParams 객체를 키로 사용
     queryFn: () => getInventory(queryParams),
     enabled: !!currentStoreId, 
   });
 
-  // ⭐️ 5. (핵심) 재고 부족 목록 조회
+  // 5. (Query) 재고 부족 목록 조회
   const {
     data: lowStockItems,
     isLoading: isLowStockLoading,
@@ -69,28 +71,31 @@ export function useInventory() {
       const res = await getInventory({
         storeId: currentStoreId!,
         page: 0,
-        size: 1000, 
+        size: 1000, // ⭐️ 안전 재고 계산을 위해 '활성' 재고 전체 조회
         sort: "itemName,asc",
         q: "",
         status: "ACTIVE", // ⭐️ '활성' 재고만 필터링
       });
-      const all = res.content ?? [];
-      return all.filter((i) => Number(i.stockQty) < Number(i.safetyQty));
+      const allActiveItems = res.content ?? [];
+      // ⭐️ JS에서 필터링
+      return allActiveItems.filter((i) => Number(i.stockQty) < Number(i.safetyQty));
     },
     enabled: !!currentStoreId,
   });
 
-  // ⭐️ 6. (핵심) 재고 생성 (동일)
+  // 6. (Mutation) 재고 생성
   const createMutation = useMutation({
     mutationFn: createInventory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] }); 
+      queryClient.invalidateQueries({ queryKey: ["inventory", currentStoreId, "lowStock"] }); // ⭐️ 재고 부족 목록도 갱신
       setIsAddModalOpen(false); 
+      setPage(0); // ⭐️ 생성 후 1페이지로
     },
-    onError: (error) => alert(error.message), 
+    onError: (error: Error) => alert(`생성 실패: ${error.message}`), 
   });
 
-  // ⭐️ 7. (핵심) 재고 수정 (동일)
+  // 7. (Mutation) 재고 수정
   const updateMutation = useMutation({
     mutationFn: ({ itemId, body }: { itemId: number; body: InventoryFormValues }) =>
       updateInventory(itemId, { 
@@ -101,35 +106,33 @@ export function useInventory() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory", currentStoreId, "lowStock"] }); // ⭐️ 재고 부족 목록도 갱신
       setIsEditModalOpen(false);
       setEditingItem(null);
     },
-    onError: (error) => alert(error.message),
+    onError: (error: Error) => alert(`수정 실패: ${error.message}`),
   });
 
-  // ⭐️ 8. (핵심) 'deleteMutation'을 'deactivate/reactivate'로 대체
+  // 8. (Mutation) 비활성화 / 활성화
   const deactivateMutation = useMutation({
     mutationFn: deactivateInventory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory", currentStoreId, "lowStock"] });
     },
-    onError: (error) => alert(error.message),
+    onError: (error: Error) => alert(error.message),
   });
 
   const reactivateMutation = useMutation({
     mutationFn: reactivateInventory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory", currentStoreId, "lowStock"] });
     },
-    onError: (error) => alert(error.message),
+    onError: (error: Error) => alert(error.message),
   });
 
-  // ⭐️ 9. 이벤트 핸들러 (Page 컴포넌트에 전달될 함수들)
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    setPage(0); // ⭐️ 검색 시 1페이지로
-  };
-
+  // 9. 이벤트 핸들러: 폼 제출
   const handleCreate = (values: InventoryFormValues) => {
     createMutation.mutate({
       ...values,
@@ -143,8 +146,8 @@ export function useInventory() {
     if (!editingItem) return;
     updateMutation.mutate({ itemId: editingItem.itemId, body: values });
   };
-
-  // ⭐️ 10. 'handleDelete' 대신 'handleDeactivate/Reactivate' 핸들러
+  
+  // 10. 이벤트 핸들러: 상태 변경
   const handleDeactivate = (itemId: number) => {
     if (confirm("이 품목을 비활성화할까요?")) {
       deactivateMutation.mutate({ itemId, storeId: currentStoreId! });
@@ -157,19 +160,31 @@ export function useInventory() {
     }
   };
 
-  const openAddModal = () => setIsAddModalOpen(true);
+  // 11. 이벤트 핸들러: 모달 열기
+  const openAddModal = () => {
+    setEditingItem(null);
+    setIsAddModalOpen(true);
+  };
   
   const openEditModal = (item: Inventory) => {
     setEditingItem(item);
     setIsEditModalOpen(true);
   };
   
-  const goToPage = (p: number) => {
-    if (p < 0 || p > (inventoryData?.totalPages ?? 0) - 1) return;
-    setPage(p);
+  // 12. 이벤트 핸들러: 필터 변경
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setPage(0); // 검색 시 1페이지로
   };
 
-  // ⭐️ 11. Page 컴포넌트에 반환할 모든 상태와 함수 (수정됨)
+  const goToPage = (p: number) => {
+    const totalPages = inventoryData?.totalPages ?? 0;
+    if (p >= 0 && p < totalPages) {
+      setPage(p);
+    }
+  };
+
+  // 13. Page 컴포넌트에 반환
   return {
     inventoryData,
     isInventoryLoading,
@@ -182,10 +197,10 @@ export function useInventory() {
     pageSize,
     setPageSize,
     goToPage,
-    searchQuery,
-    handleSearch,
+    
+    searchQuery, // ⭐️ API 호출용 searchQuery 반환
+    handleSearch, // ⭐️ 검색 제출 핸들러
 
-    // ⭐️ 비활성 필터 상태
     showInactiveOnly,
     setShowInactiveOnly,
 
@@ -200,7 +215,6 @@ export function useInventory() {
     handleCreate,
     handleUpdate,
     
-    // ⭐️ 핸들러 및 상태 변경
     handleDeactivate,
     handleReactivate,
     

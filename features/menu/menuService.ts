@@ -3,8 +3,9 @@
 
 import axios from "axios";
 
+// ⭐️ (개선) apiClient를 사용하도록 수정할 수 있습니다.
 export const API_BASE = "http://localhost:8080";
-export const STORE_ID = 11;
+export const STORE_ID = 11; // ⭐️ (임시) StoreContext로 대체 필요
 
 export type ActiveStatus = "ACTIVE" | "INACTIVE";
 export type CostingMethod = "AVERAGE" | "LAST";

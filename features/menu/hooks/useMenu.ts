@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+// ⭐️ 1. API 서비스 함수들을 import
 import {
   ActiveStatus,
   CostingMethod,
@@ -15,7 +16,7 @@ import {
   deactivateMenu,
   reactivateMenu,
   fetchRecipeIngredients,
-  STORE_ID,
+  STORE_ID, // ⭐️ (임시) StoreContext로 대체 필요
 } from "../menuService";
 
 export type MenuFormValues = {
@@ -23,6 +24,7 @@ export type MenuFormValues = {
   price: number | "";
 };
 
+// ⭐️ 2. 모든 로직을 useMenu 훅으로 캡슐화
 export function useMenu() {
   // 메뉴 리스트/상태
   const [items, setItems] = useState<MenuItemResponse[]>([]);
@@ -61,6 +63,7 @@ export function useMenu() {
   // ===== 인벤토리 로드 =====
   const loadInventory = useCallback(async () => {
     try {
+      // ⭐️ 3. axios 대신 서비스 함수 호출
       const list = await fetchInventory(STORE_ID);
       setInvOptions(list);
     } catch {
@@ -81,6 +84,7 @@ export function useMenu() {
         ? "INACTIVE"
         : "ACTIVE";
 
+      // ⭐️ 3. axios 대신 서비스 함수 호출
       const menuPage = await fetchMenus({
         storeId: STORE_ID,
         q: searchQuery || undefined,
@@ -97,6 +101,7 @@ export function useMenu() {
       const entries = await Promise.all(
         list.map(async (m) => {
           try {
+            // ⭐️ 3. axios 대신 서비스 함수 호출
             const arr = await fetchRecipeIngredients(m.menuId);
             return [m.menuId, arr] as const;
           } catch {
@@ -195,13 +200,14 @@ export function useMenu() {
       return;
     }
     try {
+      // ⭐️ 3. axios 대신 서비스 함수 호출
       await createMenu({
         storeId: STORE_ID,
         menuName: values.menuName.trim(),
         price: Number(values.price),
       });
       setIsAddModalOpen(false);
-      await loadMenus();
+      await loadMenus(); // ⭐️ 목록 새로고침
     } catch (e: any) {
       console.error(e);
       const hint =
@@ -236,6 +242,7 @@ export function useMenu() {
       return;
     }
     try {
+      // ⭐️ 3. axios 대신 서비스 함수 호출
       await updateMenu(editingMenu.menuId, {
         storeId: STORE_ID,
         menuName: values.menuName.trim(),
@@ -243,7 +250,7 @@ export function useMenu() {
       });
       setIsEditModalOpen(false);
       setEditingMenu(null);
-      await loadMenus();
+      await loadMenus(); // ⭐️ 목록 새로고침
     } catch (e: any) {
       console.error(e);
       const hint =
@@ -276,12 +283,13 @@ export function useMenu() {
     if (!ok) return;
 
     try {
+      // ⭐️ 3. axios 대신 서비스 함수 호출
       if (isActive) {
         await deactivateMenu(row.menuId, STORE_ID);
       } else {
         await reactivateMenu(row.menuId, STORE_ID);
       }
-      await loadMenus();
+      await loadMenus(); // ⭐️ 목록 새로고침
     } catch (e: any) {
       console.error(e);
       const hint =
@@ -330,6 +338,7 @@ export function useMenu() {
     }));
   };
 
+  // ⭐️ 4. UI 컴포넌트에 필요한 모든 값을 반환
   return {
     // 데이터
     items,
