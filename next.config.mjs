@@ -12,7 +12,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*", // '/api/'로 시작하는 모든 요청을
-        destination: "http://localhost:8080/:path*", // 백엔드 서버(8080)로 전달
+        destination: "http://localhost:8080/api/:path*", // 백엔드 서버(8080)로 전달
       },
     ];
   },
