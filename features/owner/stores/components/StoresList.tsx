@@ -1,7 +1,8 @@
+// features/owner/stores/components/StoresList.tsx
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-// axios 직접 호출 → services 사용으로 치환
+// UI 컴포넌트 임포트
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,87 +18,14 @@ import {
 } from "@/components/ui/dialog"
 import { Store, MapPin, Phone, Edit, Trash2, Copy } from "lucide-react"
 
-// ✅ hooks/services로 분리
-import useNaverLoader from "@/features/owner/stores/hooks/useNaverLoader"
-import { fetchStores, updateStore, deleteStore, StoreType } from "@/features/owner/stores/services/storesService"
-
-function statusToKorean(status?: string) {
-  switch (status) {
-    case "APPROVED":
-      return "승인됨"
-    case "PENDING":
-      return "대기"
-    case "REJECTED":
-      return "거절됨"
-    case "ACTIVE":
-    case "OPERATING":
-      return "운영중"
-    default:
-      return status ?? "-"
-  }
-}
-
-function extractErrorMessage(e: any): string {
-  const data = e?.response?.data
-  if (typeof data === "string") return data
-  if (typeof data?.message === "string") return data.message
-  if (typeof data?.error === "string") return data.error
-  if (typeof data?.detail === "string") return data.detail
-  if (typeof e?.message === "string") return e.message
-  return "오류가 발생했습니다."
-}
-
-// 지도 픽커 (로더는 훅으로 교체)
-function NaverMapPicker({
-  onSelect,
-  mapId,
-  defaultLat = 37.5665,
-  defaultLng = 126.978,
-}: {
-  onSelect: (lat: number, lng: number) => void
-  mapId: string
-  defaultLat?: number
-  defaultLng?: number
-}) {
-  const loaded = useNaverLoader()
-  const [inited, setInited] = useState(false)
-
-  useEffect(() => {
-    if (!loaded || inited) return
-    const el = document.getElementById(mapId)
-    if (!el) return
-    const { naver } = window as any
-    const map = new naver.maps.Map(el, {
-      center: new naver.maps.LatLng(defaultLat, defaultLng),
-      zoom: 15,
-    })
-    const marker = new naver.maps.Marker({
-      position: new naver.maps.LatLng(defaultLat, defaultLng),
-      map,
-    })
-    naver.maps.Event.addListener(map, "click", (e: any) => {
-      const lat = e.coord.lat()
-      const lng = e.coord.lng()
-      marker.setPosition(e.coord)
-      onSelect(lat, lng)
-    })
-    setInited(true)
-  }, [loaded, inited, mapId, onSelect, defaultLat, defaultLng])
-
-  return (
-    <div
-      id={mapId}
-      style={{
-        width: "100%",
-        height: 320,
-        borderRadius: "0.5rem",
-        background: loaded ? "#eee" : "#f3f4f6",
-      }}
-    >
-      {!loaded && <p className="p-2 text-xs text-muted-foreground">지도를 불러오는 중…</p>}
-    </div>
-  )
-}
+// ✅ 1. 로직을 처리할 훅 임포트
+import { useStores } from "@/features/owner/stores/hooks/useStores"
+// ✅ 2. 분리된 NaverMapPicker 컴포넌트 임포트
+import { NaverMapPicker } from "./NaverMapPicker" // (이 파일은 이전 단계에서 생성했습니다)
+// ✅ 3. 전역 유틸리티 함수 임포트
+import { formatStoreStatus, extractErrorMessage } from "@/lib/utils"
+// ✅ 4. StoreType 임포트 (서비스 파일에서)
+import type { StoreType } from "../services/storesService"
 
 export default function StoresList({
   version,
@@ -106,10 +34,17 @@ export default function StoresList({
   version?: number
   onChangedAction?: () => void
 }) {
-  const [stores, setStores] = useState<StoreType[]>([])
-  const [loading, setLoading] = useState(false)
+  // ✅ 5. 훅을 호출하여 상태와 로직(핸들러)을 가져옴
+  const { 
+    stores, 
+    loading, 
+    hasData, 
+    hardDelete, 
+    softDelete, 
+    patch 
+  } = useStores(version);
 
-  // 수정 모달
+  // ✅ 6. 모달 관련 상태는 UI 컴포넌트가 직접 관리
   const [openEdit, setOpenEdit] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({
@@ -123,42 +58,24 @@ export default function StoresList({
   const [savingEdit, setSavingEdit] = useState(false)
   const [openEditMap, setOpenEditMap] = useState(false)
 
-  const loadStores = async () => {
-    try {
-      setLoading(true)
-      // ✅ services 사용
-      const data = await fetchStores()
-      setStores(data)
-    } catch (e) {
-      console.error("사업장 목록 불러오기 실패:", e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadStores()
-  }, [version])
-
-  const hasData = useMemo(() => stores && stores.length > 0, [stores])
-
+  // handleCopy는 UI 로직이므로 그대로 둠
   const handleCopy = (id: number) => {
     navigator.clipboard.writeText(String(id))
     alert("사업장 코드가 복사되었습니다!")
   }
 
+  // ✅ 7. handleDelete를 훅의 핸들러(softDelete, hardDelete)를 사용하도록 수정
   const handleDelete = async (id: number) => {
     if (!confirm("정말로 삭제하시겠습니까?")) return
     try {
-      // ✅ 안전 삭제(자식 있으면 409)
-      await deleteStore(id, false)
+      await softDelete(id) // 훅의 softDelete 호출
     } catch (err: any) {
       const status = err?.response?.status
-      const msg = extractErrorMessage(err)
+      const msg = extractErrorMessage(err) // 전역 유틸 사용
       if (status === 409) {
         const go = confirm(`${msg}\n\n강제 삭제를 진행할까요?`)
         if (go) {
-          await deleteStore(id, true)
+          await hardDelete(id) // 훅의 hardDelete 호출
         } else {
           return
         }
@@ -167,10 +84,10 @@ export default function StoresList({
         return
       }
     }
-    await loadStores()
     onChangedAction?.()
   }
 
+  // openEditModal은 UI 로직이므로 그대로 둠
   const openEditModal = (s: StoreType) => {
     setEditingId(s.storeId)
     setEditForm({
@@ -184,6 +101,7 @@ export default function StoresList({
     setOpenEdit(true)
   }
 
+  // ✅ 8. handleUpdate를 훅의 핸들러(patch)를 사용하도록 수정
   const handleUpdate = async () => {
     if (!editingId) return
     if (!editForm.bizId.trim() || !editForm.storeName.trim() || !editForm.industry.trim()) {
@@ -192,8 +110,7 @@ export default function StoresList({
     }
     try {
       setSavingEdit(true)
-      // ✅ services 사용
-      await updateStore(editingId, {
+      await patch(editingId, { // 훅의 patch 호출
         bizId: Number(editForm.bizId),
         storeName: editForm.storeName,
         industry: editForm.industry,
@@ -203,11 +120,10 @@ export default function StoresList({
       })
       setOpenEdit(false)
       setEditingId(null)
-      await loadStores()
       onChangedAction?.()
     } catch (e) {
       console.error("사업장 수정 실패:", e)
-      alert("수정 중 오류가 발생했습니다.")
+      alert(`수정 중 오류가 발생했습니다: ${extractErrorMessage(e)}`) // 전역 유틸 사용
     } finally {
       setSavingEdit(false)
     }
@@ -230,7 +146,8 @@ export default function StoresList({
                       <CardDescription>{store.industry}</CardDescription>
                     </div>
                   </div>
-                  <Badge variant="default">{statusToKorean(store.status)}</Badge>
+                  {/* ✅ 9. 전역 유틸 formatStoreStatus 사용 */}
+                  <Badge variant="default">{formatStoreStatus(store.status)}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -293,7 +210,7 @@ export default function StoresList({
         {loading && <div className="text-sm text-muted-foreground">불러오는 중…</div>}
       </div>
 
-      {/* 수정 다이얼로그 */}
+      {/* 수정 다이얼로그 (UI 로직은 동일) */}
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
         <DialogContent>
           <DialogHeader>
@@ -392,7 +309,7 @@ export default function StoresList({
         </DialogContent>
       </Dialog>
 
-      {/* 수정 지도 다이얼로그 */}
+      {/* 수정 지도 다이얼로그 (NaverMapPicker 컴포넌트 사용) */}
       <Dialog open={openEditMap} onOpenChange={setOpenEditMap}>
         <DialogContent>
           <DialogHeader>

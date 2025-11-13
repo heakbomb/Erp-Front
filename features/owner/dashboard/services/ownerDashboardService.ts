@@ -1,44 +1,41 @@
 // features/owner/dashboard/services/ownerDashboardService.ts
-import axios from "axios"
-
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080"
+import { apiClient } from "@/lib/api/client"; // ✅ apiClient 사용
 
 export type OwnerDashboardStats = {
-  todaySales: number
-  todaySalesChange: number
-  monthSales: number
-  monthSalesChange: number
-  lowStockCount: number
-  workingEmployees: number
-  totalEmployees: number
-}
+  todaySales: number;
+  todaySalesChange: number;
+  monthSales: number;
+  monthSalesChange: number;
+  lowStockCount: number;
+  workingEmployees: number;
+  totalEmployees: number;
+};
 
 export type OwnerAlert = {
-  id: string
-  level: "info" | "warning" | "danger" | "primary"
-  title: string
-  description: string
-}
+  id: string;
+  level: "info" | "warning" | "danger" | "primary";
+  title: string;
+  description: string;
+};
 
 export type QuickAction = {
-  id: string
-  title: string
-  description: string
-}
+  id: string;
+  title: string;
+  description: string;
+};
 
 export type AiInsight = {
-  id: string
-  title: string
-  description: string
-}
+  id: string;
+  title: string;
+  description: string;
+};
 
 export type OwnerDashboardData = {
-  stats: OwnerDashboardStats
-  alerts: OwnerAlert[]
-  quickActions: QuickAction[]
-  aiInsights: AiInsight[]
-}
+  stats: OwnerDashboardStats;
+  alerts: OwnerAlert[];
+  quickActions: QuickAction[];
+  aiInsights: AiInsight[];
+};
 
 // ───── 목 데이터 (현재 화면 그대로 반영) ─────
 export const MOCK_OWNER_DASHBOARD: OwnerDashboardData = {
@@ -100,14 +97,14 @@ export const MOCK_OWNER_DASHBOARD: OwnerDashboardData = {
       description: "아메리카노 가격을 4,800원으로 조정하면 마진율 25.5%를 유지할 수 있습니다.",
     },
   ],
-}
+};
 
 // ───── 나중에 실제 API 붙일 때 여기만 바꾸면 됨 ─────
 export async function fetchOwnerDashboard(): Promise<OwnerDashboardData> {
   // TODO: 백엔드 연동되면 axios.get으로 교체
-  // const res = await axios.get<OwnerDashboardData>(`${API_BASE}/api/owner/dashboard`)
-  // return res.data
+  // const res = await apiClient.get<OwnerDashboardData>(`/api/owner/dashboard`); // ✅ apiClient 사용
+  // return res.data;
 
   // 지금은 화면용 목데이터 리턴
-  return MOCK_OWNER_DASHBOARD
+  return MOCK_OWNER_DASHBOARD;
 }

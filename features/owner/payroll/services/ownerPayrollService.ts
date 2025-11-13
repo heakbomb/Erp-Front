@@ -1,33 +1,30 @@
-import axios from "axios"
-
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080"
+import { apiClient } from "@/lib/api/client"; // ✅ apiClient 사용
 
 export type EmployeePayroll = {
-  id: number
-  name: string
-  role: string
-  workDays: number
-  workHours: number
-  hourlyWage: number
-  basePay: number
-  bonus: number
-  deductions: number
-  netPay: number
-  status: string
-}
+  id: number;
+  name: string;
+  role: string;
+  workDays: number;
+  workHours: number;
+  hourlyWage: number;
+  basePay: number;
+  bonus: number;
+  deductions: number;
+  netPay: number;
+  status: string;
+};
 
 export type PayrollHistory = {
-  month: string
-  totalPaid: number
-  employees: number
-  status: string
-}
+  month: string;
+  totalPaid: number;
+  employees: number;
+  status: string;
+};
 
 export type OwnerPayrollData = {
-  employees: EmployeePayroll[]
-  history: PayrollHistory[]
-}
+  employees: EmployeePayroll[];
+  history: PayrollHistory[];
+};
 
 // ───── 현재 page.tsx에 있던 목 데이터 그대로 이동 ─────
 export const MOCK_EMPLOYEE_PAYROLL: EmployeePayroll[] = [
@@ -70,22 +67,22 @@ export const MOCK_EMPLOYEE_PAYROLL: EmployeePayroll[] = [
     netPay: 1418000,
     status: "확정",
   },
-]
+];
 
 export const MOCK_PAYROLL_HISTORY: PayrollHistory[] = [
   { month: "2024년 3월", totalPaid: 4_850_000, employees: 12, status: "지급완료" },
   { month: "2024년 2월", totalPaid: 4_620_000, employees: 12, status: "지급완료" },
   { month: "2024년 1월", totalPaid: 5_120_000, employees: 12, status: "지급완료" },
-]
+];
 
 // ───── 나중에 백엔드 붙일 때 이 함수만 교체하면 됨 ─────
 export async function fetchOwnerPayroll(): Promise<OwnerPayrollData> {
   // TODO: 실제 API 연동 시 아래 사용
-  // const res = await axios.get<OwnerPayrollData>(`${API_BASE}/api/owner/payroll`)
-  // return res.data
+  // const res = await apiClient.get<OwnerPayrollData>(`/api/owner/payroll`); // ✅ apiClient 사용
+  // return res.data;
 
   return {
     employees: MOCK_EMPLOYEE_PAYROLL,
     history: MOCK_PAYROLL_HISTORY,
-  }
+  };
 }

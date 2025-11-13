@@ -1,19 +1,11 @@
-import axios from "axios";
+// features/owner/stores/services/storesService.ts
+import { apiClient } from "@/lib/api/client";
+import { extractErrorMessage as utilExtractErrorMessage } from "@/lib/utils";
+// ✅ 1. database.ts의 'Store' 타입을 직접 임포트합니다.
+import type { Store } from "@/lib/types/database";
 
-export const API_BASE =
-  (process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080").replace(/\/$/, "");
-
-// ===== Types =====
-export type StoreType = {
-  storeId: number;
-  bizId?: number;
-  storeName: string;
-  industry: string;
-  posVendor: string | null;
-  status: string;
-  latitude?: number | null;
-  longitude?: number | null;
-};
+// ✅ 2. StoreType을 Store의 별칭으로 export 합니다.
+export type StoreType = Store;
 
 export type BusinessVerifyPayload = {
   bizNo: string;
@@ -22,8 +14,8 @@ export type BusinessVerifyPayload = {
 
 // ===== Store APIs =====
 export async function fetchStores() {
-  const res = await axios.get(`${API_BASE}/store`);
-  return res.data as StoreType[];
+  const res = await apiClient.get(`/store`);
+  return res.data as Store[]; // ✅ Store[] 타입으로 반환
 }
 
 export async function createStore(payload: {
@@ -34,8 +26,8 @@ export async function createStore(payload: {
   latitude?: number | null;
   longitude?: number | null;
 }) {
-  const res = await axios.post(`${API_BASE}/store`, payload);
-  return res.data as StoreType;
+  const res = await apiClient.post(`/store`, payload);
+  return res.data as Store; // ✅ Store 타입으로 반환
 }
 
 export async function updateStore(
@@ -49,39 +41,34 @@ export async function updateStore(
     longitude?: number | null;
   }
 ) {
-  const res = await axios.put(`${API_BASE}/store/${storeId}`, payload);
-  return res.data as StoreType;
+  const res = await apiClient.put(`/store/${storeId}`, payload);
+  return res.data as Store; // ✅ Store 타입으로 반환
 }
 
+// ✅ 3. deleteStore 함수를 정상적으로 export 합니다.
 export async function deleteStore(storeId: number, force = false) {
-  const res = await axios.delete(`${API_BASE}/store/${storeId}`, { params: { force } });
+  const res = await apiClient.delete(`/store/${storeId}`, { params: { force } });
   return res.data;
 }
 
 // ===== Phone verify =====
 export async function requestPhoneVerification(phoneNumber: string) {
-  const res = await axios.post(`${API_BASE}/phone-verify/request`, { phoneNumber });
+  const res = await apiClient.post(`/phone-verify/request`, { phoneNumber });
   return res.data as { authCode: string };
 }
 
 export async function pollPhoneVerification(code: string) {
-  const res = await axios.get(`${API_BASE}/phone-verify/status`, { params: { code } });
+  const res = await apiClient.get(`/phone-verify/status`, { params: { code } });
   return res.data as { status: "VERIFIED" | "EXPIRED" | "PENDING" };
 }
 
 // ===== Business verify =====
 export async function verifyBusinessNumber(payload: BusinessVerifyPayload) {
-  const res = await axios.post(`${API_BASE}/business-number/verify`, payload);
+  const res = await apiClient.post(`/business-number/verify`, payload);
   return res.data; 
 }
 
 // ===== 공용 에러 메시지 =====
 export function extractErrorMessage(e: any): string {
-  const data = e?.response?.data;
-  if (typeof data === "string") return data;
-  if (typeof data?.message === "string") return data.message;
-  if (typeof data?.error === "string") return data.error;
-  if (typeof data?.detail === "string") return data.detail;
-  if (typeof e?.message === "string") return e.message;
-  return "인증 중 오류가 발생했습니다.";
+  return utilExtractErrorMessage(e);
 }

@@ -1,10 +1,8 @@
 // features/menu/menuService.ts
 "use client";
 
-import axios from "axios";
+import { apiClient } from "@/lib/api/client"; // ✅ apiClient 사용
 
-// ⭐️ (개선) apiClient를 사용하도록 수정할 수 있습니다.
-export const API_BASE = "http://localhost:8080";
 export const STORE_ID = 11; // ⭐️ (임시) StoreContext로 대체 필요
 
 export type ActiveStatus = "ACTIVE" | "INACTIVE";
@@ -58,8 +56,8 @@ type MenuListParams = {
 };
 
 export async function fetchMenus(params: MenuListParams) {
-  const res = await axios.get<PageResponse<MenuItemResponse>>(
-    `${API_BASE}/owner/menu`,
+  const res = await apiClient.get<PageResponse<MenuItemResponse>>( // ✅ apiClient 사용
+    `/owner/menu`,
     { params }
   );
   return res.data;
@@ -70,8 +68,8 @@ export async function createMenu(body: {
   menuName: string;
   price: number;
 }) {
-  const res = await axios.post<MenuItemResponse>(
-    `${API_BASE}/owner/menu`,
+  const res = await apiClient.post<MenuItemResponse>( // ✅ apiClient 사용
+    `/owner/menu`,
     body
   );
   return res.data;
@@ -81,8 +79,8 @@ export async function updateMenu(
   menuId: number,
   body: { storeId: number; menuName: string; price: number }
 ) {
-  const res = await axios.patch<MenuItemResponse>(
-    `${API_BASE}/owner/menu/${menuId}`,
+  const res = await apiClient.patch<MenuItemResponse>( // ✅ apiClient 사용
+    `/owner/menu/${menuId}`,
     body,
     {
       params: { storeId: body.storeId },
@@ -92,16 +90,16 @@ export async function updateMenu(
 }
 
 export async function deactivateMenu(menuId: number, storeId: number) {
-  await axios.post(
-    `${API_BASE}/owner/menu/${menuId}/deactivate`,
+  await apiClient.post( // ✅ apiClient 사용
+    `/owner/menu/${menuId}/deactivate`,
     null,
     { params: { storeId } }
   );
 }
 
 export async function reactivateMenu(menuId: number, storeId: number) {
-  await axios.post(
-    `${API_BASE}/owner/menu/${menuId}/reactivate`,
+  await apiClient.post( // ✅ apiClient 사용
+    `/owner/menu/${menuId}/reactivate`,
     null,
     { params: { storeId } }
   );
@@ -109,8 +107,8 @@ export async function reactivateMenu(menuId: number, storeId: number) {
 
 // ===== 인벤토리(원가 포함) =====
 export async function fetchInventory(storeId: number) {
-  const res = await axios.get<PageResponse<InventoryResponse>>(
-    `${API_BASE}/owner/inventory`,
+  const res = await apiClient.get<PageResponse<InventoryResponse>>( // ✅ apiClient 사용
+    `/owner/inventory`,
     {
       params: {
         storeId,
@@ -125,8 +123,8 @@ export async function fetchInventory(storeId: number) {
 
 // ===== 레시피 =====
 export async function fetchRecipeIngredients(menuId: number) {
-  const res = await axios.get<RecipeIngredientResponse[]>(
-    `${API_BASE}/owner/menu/${menuId}/recipeIngredients`
+  const res = await apiClient.get<RecipeIngredientResponse[]>( // ✅ apiClient 사용
+    `/owner/menu/${menuId}/recipeIngredients`
   );
   return Array.isArray(res.data) ? res.data : [];
 }
@@ -135,8 +133,8 @@ export async function addRecipeIngredient(
   menuId: number,
   body: { menuId: number; itemId: number; consumptionQty: number }
 ) {
-  const res = await axios.post<RecipeIngredientResponse>(
-    `${API_BASE}/owner/menu/${menuId}/recipeIngredients`,
+  const res = await apiClient.post<RecipeIngredientResponse>( // ✅ apiClient 사용
+    `/owner/menu/${menuId}/recipeIngredients`,
     body
   );
   return res.data;
@@ -146,15 +144,15 @@ export async function updateRecipeIngredient(
   recipeId: number,
   body: { consumptionQty: number }
 ) {
-  const res = await axios.patch<RecipeIngredientResponse>(
-    `${API_BASE}/owner/menu/recipeIngredients/${recipeId}`,
+  const res = await apiClient.patch<RecipeIngredientResponse>( // ✅ apiClient 사용
+    `/owner/menu/recipeIngredients/${recipeId}`,
     body
   );
   return res.data;
 }
 
 export async function deleteRecipeIngredient(recipeId: number) {
-  await axios.delete(
-    `${API_BASE}/owner/menu/recipeIngredients/${recipeId}`
+  await apiClient.delete( // ✅ apiClient 사용
+    `/owner/menu/recipeIngredients/${recipeId}`
   );
 }

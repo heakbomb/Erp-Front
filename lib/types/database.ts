@@ -1,3 +1,5 @@
+// lib/types/database.ts
+
 /**
  * 상세_테이블_정의서.pdf (Table 2.1 ~ 2.23)와
  * 각 페이지 컴포넌트에서 사용된 타입 정의를 기반으로 한
@@ -32,6 +34,12 @@ export interface Store {
   posVendor: string | null; // VARCHAR(50)
   status: "PENDING" | "APPROVED" | "REJECTED" | "ACTIVE" | "OPERATING"; // VARCHAR(20)
   approvedAt: string | null; // DATETIME
+  
+  // ✅✅✅ 
+  // THESE LINES FIX THE 'latitude' and 'longitude' ERRORS
+  latitude?: number | null;
+  longitude?: number | null;
+  // ✅✅✅
 }
 
 // 2.5. BusinessNumber (사업자등록 정보)
@@ -79,6 +87,8 @@ export interface Inventory {
   stockType: string; // VARCHAR(20)
   stockQty: number; // DECIMAL(10,3)
   safetyQty: number; // DECIMAL(10,3)
+  // ✅ 'features/inventory/InventoryPage.tsx'에서 status를 사용합니다.
+  status?: "ACTIVE" | "INACTIVE";
 }
 
 // 2.11. MenuItem (판매 메뉴 정의)
@@ -88,6 +98,8 @@ export interface MenuItem {
   menuName: string; // VARCHAR(100)
   price: number; // DECIMAL(10,2)
   calculatedCost: number; // DECIMAL(10,2)
+  // ✅ 'features/menu/MenuPage.tsx'에서 status를 사용합니다.
+  status?: "ACTIVE" | "INACTIVE";
 }
 
 // 2.12. RecipeIngredient (메뉴별 레시피)
