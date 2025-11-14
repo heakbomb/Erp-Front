@@ -45,6 +45,11 @@ export type InventoryResponse = {
   lastUnitCost?: number;
 };
 
+export type MenuStatsResponse = {
+  totalMenus: number;
+  inactiveMenus: number;
+};
+
 // ===== 메뉴 =====
 type MenuListParams = {
   storeId: number;
@@ -54,6 +59,8 @@ type MenuListParams = {
   size?: number;
   sort?: string;
 };
+
+
 
 export async function fetchMenus(params: MenuListParams) {
   const res = await apiClient.get<PageResponse<MenuItemResponse>>( // ✅ apiClient 사용
@@ -155,4 +162,13 @@ export async function deleteRecipeIngredient(recipeId: number) {
   await apiClient.delete( // ✅ apiClient 사용
     `/owner/menu/recipeIngredients/${recipeId}`
   );
+
+}
+
+export async function fetchMenuStats(storeId: number) {
+  const res = await apiClient.get<MenuStatsResponse>(
+    "/owner/menu/stats",
+    { params: { storeId } }
+  );
+  return res.data;
 }

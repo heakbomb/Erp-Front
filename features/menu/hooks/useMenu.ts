@@ -2,7 +2,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-// ⭐️ 1. API 서비스 함수들을 import
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { useStore } from "@/contexts/StoreContext"; // ⭐ StoreContext 사용
+
 import {
   ActiveStatus,
   CostingMethod,
@@ -15,8 +18,7 @@ import {
   updateMenu,
   deactivateMenu,
   reactivateMenu,
-  fetchRecipeIngredients,
-  STORE_ID, // ⭐️ (임시) StoreContext로 대체 필요
+  fetchMenuStats,          // ⭐ 통계 API 추가
 } from "../menuService";
 
 export type MenuFormValues = {
@@ -24,18 +26,15 @@ export type MenuFormValues = {
   price: number | "";
 };
 
-// ⭐️ 2. 모든 로직을 useMenu 훅으로 캡슐화
 export function useMenu() {
-  // 메뉴 리스트/상태
-  const [items, setItems] = useState<MenuItemResponse[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { currentStoreId } = useStore();
+  const queryClient = useQueryClient();
 
   // 검색/필터
   const [searchQuery, setSearchQuery] = useState("");
   const [showInactiveOnly, setShowInactiveOnly] = useState(false);
 
-  // 원가 계산 방식
+  // (지금은 AVERAGE/LATEST 토글은 못씀 — 백엔드에서 calculatedCost 고정)
   const [costingMethod, setCostingMethod] =
     useState<CostingMethod>("AVERAGE");
 
@@ -60,136 +59,107 @@ export function useMenu() {
   const size = 50;
   const sort = "menuName,asc";
 
-  // ===== 인벤토리 로드 =====
-  const loadInventory = useCallback(async () => {
-    try {
-      // ⭐️ 3. axios 대신 서비스 함수 호출
-      const list = await fetchInventory(STORE_ID);
-      setInvOptions(list);
-    } catch {
-      setInvOptions([]);
-    }
-  }, []);
-
+  /** =========================
+   *  1) 인벤토리 로드 (레시피 모달에서 사용)
+   * ========================= */
   useEffect(() => {
-    loadInventory();
-  }, [loadInventory]);
+    if (!currentStoreId) return;
 
-  // ===== 메뉴 + 레시피 일괄 로드 =====
-  const loadMenus = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const status: ActiveStatus | undefined = showInactiveOnly
-        ? "INACTIVE"
-        : "ACTIVE";
+    const run = async () => {
+      try {
+        const list = await fetchInventory(currentStoreId);
+        setInvOptions(list);
+      } catch {
+        setInvOptions([]);
+      }
+    };
+    run();
+  }, [currentStoreId]);
 
-      // ⭐️ 3. axios 대신 서비스 함수 호출
-      const menuPage = await fetchMenus({
-        storeId: STORE_ID,
+  /** =========================
+   *  2) 메뉴 목록을 useQuery로 로드
+   * ========================= */
+  const status: ActiveStatus | undefined = showInactiveOnly
+    ? "INACTIVE"
+    : "ACTIVE";
+
+  const {
+    data: menuPage,
+    isLoading: loading,
+    error,
+  } = useQuery({
+    queryKey: ["menus", currentStoreId, searchQuery, status],
+    queryFn: () =>
+      fetchMenus({
+        storeId: currentStoreId!, // enabled 조건 때문에 여기 올 땐 항상 존재
         q: searchQuery || undefined,
         status,
         page,
         size,
         sort,
-      });
+      }),
+    enabled: !!currentStoreId, // storeId 없으면 요청 안 보냄
+  });
 
-      const list = menuPage.content ?? [];
-      setItems(list);
+  const items: MenuItemResponse[] = menuPage?.content ?? [];
 
-      // 각 메뉴의 레시피를 병렬로 로드
-      const entries = await Promise.all(
-        list.map(async (m) => {
-          try {
-            // ⭐️ 3. axios 대신 서비스 함수 호출
-            const arr = await fetchRecipeIngredients(m.menuId);
-            return [m.menuId, arr] as const;
-          } catch {
-            return [m.menuId, [] as RecipeIngredientResponse[]] as const;
-          }
-        })
-      );
+  /** =========================
+   *  2-1) 메뉴 통계 쿼리 (전체/비활성 메뉴 개수)
+   * ========================= */
+  const { data: statsData } = useQuery({
+    queryKey: ["menuStats", currentStoreId],
+    queryFn: () => fetchMenuStats(currentStoreId!),
+    enabled: !!currentStoreId,
+  });
 
-      const newMap: Record<number, RecipeIngredientResponse[]> = {};
-      for (const [menuId, arr] of entries) {
-        newMap[menuId] = arr;
-      }
-      setRecipeMap(newMap);
-    } catch (e: any) {
-      console.error(e);
-      const msg =
-        e?.response?.data?.message ??
-        e?.response?.data?.error ??
-        e?.message ??
-        "목록을 불러오는 중 오류가 발생했습니다.";
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery, showInactiveOnly]);
-
-  useEffect(() => {
-    loadMenus();
-  }, [loadMenus]);
-
-  // ===== 프론트 계산용 원가 맵 =====
-  const invCostMap = useMemo(() => {
-    const m = new Map<
-      number,
-      { avg?: number; last?: number }
-    >();
-    for (const inv of invOptions) {
-      m.set(inv.itemId, {
-        avg: inv.avgUnitCost ?? 0,
-        last: inv.lastUnitCost ?? 0,
-      });
-    }
-    return m;
-  }, [invOptions]);
-
+  /** =========================
+   *  3) 원가/마진 계산 (백엔드 calculatedCost 기준)
+   * ========================= */
   const calculatedCostMap = useMemo(() => {
     const map: Record<number, number> = {};
-    for (const menu of items) {
-      const recipe = recipeMap[menu.menuId] || [];
-      let sum = 0;
-      for (const ri of recipe) {
-        const c = invCostMap.get(ri.itemId);
-        const unit =
-          costingMethod === "AVERAGE"
-            ? c?.avg ?? 0
-            : c?.last ?? 0;
-        sum +=
-          Number(ri.consumptionQty) * Number(unit || 0);
-      }
-      map[menu.menuId] = +sum.toFixed(2); // 소수 2자리
+    for (const m of items) {
+      map[m.menuId] = Number(m.calculatedCost ?? 0);
     }
     return map;
-  }, [items, recipeMap, invCostMap, costingMethod]);
+  }, [items]);
 
-  // ===== 통계 =====
   const stats = useMemo(() => {
-    if (!items.length)
-      return { total: 0, avgMargin: 0, inactive: 0 };
+    // 🔹 DB 기준 전체 / 비활성 메뉴 개수
+    const total = statsData?.totalMenus ?? 0;
+    const inactive = statsData?.inactiveMenus ?? 0;
+
+    // 🔹 평균 마진율은 현재 페이지 기준 (원하면 나중에 이것도 서버에서 계산해도 됨)
+    if (!items.length) {
+      return { total, avgMargin: 0, inactive };
+    }
 
     const margins = items.map((m) => {
       const price = Number(m.price || 0);
-      const cost = calculatedCostMap[m.menuId] ?? 0;
+      const cost = Number(m.calculatedCost ?? 0);
       if (price <= 0) return 0;
       return ((price - cost) / price) * 100;
     });
 
-    return {
-      total: items.length,
-      avgMargin:
-        margins.reduce((a, b) => a + b, 0) /
-        Math.max(1, margins.length),
-      inactive: items.filter(
-        (i) => i.status === "INACTIVE"
-      ).length,
-    };
-  }, [items, calculatedCostMap]);
+    const avgMargin =
+      margins.reduce((a, b) => a + b, 0) /
+      Math.max(1, margins.length);
 
-  // ===== 메뉴 생성/수정 =====
+    return { total, avgMargin, inactive };
+  }, [items, statsData]);
+
+  /** =========================
+   *  4) 메뉴 생성/수정/상태 토글
+   *      -> 성공 시 메뉴/통계 쿼리 무효화(자동 재요청)
+   * ========================= */
+  const invalidateMenus = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: ["menus"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["menuStats"], // ⭐ 통계도 같이 새로고침
+    });
+  }, [queryClient]);
+
   const handleCreate = async (values: MenuFormValues) => {
     if (
       !values.menuName.trim() ||
@@ -199,15 +169,19 @@ export function useMenu() {
       alert("메뉴명과 판매가를 올바르게 입력하세요.");
       return;
     }
+    if (!currentStoreId) {
+      alert("가게가 선택되지 않았습니다.");
+      return;
+    }
+
     try {
-      // ⭐️ 3. axios 대신 서비스 함수 호출
       await createMenu({
-        storeId: STORE_ID,
+        storeId: currentStoreId,
         menuName: values.menuName.trim(),
         price: Number(values.price),
       });
       setIsAddModalOpen(false);
-      await loadMenus(); // ⭐️ 목록 새로고침
+      invalidateMenus(); // ⭐ 메뉴/통계 자동 새로고침
     } catch (e: any) {
       console.error(e);
       const hint =
@@ -223,15 +197,11 @@ export function useMenu() {
         e?.response?.data?.error ??
         e?.message ??
         "생성 중 오류가 발생했습니다.";
-      alert(
-        [msg, hint].filter(Boolean).join("\n")
-      );
+      alert([msg, hint].filter(Boolean).join("\n"));
     }
   };
 
-  const handleUpdate = async (
-    values: MenuFormValues
-  ) => {
+  const handleUpdate = async (values: MenuFormValues) => {
     if (!editingMenu) return;
     if (
       !values.menuName.trim() ||
@@ -241,16 +211,20 @@ export function useMenu() {
       alert("메뉴명과 판매가를 올바르게 입력하세요.");
       return;
     }
+    if (!currentStoreId) {
+      alert("가게가 선택되지 않았습니다.");
+      return;
+    }
+
     try {
-      // ⭐️ 3. axios 대신 서비스 함수 호출
       await updateMenu(editingMenu.menuId, {
-        storeId: STORE_ID,
+        storeId: currentStoreId,
         menuName: values.menuName.trim(),
         price: Number(values.price),
       });
       setIsEditModalOpen(false);
       setEditingMenu(null);
-      await loadMenus(); // ⭐️ 목록 새로고침
+      invalidateMenus(); // ⭐ 메뉴/통계 자동 새로고침
     } catch (e: any) {
       console.error(e);
       const hint =
@@ -266,14 +240,16 @@ export function useMenu() {
         e?.response?.data?.error ??
         e?.message ??
         "수정 중 오류가 발생했습니다.";
-      alert(
-        [msg, hint].filter(Boolean).join("\n")
-      );
+      alert([msg, hint].filter(Boolean).join("\n"));
     }
   };
 
-  // ===== 메뉴 상태 토글 =====
   const toggleStatus = async (row: MenuItemResponse) => {
+    if (!currentStoreId) {
+      alert("가게가 선택되지 않았습니다.");
+      return;
+    }
+
     const isActive = row.status === "ACTIVE";
     const ok = window.confirm(
       isActive
@@ -283,13 +259,12 @@ export function useMenu() {
     if (!ok) return;
 
     try {
-      // ⭐️ 3. axios 대신 서비스 함수 호출
       if (isActive) {
-        await deactivateMenu(row.menuId, STORE_ID);
+        await deactivateMenu(row.menuId, currentStoreId);
       } else {
-        await reactivateMenu(row.menuId, STORE_ID);
+        await reactivateMenu(row.menuId, currentStoreId);
       }
-      await loadMenus(); // ⭐️ 목록 새로고침
+      invalidateMenus(); // ⭐ 메뉴/통계 자동 새로고침
     } catch (e: any) {
       console.error(e);
       const hint =
@@ -303,13 +278,13 @@ export function useMenu() {
         e?.response?.data?.error ??
         e?.message ??
         "상태 변경 중 오류가 발생했습니다.";
-      alert(
-        [msg, hint].filter(Boolean).join("\n")
-      );
+      alert([msg, hint].filter(Boolean).join("\n"));
     }
   };
 
-  // ===== 모달 오픈 헬퍼 =====
+  /** =========================
+   *  5) 모달 헬퍼 & 레시피 업데이트 핸들러
+   * ========================= */
   const openAddModal = () => {
     setEditingMenu(null);
     setIsEditModalOpen(false);
@@ -327,7 +302,7 @@ export function useMenu() {
     setIsRecipeModalOpen(true);
   };
 
-  // 레시피 갱신 시 부모의 recipeMap도 갱신
+  // 레시피 갱신 시 recipeMap 갱신 + 메뉴/통계 재조회(원가/마진/개수 반영)
   const handleRecipeUpdated = (
     menuId: number,
     list: RecipeIngredientResponse[]
@@ -336,14 +311,17 @@ export function useMenu() {
       ...prev,
       [menuId]: list,
     }));
+    invalidateMenus(); // ⭐ 레시피 변경 후 메뉴/통계 다시 불러옴
   };
 
-  // ⭐️ 4. UI 컴포넌트에 필요한 모든 값을 반환
+  /** =========================
+   *  6) 훅 리턴
+   * ========================= */
   return {
     // 데이터
     items,
     loading,
-    error,
+    error: error ? (error as Error).message : null,
     calculatedCostMap,
     stats,
 

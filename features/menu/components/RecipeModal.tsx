@@ -20,7 +20,6 @@ import type {
   MenuItemResponse,
   RecipeIngredientResponse,
 } from "../menuService";
-// ⭐️ 서비스 함수는 훅이 아닌 모달이 직접 호출
 import {
   addRecipeIngredient,
   updateRecipeIngredient,
@@ -28,16 +27,15 @@ import {
   fetchRecipeIngredients,
 } from "../menuService";
 
+// ✅ 추가: 메뉴 리스트 재요청을 위해
+import { useQueryClient } from "@tanstack/react-query";
+import { useStore } from "../../../contexts/StoreContext";
+
 type RecipeModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   menu: MenuItemResponse | null;
   invOptions: InventoryResponse[];
-  // ⭐️ 부모(useMenu)의 recipeMap을 업데이트하기 위한 콜백
-  onRecipeUpdated: (
-    menuId: number,
-    list: RecipeIngredientResponse[]
-  ) => void;
 };
 
 export function RecipeModal({
@@ -45,20 +43,24 @@ export function RecipeModal({
   onOpenChange,
   menu,
   invOptions,
-  onRecipeUpdated,
 }: RecipeModalProps) {
-  const [recipeLoading, setRecipeLoading] =
-    useState(false);
-  const [recipeError, setRecipeError] =
-    useState<string | null>(null);
-  const [recipeList, setRecipeList] = useState<
-    RecipeIngredientResponse[]
-  >([]);
+  const queryClient = useQueryClient();
+  const { currentStoreId } = useStore();
 
-  const [selectedItemId, setSelectedItemId] =
-    useState<number | "">("");
-  const [consumptionQty, setConsumptionQty] =
-    useState<number | "">("");
+  const [recipeLoading, setRecipeLoading] = useState(false);
+  const [recipeError, setRecipeError] = useState<string | null>(null);
+  const [recipeList, setRecipeList] = useState<RecipeIngredientResponse[]>([]);
+
+  const [selectedItemId, setSelectedItemId] = useState<number | "">("");
+  const [consumptionQty, setConsumptionQty] = useState<number | "">("");
+
+  // 공통: 메뉴 목록 다시 불러오도록 invalidation
+  const invalidateMenus = () => {
+    if (!currentStoreId) return;
+    queryClient.invalidateQueries({
+      queryKey: ["menus", currentStoreId],
+    });
+  };
 
   // 레시피 로드
   const loadRecipeList = async (menuId: number) => {
@@ -67,8 +69,7 @@ export function RecipeModal({
     try {
       const list = await fetchRecipeIngredients(menuId);
       setRecipeList(list);
-      // ⭐️ 부모(useMenu)의 상태(recipeMap)를 업데이트하여 원가 계산을 다시 실행
-      onRecipeUpdated(menuId, list);
+      // ❌ 더 이상 onRecipeUpdated로 프론트에서 원가 계산 안 함
     } catch (e: any) {
       console.error(e);
       const msg =
@@ -113,9 +114,7 @@ export function RecipeModal({
         .filter((o) => o.status === "INACTIVE")
         .map((o) => o.itemId)
     );
-    return recipeList.some((ri) =>
-      inactiveSet.has(ri.itemId)
-    );
+    return recipeList.some((ri) => inactiveSet.has(ri.itemId));
   }, [invOptions, recipeList]);
 
   // 재료 추가
@@ -140,7 +139,8 @@ export function RecipeModal({
       });
       setSelectedItemId("");
       setConsumptionQty("");
-      await loadRecipeList(menu.menuId); // ⭐️ 목록 새로고침 (onRecipeUpdated 호출 포함)
+      await loadRecipeList(menu.menuId); // 모달 안 리스트 갱신
+      invalidateMenus();                 // ✅ 메뉴 목록/원가 갱신
     } catch (e: any) {
       console.error(e);
       const msg =
@@ -155,17 +155,15 @@ export function RecipeModal({
   };
 
   // 수량 수정
-  const handleUpdateRecipe = async (
-    recipeId: number,
-    newQty: number
-  ) => {
+  const handleUpdateRecipe = async (recipeId: number, newQty: number) => {
     if (!menu) return;
     if (newQty <= 0) return;
     try {
       await updateRecipeIngredient(recipeId, {
         consumptionQty: Number(newQty),
       });
-      await loadRecipeList(menu.menuId); // ⭐️ 목록 새로고침
+      await loadRecipeList(menu.menuId); // 모달 안 리스트 갱신
+      invalidateMenus();                 // ✅ 메뉴 목록/원가 갱신
     } catch (e: any) {
       console.error(e);
       const msg =
@@ -178,19 +176,13 @@ export function RecipeModal({
   };
 
   // 삭제
-  const handleDeleteRecipe = async (
-    recipeId: number
-  ) => {
+  const handleDeleteRecipe = async (recipeId: number) => {
     if (!menu) return;
-    if (
-      !window.confirm(
-        "이 재료를 레시피에서 제거할까요?"
-      )
-    )
-      return;
+    if (!window.confirm("이 재료를 레시피에서 제거할까요?")) return;
     try {
       await deleteRecipeIngredient(recipeId);
-      await loadRecipeList(menu.menuId); // ⭐️ 목록 새로고침
+      await loadRecipeList(menu.menuId); // 모달 안 리스트 갱신
+      invalidateMenus();                 // ✅ 메뉴 목록/원가 갱신
     } catch (e: any) {
       console.error(e);
       const msg =
@@ -227,8 +219,7 @@ export function RecipeModal({
         {/* 비활성 재고 경고 */}
         {hasInactiveInRecipe && (
           <div className="rounded-md border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 p-3 text-sm">
-            비활성 재고가 포함되어 있습니다. 대체 재고로
-            교체해 주세요.
+            비활성 재고가 포함되어 있습니다. 대체 재고로 교체해 주세요.
           </div>
         )}
 
@@ -248,21 +239,15 @@ export function RecipeModal({
             <>
               {recipeList.length === 0 ? (
                 <div className="text-sm text-muted-foreground">
-                  등록된 재료가 없습니다. 아래에서
-                  추가하세요.
+                  등록된 재료가 없습니다. 아래에서 추가하세요.
                 </div>
               ) : (
                 <div className="space-y-2">
                   {recipeList.map((ri) => {
-                    const inv = invOptions.find(
-                      (o) => o.itemId === ri.itemId
-                    );
-                    const invName =
-                      inv?.itemName ?? `#${ri.itemId}`;
-                    const unit =
-                      inv?.stockType ?? "";
-                    const invInactive =
-                      inv?.status === "INACTIVE";
+                    const inv = invOptions.find((o) => o.itemId === ri.itemId);
+                    const invName = inv?.itemName ?? `#${ri.itemId}`;
+                    const unit = inv?.stockType ?? "";
+                    const invInactive = inv?.status === "INACTIVE";
 
                     return (
                       <div
@@ -273,14 +258,11 @@ export function RecipeModal({
                           <div className="font-medium flex items-center gap-2">
                             {invName}
                             {invInactive && (
-                              <Badge variant="secondary">
-                                비활성
-                              </Badge>
+                              <Badge variant="secondary">비활성</Badge>
                             )}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            소모 수량:{" "}
-                            {ri.consumptionQty}
+                            소모 수량: {ri.consumptionQty}
                             {unit ? ` ${unit}` : ""}
                           </div>
                         </div>
@@ -288,34 +270,18 @@ export function RecipeModal({
                           <Input
                             type="number"
                             className="w-24"
-                            defaultValue={
-                              ri.consumptionQty
-                            }
+                            defaultValue={ri.consumptionQty}
                             onBlur={(e) => {
-                              const v = Number(
-                                e.currentTarget.value
-                              );
-                              if (
-                                !isNaN(v) &&
-                                v > 0 &&
-                                v !==
-                                  ri.consumptionQty
-                              ) {
-                                handleUpdateRecipe(
-                                  ri.recipeId,
-                                  v
-                                );
+                              const v = Number(e.currentTarget.value);
+                              if (!isNaN(v) && v > 0 && v !== ri.consumptionQty) {
+                                handleUpdateRecipe(ri.recipeId, v);
                               }
                             }}
                           />
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                              handleDeleteRecipe(
-                                ri.recipeId
-                              )
-                            }
+                            onClick={() => handleDeleteRecipe(ri.recipeId)}
                           >
                             제거
                           </Button>
@@ -339,20 +305,13 @@ export function RecipeModal({
                 value={selectedItemId}
                 onChange={(e) =>
                   setSelectedItemId(
-                    e.target.value === ""
-                      ? ""
-                      : Number(e.target.value)
+                    e.target.value === "" ? "" : Number(e.target.value)
                   )
                 }
               >
-                <option value="">
-                  -- 재료 선택 --
-                </option>
+                <option value="">-- 재료 선택 --</option>
                 {availableInvOptions.map((opt) => (
-                  <option
-                    key={opt.itemId}
-                    value={opt.itemId}
-                  >
+                  <option key={opt.itemId} value={opt.itemId}>
                     {opt.itemName} ({opt.stockType})
                     {" • 재고 "}
                     {opt.stockQty}
@@ -369,9 +328,7 @@ export function RecipeModal({
                 value={consumptionQty}
                 onChange={(e) =>
                   setConsumptionQty(
-                    e.target.value === ""
-                      ? ""
-                      : Number(e.target.value)
+                    e.target.value === "" ? "" : Number(e.target.value)
                   )
                 }
               />
@@ -379,10 +336,7 @@ export function RecipeModal({
           </div>
 
           <div className="flex justify-end">
-            <Button
-              onClick={handleAddRecipe}
-              disabled={isAdding}
-            >
+            <Button onClick={handleAddRecipe} disabled={isAdding}>
               {isAdding ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -394,10 +348,7 @@ export function RecipeModal({
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             닫기
           </Button>
         </DialogFooter>
