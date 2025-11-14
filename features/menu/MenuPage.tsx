@@ -178,17 +178,13 @@ export default function MenuPage() {
           {!loading && !error && (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {items.map((item) => {
-                const cost =
-                  calculatedCostMap[item.menuId] ??
-                  0;
-                const price = Number(
-                  item.price || 0
-                );
+                const cost = Number(item.calculatedCost ?? 0);
+                const price = Number(item.price || 0);
+
                 const margin =
-                  price > 0
-                    ? ((price - cost) / price) *
-                      100
-                    : 0;
+                  price > 0 ? ((price - cost) / price) * 100 : 0;
+
+                const lowMargin = margin < 50;
                 const isInactive =
                   item.status === "INACTIVE";
 
@@ -246,6 +242,13 @@ export default function MenuPage() {
                           </span>
                         </div>
                       </div>
+                      {/* ✅ 마진 경고 배지/배너 */}
+                      {lowMargin && (
+                        <div className="mt-2 rounded-md border border-red-300 bg-red-50 dark:bg-red-950/20 p-2 text-xs text-red-600">
+                          이 메뉴는 마진율이 50% 미만입니다. 원가/판매가를 점검하세요.
+                        </div>
+                      )}
+
 
                       <div className="flex gap-2 pt-2">
                         <Button
@@ -323,11 +326,11 @@ export default function MenuPage() {
             defaultValues={
               editingMenu
                 ? {
-                    menuName: editingMenu.menuName,
-                    price: Number(
-                      editingMenu.price
-                    ),
-                  }
+                  menuName: editingMenu.menuName,
+                  price: Number(
+                    editingMenu.price
+                  ),
+                }
                 : undefined
             }
           />
@@ -336,7 +339,6 @@ export default function MenuPage() {
             onOpenChange={setIsRecipeModalOpen}
             menu={selectedMenuForRecipe}
             invOptions={invOptions}
-            onRecipeUpdated={onRecipeUpdated}
           />
         </>
       )}
