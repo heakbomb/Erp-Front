@@ -97,8 +97,7 @@ export interface MenuItem {
   storeId: number; // BIGINT(20)
   menuName: string; // VARCHAR(100)
   price: number; // DECIMAL(10,2)
-  calculatedCost: number; // DECIMAL(10,2)
-  // ✅ 'features/menu/MenuPage.tsx'에서 status를 사용합니다.
+  calculatedCost?: number
   status?: "ACTIVE" | "INACTIVE";
 }
 
