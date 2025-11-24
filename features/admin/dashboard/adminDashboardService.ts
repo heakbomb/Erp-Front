@@ -14,9 +14,11 @@ type AuditLog = {
 export type DashboardStats = {
     totalStores: number;
     totalUsers: number;
-    activeSubscriptions: number;      // ✅ 수정
-    pendingStoreCount: number;        // ✅ 수정
-    recentActivities: AuditLog[]; // ✅ 수정
+    activeSubscriptions: number;    
+    pendingStoreCount: number;      
+    pendingInquiryCount: number;
+
+    recentActivities: AuditLog[]; 
 };
 
 /**
