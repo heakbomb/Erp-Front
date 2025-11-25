@@ -7,6 +7,14 @@ import type { Store } from "@/lib/types/database";
 // ✅ 2. StoreType을 Store의 별칭으로 export 합니다.
 export type StoreType = Store;
 
+// ✅ [추가] 백엔드 BusinessNumberResponse 와 맞는 타입
+export interface BusinessNumber {
+  bizId: number;
+  ownerId: number | null;
+  phone: string;
+  bizNum: string;
+}
+
 export type BusinessVerifyPayload = {
   bizNo: string;
   phone: string;
@@ -45,10 +53,21 @@ export async function updateStore(
   return res.data as Store; // ✅ Store 타입으로 반환
 }
 
+export async function fetchOwnerStores(ownerId: number) {
+  const res = await apiClient.get(`/store/owner/${ownerId}`);
+  return res.data as { storeId: number; storeName: string }[];
+}
+
 // ✅ 3. deleteStore 함수를 정상적으로 export 합니다.
 export async function deleteStore(storeId: number, force = false) {
   const res = await apiClient.delete(`/store/${storeId}`, { params: { force } });
   return res.data;
+}
+
+// ✅ [추가] 특정 Owner 의 인증된 사업자번호 목록 조회
+export async function fetchBusinessNumbersByOwner(ownerId: number) {
+  const res = await apiClient.get(`/store/business-numbers/by-owner/${ownerId}`);
+  return res.data as BusinessNumber[];
 }
 
 // ===== Phone verify =====

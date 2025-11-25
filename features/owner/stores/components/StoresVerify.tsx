@@ -50,7 +50,7 @@ export default function StoresVerify({
           <DialogHeader>
             <DialogTitle>사업자 번호 인증</DialogTitle>
             <DialogDescription>
-              전화번호 인증 → 사업자번호 입력 → DB 저장 순서로 진행하세요.
+              전화번호 인증 → 사업자번호 입력 순으로 진행해주세요.
             </DialogDescription>
           </DialogHeader>
 

@@ -65,27 +65,33 @@ export default function StoresList({
   }
 
   // ✅ 7. handleDelete를 훅의 핸들러(softDelete, hardDelete)를 사용하도록 수정
-  const handleDelete = async (id: number) => {
-    if (!confirm("정말로 삭제하시겠습니까?")) return
-    try {
-      await softDelete(id) // 훅의 softDelete 호출
-    } catch (err: any) {
-      const status = err?.response?.status
-      const msg = extractErrorMessage(err) // 전역 유틸 사용
-      if (status === 409) {
-        const go = confirm(`${msg}\n\n강제 삭제를 진행할까요?`)
-        if (go) {
-          await hardDelete(id) // 훅의 hardDelete 호출
-        } else {
-          return
+     const handleDelete = async (id: number) => {
+      // 1차 확인
+      if (!confirm("정말로 이 사업장을 삭제하시겠습니까?")) return;
+
+      try {
+        // ✅ 항상 일반 삭제만 시도 (force=false)
+        await softDelete(id);
+        alert("사업장이 삭제되었습니다.");
+        onChangedAction?.();
+      } catch (err: any) {
+        console.error("사업장 삭제 실패:", err);
+        const status = err?.response?.status;
+
+        // ✅ 근무배정 / 직원 연결이 있는 경우 (백엔드에서 409 로 응답)
+        if (status === 409) {
+          alert(
+            "이 사업장에는 근무배정(직원 연결) 정보가 있어 삭제할 수 없습니다.\n" +
+            "근무 기록 보호를 위해 관리자에게 삭제를 요청해 주세요."
+          );
+          return;
         }
-      } else {
-        alert(msg)
-        return
+
+        // ✅ 그 외 에러는 기존 전역 유틸 그대로 사용
+        const msg = extractErrorMessage(err);
+        alert(msg);
       }
-    }
-    onChangedAction?.()
-  }
+    };
 
   // openEditModal은 UI 로직이므로 그대로 둠
   const openEditModal = (s: StoreType) => {
@@ -146,8 +152,19 @@ export default function StoresList({
                       <CardDescription>{store.industry}</CardDescription>
                     </div>
                   </div>
-                  {/* ✅ 9. 전역 유틸 formatStoreStatus 사용 */}
-                  <Badge variant="default">{formatStoreStatus(store.status)}</Badge>
+                  {/* ✅ 상태에 따라 색상 달라지는 뱃지 */}
+                  <Badge
+                    variant="outline"
+                    className={
+                      store.status === "APPROVED"
+                        ? "bg-green-100 text-green-700 border-green-300"
+                        : store.status === "REJECTED"
+                        ? "bg-red-100 text-red-700 border-red-300"
+                        : "bg-yellow-100 text-yellow-700 border-yellow-300" // PENDING 또는 기타
+                    }
+                  >
+                    {formatStoreStatus(store.status)}
+                  </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -168,22 +185,29 @@ export default function StoresList({
                 </div>
 
                 <div className="space-y-3">
+
+                  {/* 사업자번호 표시 */}
+                  <div className="flex items-start gap-2 text-sm">
+                    <Store className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <span className="text-muted-foreground">
+                      사업자번호: {store.bizNum ?? "-"}
+                    </span>
+                  </div>
+
                   <div className="flex items-start gap-2 text-sm">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <span className="text-muted-foreground">
                       POS {store.posVendor ? store.posVendor : "미등록"}
                     </span>
                   </div>
+
                   <div className="flex items-start gap-2 text-sm">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <span className="text-muted-foreground">
                       lat: {store.latitude ?? "-"}, lng: {store.longitude ?? "-"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm opacity-50">
-                    <Phone className="h-4 w-4" />
-                    <span className="text-muted-foreground">전화번호 필드 없음</span>
-                  </div>
+
                 </div>
 
                 <div className="flex gap-2 pt-2">
@@ -286,7 +310,7 @@ export default function StoresList({
                         longitude: String(pos.coords.longitude),
                       }))
                     },
-                    () => alert("위치를 가져오지 못했습니다."),
+                    () => alert("위를 가져오지 못했습니다."),
                     { enableHighAccuracy: true, timeout: 5000 }
                   )
                 }}
