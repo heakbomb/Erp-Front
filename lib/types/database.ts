@@ -34,7 +34,7 @@ export interface Store {
   posVendor: string | null; // VARCHAR(50)
   status: "PENDING" | "APPROVED" | "REJECTED" | "ACTIVE" | "OPERATING"; // VARCHAR(20)
   approvedAt: string | null; // DATETIME
-  
+  bizNum?: string | null;
   // ✅✅✅ 
   // THESE LINES FIX THE 'latitude' and 'longitude' ERRORS
   latitude?: number | null;
@@ -145,4 +145,19 @@ export interface DemandForecast {
   forecastDate: string; // DATE
   predictedSalesMax: number; // DECIMAL(10,2)
   predictedVisitors: number; // INT
+}
+
+export interface EmployeeShift {
+  shiftId: number;      // BIGINT(20) - 근무 스케줄 PK
+  storeId: number;      // BIGINT(20) - 사업장 FK
+  employeeId: number;   // BIGINT(20) - 직원 FK
+  shiftDate: string;    // DATE       - 근무 일자 (YYYY-MM-DD)
+  startTime: string;    // TIME       - 근무 시작시간 (HH:mm[:ss])
+  endTime: string;      // TIME       - 근무 종료시간 (HH:mm[:ss])
+  isFixed: boolean;     // TINYINT(1) - 고정 스케줄 여부 (true/false)
+  memo?: string | null; // VARCHAR    - 메모(선택)
+  breakMinutes?: number | null;
+
+  // 선택: 조인해서 내려오는 경우를 위한 필드(있으면 쓰고, 없으면 안 써도 됨)
+  employeeName?: string;
 }

@@ -43,9 +43,17 @@ apiClient.interceptors.response.use(
       // TODO: AuthContext의 logout() 호출
       // if (typeof window !== "undefined") window.location.href = "/login";
     }
-    
-    // 서버 에러 메시지를 Error 객체로 변환
+
+    // ✅ 서버 에러 메시지를 friendlyMessage로 추출
     const friendlyMessage = extractErrorMessage(error);
-    return Promise.reject(new Error(friendlyMessage));
+
+    // ✅ Error를 새로 만들지 말고, 기존 AxiosError에 메시지만 붙인다.
+    if (axios.isAxiosError(error)) {
+      (error as any).friendlyMessage = friendlyMessage;
+    }
+
+    // ✅ 원래 error 그대로 던지기 때문에
+    //    err.response.status, err.response.data 등을 프론트에서 그대로 쓸 수 있음
+    return Promise.reject(error);
   }
 );

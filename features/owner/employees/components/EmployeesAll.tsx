@@ -51,12 +51,7 @@ export default function EmployeesAll() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">직원 관리</h1>
-          <p className="text-muted-foreground">직원 정보와 출결 현황을 관리하세요</p>
-        </div>
-      </div>
+      
 
       <Card>
         <CardHeader>

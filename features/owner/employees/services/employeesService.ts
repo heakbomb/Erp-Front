@@ -1,15 +1,7 @@
 // features/owner/employees/services/employeesService.ts
 import { apiClient } from "@/lib/api/client"; // ✅ apiClient 사용
 import { extractErrorMessage as utilExtractErrorMessage } from "@/lib/utils"; // ✅ lib/utils에서 가져오기
-
-export type Employee = {
-  employeeId: number;
-  name: string;
-  email: string;
-  phone: string;
-  provider: string;
-  createdAt: string;
-};
+import type { Employee } from "@/lib/types/database"; // ✅ 공용 Employee 타입 사용
 
 /** 직원-사업장 배정 신청 응답(대기/승인/거절 공통) */
 export type PendingRequest = {
@@ -47,7 +39,7 @@ export async function deleteEmployee(employeeId: number) {
 /* ───────── Pending(신청/승인/거절) ───────── */
 export async function fetchPendingAssignments(storeId: number): Promise<PendingRequest[]> {
   // ✅ 백엔드 컨트롤러: @RequestMapping("/assignments")
-  const res = await apiClient.get<PendingRequest[]>(`/assignments/pending`, { // ✅ apiClient 사용
+  const res = await apiClient.get<PendingRequest[]>(`/assignments/pending`, {
     params: { storeId },
   });
   return res.data || [];
@@ -55,18 +47,18 @@ export async function fetchPendingAssignments(storeId: number): Promise<PendingR
 
 export async function approveAssignment(assignmentId: number) {
   // ✅ POST /assignments/{assignmentId}/approve
-  await apiClient.post(`/assignments/${assignmentId}/approve`); // ✅ apiClient 사용
+  await apiClient.post(`/assignments/${assignmentId}/approve`);
 }
 
 export async function rejectAssignment(assignmentId: number) {
   // ✅ POST /assignments/{assignmentId}/reject
-  await apiClient.post(`/assignments/${assignmentId}/reject`); // ✅ apiClient 사용
+  await apiClient.post(`/assignments/${assignmentId}/reject`);
 }
 
 /* ───────── QR(사업장) ───────── */
 export async function fetchStoreQr(storeId: number, refresh = false) {
   // (QR 엔드포인트는 기존 페이지와 호환 유지)
-  const res = await apiClient.get(`/store/${storeId}/qr`, { // ✅ apiClient 사용
+  const res = await apiClient.get(`/store/${storeId}/qr`, {
     params: { refresh },
   });
   return res.data;

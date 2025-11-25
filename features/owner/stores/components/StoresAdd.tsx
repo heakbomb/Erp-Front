@@ -15,9 +15,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Store as StoreIcon } from "lucide-react"
 
+// ✅ Select 컴포넌트 추가
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
 // ✅ hooks/services로 분리
 import useNaverLoader from "@/features/owner/stores/hooks/useNaverLoader"
-import { createStore } from "@/features/owner/stores/services/storesService"
+import {
+  createStore,
+  fetchBusinessNumbersByOwner,
+  type BusinessNumber,
+} from "@/features/owner/stores/services/storesService"
 
 // 지도 컴포넌트 (로더는 훅으로 교체)
 function NaverMapPicker({
@@ -89,6 +102,34 @@ export default function StoresAdd({
   })
   const [saving, setSaving] = useState(false)
   const [openMap, setOpenMap] = useState(false)
+
+  // ✅ 사업자번호 목록 상태
+  const [bizList, setBizList] = useState<BusinessNumber[]>([])
+  const [bizLoading, setBizLoading] = useState(false)
+
+  // ⚠️ 로그인 붙기 전까지 임시 Owner ID
+  const OWNER_ID = 1
+
+  // ✅ 모달이 열릴 때 해당 Owner 의 사업자번호 목록 로드
+  useEffect(() => {
+    if (!open) return
+    if (bizList.length > 0) return
+
+    const loadBizNumbers = async () => {
+      try {
+        setBizLoading(true)
+        const data = await fetchBusinessNumbersByOwner(OWNER_ID)
+        setBizList(data)
+      } catch (e) {
+        console.error("사업자번호 목록 조회 실패:", e)
+      } finally {
+        setBizLoading(false)
+      }
+    }
+
+    loadBizNumbers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   // ✅ 인증이 새로 되면 bizId를 자동으로 채워줌
   useEffect(() => {
@@ -167,15 +208,40 @@ export default function StoresAdd({
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="add-bizId">사업자 ID</Label>
-              <Input
-                id="add-bizId"
-                type="number"
-                value={form.bizId}
-                onChange={(e) => setForm((p) => ({ ...p, bizId: e.target.value }))}
-                placeholder="예) 1001"
-              />
+              <Label htmlFor="add-bizId">사업자번호</Label>
+              {bizLoading ? (
+                <p className="text-xs text-muted-foreground px-1">
+                  사업자번호 목록을 불러오는 중…
+                </p>
+              ) : (
+                <Select
+                  value={form.bizId}
+                  onValueChange={(value) =>
+                    setForm((p) => ({
+                      ...p,
+                      bizId: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger id="add-bizId">
+                    <SelectValue placeholder="사업자번호 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bizList.map((bn) => (
+                      <SelectItem key={bn.bizId} value={String(bn.bizId)}>
+                        {bn.bizNum} ({bn.phone})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {(!bizLoading && bizList.length === 0) && (
+                <p className="text-xs text-muted-foreground px-1">
+                  등록된 사업자번호가 없습니다. 먼저 사업자번호를 인증해 주세요.
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="add-storeName">사업장명</Label>
               <Input
