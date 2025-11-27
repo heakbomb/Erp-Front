@@ -7,11 +7,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
-import { CreditCard, Plus, Loader2, ArrowLeft, Pencil, Check, X } from 'lucide-react';
+import { CreditCard, Plus, Loader2, ArrowLeft, Pencil, Check, X, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PaymentMethodPage() {
-  const { cards, loading, addCard, updateCardName } = usePaymentMethod();
+  const { cards, loading, addCard, updateCardName, removeCard } = usePaymentMethod();
   
   // 상태 관리
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -92,6 +92,16 @@ export default function PaymentMethodPage() {
                     <button onClick={() => startEdit(card)} className="text-muted-foreground hover:text-primary transition-colors">
                         <Pencil className="h-3 w-3" />
                     </button>
+
+                    {/* ✅ [추가] 삭제 버튼 */}
+                    <button 
+                        onClick={() => removeCard(card.paymentId)} 
+                        className="text-muted-foreground hover:text-red-600 transition-colors ml-1"
+                        title="카드 삭제"
+                    >
+                        <Trash2 className="h-3 w-3" />
+                    </button>
+                    
                   </CardTitle>
                   {card.isDefault && <span className="text-xs text-primary font-bold">기본 결제</span>}
                 </>

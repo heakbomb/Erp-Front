@@ -104,7 +104,7 @@ export const usePaymentMethod = () => {
     }
   };
 
-  // ✅ [추가] 이름 수정 함수
+  // 이름 수정 함수
   const updateCardName = async (paymentId: number, newName: string) => {
     try {
       await paymentMethodService.updateCardName(paymentId, newName);
@@ -115,5 +115,19 @@ export const usePaymentMethod = () => {
     }
   };
 
-  return { cards, loading, addCard, updateCardName };
+  // 삭제 함수
+  const removeCard = async (paymentId: number) => {
+    if (!confirm("정말 이 카드를 삭제하시겠습니까?")) return;
+
+    try {
+      await paymentMethodService.deleteCard(paymentId);
+      toast({ title: "삭제 완료", description: "카드가 삭제되었습니다." });
+      fetchCards(); // 목록 갱신
+    } catch (e) {
+      console.error(e);
+      toast({ title: "오류", description: "카드 삭제 실패" });
+    }
+  };
+
+  return { cards, loading, addCard, updateCardName, removeCard }; // removeCard 반환 추가
 };
