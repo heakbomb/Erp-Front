@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import useEmployeesAttendance from "@/features/owner/employees/hooks/useEmployeesAttendance";
 import type {
@@ -29,59 +29,90 @@ import type {
   OwnerAttendanceLogItem,
 } from "@/features/owner/employees/services/employeesService";
 
-function StatusBadge({
-  status,
-}: {
-  status: EmployeeAttendanceSummary["todayStatus"];
-}) {
-  switch (status) {
-    case "IN":
-      return (
-        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
-          근무 중
-        </Badge>
-      );
-    case "OUT":
-      return (
-        <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-          퇴근 완료
-        </Badge>
-      );
-    case "ABSENT":
-      return <Badge variant="destructive">미출근</Badge>;
-    default:
-      return <Badge variant="secondary">확인 필요</Badge>;
-  }
-}
-
 export default function EmployeesAttendance() {
   const {
-    storeIdInput,
-    date,
-    items, // 요약 카드용
-    logs, // 로그 리스트용
+    // ───── 월간 요약용 state ─────
+    summaryStoreIdInput,
+    summaryMonth,
+    summaryEmployeeFilter,
+    summaryItems,
+
+    // ───── 로그용 state ─────
+    logStoreIdInput,
+    logDate,
+    logEmployeeFilter,
+    logs,
+
+    // 공통
     loading,
     banner,
     stats,
-    setStoreIdInput,
-    setDate,
-    load,
+
+    // setters
+    setSummaryStoreIdInput,
+    setSummaryMonth,
+    setSummaryEmployeeFilter,
+    setLogStoreIdInput,
+    setLogDate,
+    setLogEmployeeFilter,
+
+    // actions
+    loadSummary,
+    loadLogs,
   } = useEmployeesAttendance();
 
-  const handleToday = () => {
+  const handleTodayLogs = () => {
     const today = new Date().toISOString().slice(0, 10);
-    setDate(today);
-    load({ date: today });
+    setLogDate(today);
+    void loadLogs({ date: today });
   };
 
-  // 로그 리스트용 통계
+  // 직원 옵션 (드롭다운) - 요약 결과 기준
+  const employeeOptions = useMemo<EmployeeAttendanceSummary[]>(
+    () =>
+      Array.from(
+        new Map<number, EmployeeAttendanceSummary>(
+          summaryItems.map((i: EmployeeAttendanceSummary) => [
+            i.employeeId,
+            i,
+          ]),
+        ).values(),
+      ),
+    [summaryItems],
+  );
+
+  // 직원 필터 적용된 요약 데이터
+  const filteredSummaryItems = useMemo(() => {
+    if (summaryEmployeeFilter === "all") return summaryItems;
+    const id = Number(summaryEmployeeFilter);
+    if (Number.isNaN(id)) return summaryItems;
+    return summaryItems.filter(
+      (i: EmployeeAttendanceSummary) => i.employeeId === id,
+    );
+  }, [summaryItems, summaryEmployeeFilter]);
+
+  // 직원 필터 적용된 로그 데이터
+  const filteredLogs = useMemo(() => {
+    if (logEmployeeFilter === "all") return logs;
+    const id = Number(logEmployeeFilter);
+    if (Number.isNaN(id)) return logs;
+    return logs.filter((l: OwnerAttendanceLogItem) => l.employeeId === id);
+  }, [logs, logEmployeeFilter]);
+
+  // 로그 리스트용 통계 (필터 적용된 로그 기준)
   const logStats = useMemo(() => {
-    const totalLogs = logs.length;
-    const inCount = logs.filter((l) => l.recordType === "IN").length;
-    const outCount = logs.filter((l) => l.recordType === "OUT").length;
-    const employeeCount = new Set(logs.map((l) => l.employeeId)).size;
+    const totalLogs = filteredLogs.length;
+    const inCount = filteredLogs.filter(
+      (l: OwnerAttendanceLogItem) => l.recordType === "IN",
+    ).length;
+    const outCount = filteredLogs.filter(
+      (l: OwnerAttendanceLogItem) => l.recordType === "OUT",
+    ).length;
+    const employeeCount = new Set(
+      filteredLogs.map((l: OwnerAttendanceLogItem) => l.employeeId),
+    ).size;
     return { totalLogs, inCount, outCount, employeeCount };
-  }, [logs]);
+  }, [filteredLogs]);
 
   return (
     <div className="space-y-6">
@@ -97,79 +128,79 @@ export default function EmployeesAttendance() {
         </div>
       )}
 
-      {/* ───────── 카드 1: 직원 출결 현황(요약) ───────── */}
+      {/* ───────── 카드 1: 직원 출결 현황(월간 요약) ───────── */}
       <Card>
         <CardHeader className="space-y-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <CardTitle>직원 출결 현황</CardTitle>
               <CardDescription>
-                사업장에 등록된 직원들의 오늘 출결 상태와 이번 달 근무 요약을
-                한눈에 확인할 수 있습니다.
+                사업장에 등록된 직원들의 이번 달 근무 일수와 총 근무시간을 한눈에
+                확인할 수 있습니다.
               </CardDescription>
             </div>
 
-            {/* 필터 영역 (공통) */}
+            {/* 직원 출결 현황 조회 필터 (사업장 + 월 + 직원 선택) */}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Input
                 className="w-32"
                 placeholder="사업장 ID"
                 inputMode="numeric"
-                value={storeIdInput}
+                value={summaryStoreIdInput}
                 onChange={(e) =>
-                  setStoreIdInput(e.target.value.replace(/[^0-9]/g, ""))
+                  setSummaryStoreIdInput(
+                    e.target.value.replace(/[^0-9]/g, ""),
+                  )
                 }
               />
               <Input
-                className="w-44"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+                className="w-40"
+                type="month"
+                value={summaryMonth}
+                onChange={(e) => setSummaryMonth(e.target.value)}
               />
+              <select
+                className="w-40 rounded-md border px-2 py-1 text-sm"
+                value={summaryEmployeeFilter}
+                onChange={(e) => setSummaryEmployeeFilter(e.target.value)}
+              >
+                <option value="all">전체 직원</option>
+                {employeeOptions.map((emp: EmployeeAttendanceSummary) => (
+                  <option key={emp.employeeId} value={emp.employeeId}>
+                    {emp.employeeName ?? `직원 #${emp.employeeId}`}
+                  </option>
+                ))}
+              </select>
               <Button
                 size="sm"
-                onClick={() => load()}
+                onClick={() => void loadSummary()}
                 disabled={loading}
                 className="whitespace-nowrap"
               >
                 {loading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
                 조회
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleToday}
-                className="whitespace-nowrap"
-              >
-                오늘
-              </Button>
             </div>
           </div>
 
-          {/* 상단 요약 뱃지 (summary 기준) */}
+          {/* 상단 요약 뱃지 (이번 달 요약) */}
           <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
             <span>
               총 직원{" "}
               <Badge variant="outline" className="ml-1">
-                {stats.total}명
+                {stats.totalEmployees}명
               </Badge>
             </span>
             <span>
-              근무 중{" "}
+              이번 달 총 근무일수{" "}
               <Badge variant="outline" className="ml-1">
-                {stats.working}명
+                {stats.totalWorkDays}일
               </Badge>
             </span>
             <span>
-              퇴근 완료{" "}
+              이번 달 총 근무시간{" "}
               <Badge variant="outline" className="ml-1">
-                {stats.off}명
-              </Badge>
-            </span>
-            <span>
-              미출근{" "}
-              <Badge variant="outline" className="ml-1">
-                {stats.absent}명
+                {stats.totalWorkHours.toFixed(1)}h
               </Badge>
             </span>
           </div>
@@ -181,9 +212,9 @@ export default function EmployeesAttendance() {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               출결 현황을 불러오는 중…
             </div>
-          ) : items.length === 0 ? (
+          ) : filteredSummaryItems.length === 0 ? (
             <div className="text-sm text-muted-foreground">
-              조회된 출결 데이터가 없습니다. 사업장 ID와 날짜를 확인해주세요.
+              조회된 출결 데이터가 없습니다. 사업장 ID와 월을 확인해주세요.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -191,63 +222,34 @@ export default function EmployeesAttendance() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>직원</TableHead>
-                    <TableHead>오늘 상태</TableHead>
-                    <TableHead>첫 출근</TableHead>
-                    <TableHead>마지막 퇴근</TableHead>
                     <TableHead className="text-right">
-                      이번 달 총 근무시간 (h)
+                      이번 달 근무일수
                     </TableHead>
                     <TableHead className="text-right">
-                      이번 달 지각 횟수
+                      이번 달 총 근무시간 (h)
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((row: EmployeeAttendanceSummary) => (
-                    <TableRow key={row.employeeId}>
-                      <TableCell>
-                        <div className="font-medium">{row.name}</div>
-                        {row.email && (
-                          <div className="text-xs text-muted-foreground">
-                            {row.email}
+                  {filteredSummaryItems.map(
+                    (row: EmployeeAttendanceSummary) => (
+                      <TableRow key={row.employeeId}>
+                        <TableCell>
+                          <div className="font-medium">
+                            {row.employeeName ?? `직원 #${row.employeeId}`}
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={row.todayStatus} />
-                      </TableCell>
-                      <TableCell>
-                        {row.todayFirstIn
-                          ? new Date(row.todayFirstIn).toLocaleTimeString(
-                              "ko-KR",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {row.todayLastOut
-                          ? new Date(row.todayLastOut).toLocaleTimeString(
-                              "ko-KR",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {row.totalHoursThisMonth != null
-                          ? row.totalHoursThisMonth.toFixed(1)
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {row.lateCountThisMonth ?? "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.workDaysThisMonth ?? 0}일
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.workHoursThisMonth!= null
+                            ? row.workHoursThisMonth.toFixed(1)
+                            : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ),
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -257,22 +259,63 @@ export default function EmployeesAttendance() {
 
       {/* ───────── 카드 2: 출퇴근 로그 리스트 ───────── */}
       <Card>
-        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle>출퇴근 로그 리스트</CardTitle>
-            <CardDescription>
-              선택한 사업장 / 날짜 기준으로 기록된 모든 출근 · 퇴근 로그입니다.
-            </CardDescription>
+        <CardHeader className="space-y-3">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle>출퇴근 로그 리스트</CardTitle>
+              <CardDescription>
+                선택한 사업장 / 날짜 기준으로 기록된 모든 출근 · 퇴근 로그입니다.
+              </CardDescription>
+            </div>
+
+            {/* 출퇴근 로그 조회 필터 (사업장 + 날짜 + 직원 선택) */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                className="w-32"
+                placeholder="사업장 ID"
+                inputMode="numeric"
+                value={logStoreIdInput}
+                onChange={(e) =>
+                  setLogStoreIdInput(e.target.value.replace(/[^0-9]/g, ""))
+                }
+              />
+              <Input
+                className="w-44"
+                type="date"
+                value={logDate}
+                onChange={(e) => setLogDate(e.target.value)}
+              />
+              <select
+                className="w-40 rounded-md border px-2 py-1 text-sm"
+                value={logEmployeeFilter}
+                onChange={(e) => setLogEmployeeFilter(e.target.value)}
+              >
+                <option value="all">전체 직원</option>
+                {employeeOptions.map((emp: EmployeeAttendanceSummary) => (
+                  <option key={emp.employeeId} value={emp.employeeId}>
+                    {emp.employeeName ?? `직원 #${emp.employeeId}`}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                onClick={() => void loadLogs()}
+                disabled={loading}
+                className="whitespace-nowrap"
+              >
+                {loading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                조회
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTodayLogs}
+                className="whitespace-nowrap"
+              >
+                오늘
+              </Button>
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => load()}
-            className="text-xs"
-          >
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            새로고침
-          </Button>
         </CardHeader>
 
         <CardContent>
@@ -309,9 +352,9 @@ export default function EmployeesAttendance() {
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               출퇴근 로그를 불러오는 중…
             </div>
-          ) : logs.length === 0 ? (
+          ) : filteredLogs.length === 0 ? (
             <div className="text-sm text-muted-foreground">
-              조회된 출결 로그가 없습니다. 사업장 ID와 날짜를 확인해주세요.
+              조회된 출결 로그가 없습니다. 사업장 ID와 날짜, 직원 필터를 확인해주세요.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -321,11 +364,10 @@ export default function EmployeesAttendance() {
                     <TableHead>직원</TableHead>
                     <TableHead>기록 시간</TableHead>
                     <TableHead>유형</TableHead>
-                    <TableHead>IP</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {logs.map((l: OwnerAttendanceLogItem) => (
+                  {filteredLogs.map((l: OwnerAttendanceLogItem) => (
                     <TableRow key={l.logId}>
                       <TableCell>
                         <div className="font-medium">
@@ -355,7 +397,6 @@ export default function EmployeesAttendance() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {l.clientIp ?? "-"}
                       </TableCell>
                     </TableRow>
                   ))}

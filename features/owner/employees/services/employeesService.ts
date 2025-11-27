@@ -62,49 +62,37 @@ export async function fetchStoreQr(storeId: number, refresh = false) {
   return res.data;
 }
 
-/* ───────── 출결 현황(사장용 요약 카드) ───────── */
+/* ───────── 출결 현황(사장용 월간 요약) ───────── */
 
-/**
- * 한 사업장에 등록된 직원들의 출결 요약
- *
- * todayStatus:
- *  - "IN"      : 현재 근무 중(출근 완료, 아직 퇴근 X)
- *  - "OUT"     : 오늘 출근/퇴근 모두 완료
- *  - "ABSENT"  : 오늘 아직 출근 기록 없음
- *  - "UNKNOWN" : 기타/확인 필요
- */
 export type EmployeeAttendanceSummary = {
   employeeId: number;
-  name: string;
-  email?: string | null;
-  phone?: string | null;
+  employeeName: string;
 
-  todayStatus: "IN" | "OUT" | "ABSENT" | "UNKNOWN";
-  todayFirstIn?: string | null;
-  todayLastOut?: string | null;
+  storeId: number;
+  storeName: string;
 
-  totalHoursThisMonth?: number | null;
-  lateCountThisMonth?: number | null;
+  // 이번 달 기준
+  workDaysThisMonth: number;    // 총 근무일수
+  workHoursThisMonth: number;   // 총 근무시간 (시간 단위)
 };
 
 /**
- * 사장페이지 - 직원 출결 현황 요약 조회
- * GET /owner/attendance/summary
+ * 사장페이지 - 직원 출결 월간 요약 조회
+ * GET /attendance/owner/summary?storeId=11&month=2025-11
  */
 export async function fetchEmployeesAttendanceSummary(params: {
   storeId: number;
-  date?: string;
+  month: string; // "YYYY-MM"
 }): Promise<EmployeeAttendanceSummary[]> {
   const res = await apiClient.get<EmployeeAttendanceSummary[]>(
-    "/owner/attendance/summary",
-    { params },
+    "/attendance/owner/summary",
+    { params }, // 👈 반드시 month 키로 보낸다
   );
   return res.data || [];
 }
 
 /* ───────── 출퇴근 로그 리스트(사장용) ───────── */
 
-/** 사장페이지에서 보는 출퇴근 로그 1건 */
 export type OwnerAttendanceLogItem = {
   logId: number;
   recordTime: string; // ISO datetime
@@ -112,22 +100,25 @@ export type OwnerAttendanceLogItem = {
   employeeId: number;
   storeId: number;
   employeeName?: string | null;
-  clientIp?: string | null;
 };
 
 /**
  * 사장페이지 - 특정 사업장 / 날짜 기준 전체 출퇴근 로그 조회
- * GET /owner/attendance/logs
+ * GET /attendance/owner/logs?storeId=11&from=2025-11-05&to=2025-11-05
  */
 export async function fetchOwnerAttendanceLogs(params: {
   storeId: number;
-  date: string;
+  date: string; // "YYYY-MM-DD"
 }): Promise<OwnerAttendanceLogItem[]> {
   const res = await apiClient.get<OwnerAttendanceLogItem[]>(
     "/attendance/owner/logs",
-    { params: { storeId: params.storeId,
-        from: params.date,   // 👈 추가
-        to: params.date   } },
+    {
+      params: {
+        storeId: params.storeId,
+        from: params.date,
+        to: params.date,
+      },
+    },
   );
   return res.data || [];
 }

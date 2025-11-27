@@ -14,17 +14,25 @@ import {
 export type Banner = { type: "success" | "error"; message: string } | null;
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
+const thisMonthStr = () => todayStr().slice(0, 7); // "YYYY-MM"
 
 export default function useEmployeesAttendance() {
-  const [storeIdInput, setStoreIdInput] = useState<string>("1");
-  const [date, setDate] = useState<string>(todayStr());
+  // ───── 직원 출결 현황(월간 요약) 전용 상태 ─────
+  const [summaryStoreIdInput, setSummaryStoreIdInput] = useState<string>("11");
+  const [summaryMonth, setSummaryMonth] = useState<string>(thisMonthStr());
+  const [summaryEmployeeFilter, setSummaryEmployeeFilter] =
+    useState<string>("all");
+  const [summaryItems, setSummaryItems] = useState<EmployeeAttendanceSummary[]>(
+    [],
+  );
 
-  // 요약 카드용 데이터
-  const [items, setItems] = useState<EmployeeAttendanceSummary[]>([]);
-
-  // 로그 리스트용 데이터
+  // ───── 출퇴근 로그 리스트(일 단위) 전용 상태 ─────
+  const [logStoreIdInput, setLogStoreIdInput] = useState<string>("11");
+  const [logDate, setLogDate] = useState<string>(todayStr());
+  const [logEmployeeFilter, setLogEmployeeFilter] = useState<string>("all");
   const [logs, setLogs] = useState<OwnerAttendanceLogItem[]>([]);
 
+  // 공통
   const [loading, setLoading] = useState(false);
   const [banner, setBanner] = useState<Banner>(null);
 
@@ -35,14 +43,55 @@ export default function useEmployeesAttendance() {
     }
   };
 
-  const load = async (opts?: { storeId?: number; date?: string }) => {
+  // ─────────────────────────────────────────────
+  // 1) 직원 출결 현황(월간 요약) 조회
+  // ─────────────────────────────────────────────
+  const loadSummary = async (opts?: { storeId?: number; month?: string }) => {
     const targetStoreId =
       typeof opts?.storeId === "number"
         ? opts.storeId
-        : Number(storeIdInput || "0");
+        : Number(summaryStoreIdInput || "0");
 
     if (Number.isNaN(targetStoreId) || targetStoreId <= 0) {
-      setItems([]);
+      setSummaryItems([]);
+      bannerShow({
+        type: "error",
+        message: "올바른 사업장 ID를 입력해주세요.",
+      });
+      return;
+    }
+
+    const targetMonth = opts?.month || summaryMonth || thisMonthStr();
+
+    try {
+      setLoading(true);
+      const data = await fetchEmployeesAttendanceSummary({
+        storeId: targetStoreId,
+        month: targetMonth, // "YYYY-MM"
+      });
+      setSummaryItems(data || []);
+    } catch (e: any) {
+      console.error("직원 월간 출결 요약 조회 실패:", e);
+      bannerShow({
+        type: "error",
+        message: extractErrorMessage(e),
+      });
+      setSummaryItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // 2) 출퇴근 로그 리스트 조회
+  // ─────────────────────────────────────────────
+  const loadLogs = async (opts?: { storeId?: number; date?: string }) => {
+    const targetStoreId =
+      typeof opts?.storeId === "number"
+        ? opts.storeId
+        : Number(logStoreIdInput || "0");
+
+    if (Number.isNaN(targetStoreId) || targetStoreId <= 0) {
       setLogs([]);
       bannerShow({
         type: "error",
@@ -51,72 +100,76 @@ export default function useEmployeesAttendance() {
       return;
     }
 
-    const targetDate = opts?.date ?? date;
+    const targetDate = opts?.date || logDate || todayStr();
 
     try {
       setLoading(true);
-
-      const [summaryData, logData] = await Promise.all([
-        fetchEmployeesAttendanceSummary({
-          storeId: targetStoreId,
-          date: targetDate,
-        }),
-        fetchOwnerAttendanceLogs({
-          storeId: targetStoreId,
-          date: targetDate,
-        }),
-      ]);
-
-      setItems(summaryData || []);
-      setLogs(logData || []);
+      const data = await fetchOwnerAttendanceLogs({
+        storeId: targetStoreId,
+        date: targetDate,
+      });
+      setLogs(data || []);
     } catch (e: any) {
-      console.error("직원 출결/로그 조회 실패:", e);
+      console.error("출퇴근 로그 조회 실패:", e);
       bannerShow({
         type: "error",
         message: extractErrorMessage(e),
       });
-      setItems([]);
       setLogs([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // 첫 진입 시 자동 로드
+  // 첫 진입 시: 월간 요약 + 오늘 로그 둘 다 한 번씩만 조회
   useEffect(() => {
-    load();
+    loadSummary();
+    loadLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 요약 카드용 통계 (summary API 기준)
+  // 요약 카드용 통계
   const stats = useMemo(() => {
-    const total = items.length;
-    const working = items.filter((i) => i.todayStatus === "IN").length;
-    const off = items.filter((i) => i.todayStatus === "OUT").length;
-    const absent = items.filter((i) => i.todayStatus === "ABSENT").length;
-
-    return { total, working, off, absent };
-  }, [items]);
+    const totalEmployees = summaryItems.length;
+    const totalWorkDays = summaryItems.reduce(
+      (sum, i) => sum + (i.workDaysThisMonth ?? 0),
+      0,
+    );
+    const totalWorkHours = summaryItems.reduce(
+      (sum, i) => sum + (i.workHoursThisMonth ?? 0),
+      0,
+    );
+    return { totalEmployees, totalWorkDays, totalWorkHours };
+  }, [summaryItems]);
 
   return {
-    // 공통 필터 상태
-    storeIdInput,
-    date,
+    // 월간 요약 state
+    summaryStoreIdInput,
+    summaryMonth,
+    summaryEmployeeFilter,
+    summaryItems,
 
-    // 요약 카드 데이터
-    items,
-    stats,
-
-    // 로그 리스트 데이터
+    // 로그 state
+    logStoreIdInput,
+    logDate,
+    logEmployeeFilter,
     logs,
 
-    // 로딩/배너
+    // 공통
     loading,
     banner,
+    stats,
 
-    // setter & actions
-    setStoreIdInput,
-    setDate,
-    load,
+    // setters
+    setSummaryStoreIdInput,
+    setSummaryMonth,
+    setSummaryEmployeeFilter,
+    setLogStoreIdInput,
+    setLogDate,
+    setLogEmployeeFilter,
+
+    // actions
+    loadSummary,
+    loadLogs,
   };
 }
