@@ -1,91 +1,119 @@
-// features/subscription/payment-method/hooks/usePaymentMethod.ts
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useMutation } from "@tanstack/react-query"
-import { updatePaymentMethod } from "../paymentMethodService"
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/components/ui/use-toast';
+import { paymentMethodService } from '../paymentMethodService';
+import { Owner } from '@/lib/types/database';
 
-// ⭐️ 폼 상태 타입 정의
-type PaymentFormState = {
-    // Card
-    cardNumber: string;
-    expiry: string;
-    cvc: string;
-    cardHolder: string;
-    // Bank
-    bankName: string;
-    accountNumber: string;
-    accountHolder: string;
-}
+export const usePaymentMethod = () => {
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const [cards, setCards] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-const initialFormState: PaymentFormState = {
-    cardNumber: "",
-    expiry: "",
-    cvc: "",
-    cardHolder: "",
-    bankName: "",
-    accountNumber: "",
-    accountHolder: "",
-}
+  const fetchCards = async () => {
+    try {
+      const data = await paymentMethodService.getMyCards();
+      setCards(data);
+    } catch (error) {
+      console.error("카드 목록 로드 실패:", error);
+    }
+  };
 
-export function usePaymentMethod() {
-    const router = useRouter()
-    const [paymentType, setPaymentType] = useState<"card" | "bank">("card")
+  // ✅ 리다이렉트 복귀 처리
+  useEffect(() => {
+    const billingKey = searchParams.get('billingKey');
+    const code = searchParams.get('code');
 
-    // ⭐️ 폼 입력을 하나의 객체로 관리
-    const [formState, setFormState] = useState<PaymentFormState>(initialFormState)
-
-    // ⭐️ 폼 입력 핸들러
-    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormState(prev => ({ ...prev, [name]: value }));
+    if (code) {
+        toast({ title: "인증 실패", description: searchParams.get('message') || "취소됨" });
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
     }
 
-    // ⭐️ 저장 뮤테이션
-    const saveMutation = useMutation({
-        mutationFn: updatePaymentMethod,
-        onSuccess: () => {
-            alert("결제 수단이 변경되었습니다")
-            router.push("/owner/settings")
+    if (billingKey) {
+        setLoading(true);
+        // ✅ 저장해둔 이름 꺼내기 (없으면 기본값)
+        const savedName = localStorage.getItem('temp_card_name') || '새 카드';
+        
+        paymentMethodService.registerCard({
+            customerUid: billingKey,
+            cardName: savedName,
+        }).then(() => {
+            toast({ title: "성공", description: "카드가 등록되었습니다." });
+            localStorage.removeItem('temp_card_name'); // 청소
+            fetchCards();
+        }).catch(() => {
+            toast({ title: "오류", description: "저장 실패" });
+        }).finally(() => {
+            setLoading(false);
+            window.history.replaceState({}, '', window.location.pathname);
+        });
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+      if (user?.role === 'OWNER') fetchCards();
+  }, [user]);
+
+  // ✅ [수정됨] 이름(alias)을 인자로 받음
+  const addCard = async (cardNameInput: string) => {
+    if (!window.PortOne) return;
+    setLoading(true);
+
+    const isOwner = user?.role === 'OWNER';
+    const ownerId = isOwner ? (user as Owner).owner_id : 1; 
+    const userName = isOwner ? (user as Owner).username : '테스트유저';
+    
+    // ✅ 이름을 로컬스토리지에 임시 저장 (리다이렉트 대비)
+    localStorage.setItem('temp_card_name', cardNameInput);
+
+    const generatedIssueId = `issue_${ownerId}_${new Date().getTime()}`;
+
+    try {
+      const response = await window.PortOne.requestIssueBillingKey({
+        storeId: process.env.NEXT_PUBLIC_PORTONE_STORE_ID!,
+        channelKey: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY!,
+        billingKeyMethod: "CARD",
+        issueId: generatedIssueId,
+        issueName: '결제 수단 등록',
+        redirectUrl: window.location.href, 
+        customer: {
+          fullName: userName,
+          phoneNumber: '010-0000-0000',
+          email: user?.email || 'test@test.com',
         },
-        onError: (error) => {
-            alert(`저장 실패: ${error.message}`)
-        }
-    })
+      });
 
-    // ⭐️ 저장 핸들러
-    const handleSave = () => {
-        // ⭐️ (필수) 여기서 Zod 등을 사용한 유효성 검사가 필요합니다.
-
-        let paymentDetails = {};
-        if (paymentType === "card") {
-            paymentDetails = {
-                cardNumber: formState.cardNumber,
-                expiry: formState.expiry,
-                cvc: formState.cvc,
-                cardHolder: formState.cardHolder,
-            };
-        } else {
-            paymentDetails = {
-                bankName: formState.bankName,
-                accountNumber: formState.accountNumber,
-                accountHolder: formState.accountHolder,
-            };
-        }
-
-        saveMutation.mutate({
-            type: paymentType,
-            details: paymentDetails,
-        })
+      if (!response.code && response.billingKey) {
+        await paymentMethodService.registerCard({
+          customerUid: response.billingKey,
+          cardName: cardNameInput, // ✅ 입력받은 이름 사용
+        });
+        toast({ title: "성공", description: "카드가 등록되었습니다." });
+        fetchCards();
+      } else if (response.code) {
+        toast({ title: "등록 실패", description: response.message });
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    return {
-        paymentType,
-        setPaymentType,
-        handleSave,
-        isSaving: saveMutation.isPending,
-        formState,
-        handleFormChange,
+  // ✅ [추가] 이름 수정 함수
+  const updateCardName = async (paymentId: number, newName: string) => {
+    try {
+      await paymentMethodService.updateCardName(paymentId, newName);
+      toast({ title: "수정 완료", description: "카드 이름이 변경되었습니다." });
+      fetchCards();
+    } catch (e) {
+      toast({ title: "오류", description: "이름 변경 실패" });
     }
-}
+  };
+
+  return { cards, loading, addCard, updateCardName };
+};

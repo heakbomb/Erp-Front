@@ -1,21 +1,24 @@
-// features/subscription/payment-method/paymentMethodService.ts
-import { apiClient } from "../../../lib/api/client"
+import { apiClient } from "@/lib/api/client";
 
-// ⭐️ 결제 수단 변경 요청 DTO
-interface UpdatePaymentMethodRequest {
-    type: "card" | "bank";
-    details: object; // 카드 또는 계좌 정보
-}
+export const paymentMethodService = {
+  // 목록 조회
+  getMyCards: async () => {
+    const res = await apiClient.get('/owner/payment-methods');
+    return res.data;
+  },
 
-/**
- * (Owner) 결제 수단 변경
- * POST /owner/settings/payment-method
- */
-export const updatePaymentMethod = async (data: UpdatePaymentMethodRequest) => {
-    // const res = await apiClient.post("/owner/settings/payment-method", data);
-    // return res.data;
+  // 카드 등록
+  registerCard: async (payload: { customerUid: string; cardName: string }) => {
+    // ✅ cardName을 받아서 서버로 전송
+    const res = await apiClient.post('/owner/payment-methods', payload);
+    return res.data;
+  },
 
-    // (임시) 목업 API 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { success: true };
-}
+  // ✅ [추가] 카드 이름 수정
+  updateCardName: async (paymentId: number, newName: string) => {
+    const res = await apiClient.put(`/owner/payment-methods/${paymentId}`, {
+      cardName: newName
+    });
+    return res.data;
+  }
+};
