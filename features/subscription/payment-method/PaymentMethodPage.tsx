@@ -1,174 +1,160 @@
-// features/subscription/payment-method/PaymentMethodPage.tsx
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card"
-import { Button } from "../../../components/ui/button"
-import { Input } from "../../../components/ui/input"
-import { Label } from "../../../components/ui/label"
-import { RadioGroup, RadioGroupItem } from "../../../components/ui/radio-group"
-import { CreditCard, Building2, ArrowLeft, Loader2 } from "lucide-react"
-import Link from "next/link"
-import { usePaymentMethod } from "./hooks/usePaymentMethod"
+import { useState } from 'react';
+import { usePaymentMethod } from './hooks/usePaymentMethod';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
+import { CreditCard, Plus, Loader2, ArrowLeft, Pencil, Check, X, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function PaymentMethodPage() {
-    const {
-        paymentType,
-        setPaymentType,
-        handleSave,
-        isSaving,
-        // ⭐️ 폼 상태 추가
-        formState,
-        handleFormChange,
-    } = usePaymentMethod()
+  const { cards, loading, addCard, updateCardName, removeCard } = usePaymentMethod();
+  
+  // 상태 관리
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newCardName, setNewCardName] = useState("");
+  
+  // 수정 모드 관리 (어떤 카드를 수정 중인지 ID 저장)
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
 
-    return (
-        <div className="max-w-2xl mx-auto space-y-6">
-            <Link href="/owner/settings">
-                <Button variant="ghost" className="mb-4">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    설정으로 돌아가기
-                </Button>
-            </Link>
+  // 등록 시작
+  const handleStartAdd = () => {
+    setNewCardName("");
+    setIsAddModalOpen(true);
+  };
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>결제 수단 변경</CardTitle>
-                    <CardDescription>새로운 결제 수단을 등록하세요</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="space-y-3">
-                        <Label>결제 방법 선택</Label>
-                        <RadioGroup
-                            value={paymentType}
-                            onValueChange={(val) => setPaymentType(val as "card" | "bank")}
-                            disabled={isSaving}
-                        >
-                            <Label
-                                htmlFor="card"
-                                className="flex items-center space-x-2 p-4 rounded-lg border cursor-pointer hover:bg-muted/50"
-                            >
-                                <RadioGroupItem value="card" id="card" />
-                                <div className="flex items-center gap-2 cursor-pointer flex-1">
-                                    <CreditCard className="h-5 w-5" />
-                                    <span>신용/체크카드</span>
-                                </div>
-                            </Label>
-                            <Label
-                                htmlFor="bank"
-                                className="flex items-center space-x-2 p-4 rounded-lg border cursor-pointer hover:bg-muted/50"
-                            >
-                                <RadioGroupItem value="bank" id="bank" />
-                                <div className="flex items-center gap-2 cursor-pointer flex-1">
-                                    <Building2 className="h-5 w-5" />
-                                    <span>계좌이체</span>
-                                </div>
-                            </Label>
-                        </RadioGroup>
-                    </div>
+  // 등록 실행
+  const handleConfirmAdd = () => {
+    setIsAddModalOpen(false);
+    // 빈 값이면 기본값
+    addCard(newCardName.trim() || "내 카드");
+  };
 
-                    {paymentType === "card" && (
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="cardNumber">카드 번호</Label>
-                                <Input
-                                    id="cardNumber"
-                                    name="cardNumber"
-                                    placeholder="0000-0000-0000-0000"
-                                    value={formState.cardNumber}
-                                    onChange={handleFormChange}
-                                    disabled={isSaving}
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="expiry">유효기간</Label>
-                                    <Input
-                                        id="expiry"
-                                        name="expiry"
-                                        placeholder="MM/YY"
-                                        value={formState.expiry}
-                                        onChange={handleFormChange}
-                                        disabled={isSaving}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="cvc">CVC</Label>
-                                    <Input
-                                        id="cvc"
-                                        name="cvc"
-                                        placeholder="000"
-                                        type="password"
-                                        maxLength={3}
-                                        value={formState.cvc}
-                                        onChange={handleFormChange}
-                                        disabled={isSaving}
-                                    />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="cardHolder">카드 소유자명</Label>
-                                <Input
-                                    id="cardHolder"
-                                    name="cardHolder"
-                                    placeholder="홍길동"
-                                    value={formState.cardHolder}
-                                    onChange={handleFormChange}
-                                    disabled={isSaving}
-                                />
-                            </div>
-                        </div>
-                    )}
+  // 수정 시작
+  const startEdit = (card: any) => {
+    setEditingId(card.paymentId);
+    setEditName(card.cardName);
+  };
 
-                    {paymentType === "bank" && (
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="bankName">은행명</Label>
-                                <Input
-                                    id="bankName"
-                                    name="bankName"
-                                    placeholder="은행을 선택하세요"
-                                    value={formState.bankName}
-                                    onChange={handleFormChange}
-                                    disabled={isSaving}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="accountNumber">계좌번호</Label>
-                                <Input
-                                    id="accountNumber"
-                                    name="accountNumber"
-                                    placeholder="계좌번호를 입력하세요"
-                                    value={formState.accountNumber}
-                                    onChange={handleFormChange}
-                                    disabled={isSaving}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="accountHolder">예금주명</Label>
-                                <Input
-                                    id="accountHolder"
-                                    name="accountHolder"
-                                    placeholder="홍길동"
-                                    value={formState.accountHolder}
-                                    onChange={handleFormChange}
-                                    disabled={isSaving}
-                                />
-                            </div>
-                        </div>
-                    )}
+  // 수정 저장
+  const saveEdit = (paymentId: number) => {
+    if (editName.trim()) {
+      updateCardName(paymentId, editName);
+    }
+    setEditingId(null);
+  };
 
-                    <div className="rounded-lg bg-muted p-4">
-                        <p className="text-sm text-muted-foreground">
-                            결제 정보는 안전하게 암호화되어 저장됩니다. 다음 결제일부터 새로운 결제 수단이 적용됩니다.
-                        </p>
-                    </div>
+  return (
+    <div className="container mx-auto p-6 max-w-4xl">
+      <Link href="/owner/settings">
+        <Button variant="ghost" className="mb-4 pl-0">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          설정으로 돌아가기
+        </Button>
+      </Link>
 
-                    <Button className="w-full" onClick={handleSave} disabled={isSaving}>
-                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        결제 수단 저장
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
-    )
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">결제 수단 관리</h1>
+        <Button onClick={handleStartAdd} disabled={loading}>
+          {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+          새 카드 등록
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {cards.map((card: any) => (
+          <Card key={card.paymentId} className={card.isDefault ? "border-primary border-2" : ""}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              
+              {/* ✅ 수정 모드 분기 처리 */}
+              {editingId === card.paymentId ? (
+                <div className="flex items-center gap-2 w-full">
+                  <Input 
+                    value={editName} 
+                    onChange={(e) => setEditName(e.target.value)} 
+                    className="h-8 text-sm"
+                  />
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => saveEdit(card.paymentId)}>
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => setEditingId(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    {card.cardName || "신용카드"}
+                    <button onClick={() => startEdit(card)} className="text-muted-foreground hover:text-primary transition-colors">
+                        <Pencil className="h-3 w-3" />
+                    </button>
+
+                    {/* ✅ [추가] 삭제 버튼 */}
+                    <button 
+                        onClick={() => removeCard(card.paymentId)} 
+                        className="text-muted-foreground hover:text-red-600 transition-colors ml-1"
+                        title="카드 삭제"
+                    >
+                        <Trash2 className="h-3 w-3" />
+                    </button>
+                    
+                  </CardTitle>
+                  {card.isDefault && <span className="text-xs text-primary font-bold">기본 결제</span>}
+                </>
+              )}
+              
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-4">
+                <CreditCard className="h-6 w-6 text-muted-foreground" />
+                <div className="text-lg font-bold">
+                  {card.cardNumber ? card.cardNumber : "****"}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+
+        {cards.length === 0 && (
+          <div className="col-span-2 text-center py-10 text-muted-foreground border border-dashed rounded-lg bg-slate-50">
+            등록된 결제 수단이 없습니다.
+          </div>
+        )}
+      </div>
+
+      {/* ✅ 카드 등록 전 이름 입력 모달 */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>새 카드 등록</DialogTitle>
+            <DialogDescription>
+              이 카드의 별칭을 입력해주세요 (예: 법인카드, 메인카드)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                이름
+              </Label>
+              <Input
+                id="name"
+                value={newCardName}
+                onChange={(e) => setNewCardName(e.target.value)}
+                placeholder="내 카드"
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>취소</Button>
+            <Button onClick={handleConfirmAdd}>결제창 열기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }

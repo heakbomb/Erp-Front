@@ -1,138 +1,121 @@
 // features/subscription/checkout/CheckoutPageFeature.tsx
-"use client"
+"use client";
 
-import type React from "react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card"
-import { Button } from "../../../components/ui/button"
-import { Input } from "../../../components/ui/input"
-import { Label } from "../../../components/ui/label"
-import { Separator } from "../../../components/ui/separator"
-import { CreditCard, Lock, Loader2 } from "lucide-react"
-import { useCheckout } from "./hooks/useCheckout"
+import { useCheckout } from './hooks/useCheckout';
+import { Button } from '@/components/ui/button';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { Loader2, CreditCard, Plus, Check } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 export default function CheckoutPageFeature() {
-  const {
+  const { 
     plan,
-    handleSubmit,
-    isProcessing,
-    // ⭐️ 폼 상태와 핸들러를 훅에서 가져옴
-    cardName, setCardName,
-    cardNumber, setCardNumber,
-    cardExpiry, setCardExpiry,
-    cardCvc, setCardCvc,
-  } = useCheckout()
+    cards, 
+    selectedCardId, 
+    setSelectedCardId, 
+    handlePayment, 
+    loading 
+  } = useCheckout();
 
-  // ⭐️ 훅에서 로딩/리디렉션을 처리하므로 plan이 없을 경우 null 반환
-  if (!plan) return null
+  if (!plan) return <div className="p-10 text-center">잘못된 접근입니다. (플랜 정보 없음)</div>;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">구독 결제</h1>
-        <p className="text-muted-foreground">안전한 결제 시스템으로 보호됩니다</p>
-      </div>
+    <div className="container mx-auto p-6 flex justify-center items-start min-h-screen pt-20">
+      <Card className="w-full max-w-lg shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-xl text-center">구독 결제</CardTitle>
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
+          {/* 상품 정보 */}
+          <div className="bg-slate-50 p-5 rounded-xl border border-slate-100">
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-medium text-slate-600">플랜명</span>
+              <span className="font-bold text-lg">{plan.name}</span>
+            </div>
+            <Separator className="my-3" />
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-slate-600">결제 금액 (월)</span>
+              <span className="font-bold text-xl text-primary">
+                {plan.price.toLocaleString()}원
+              </span>
+            </div>
+          </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Order Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle>주문 요약</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">플랜</span>
-              <span className="font-medium">{plan.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">결제 주기</span>
-              <span className="font-medium">월간</span>
-            </div>
-            <Separator />
-            <div className="flex justify-between text-lg font-bold">
-              <span>합계</span>
-              <span>₩{plan.price.toLocaleString()}/월</span>
-            </div>
-          </CardContent>
-        </Card>
+          {/* 결제 수단 선택 */}
+          <div>
+            <h3 className="text-sm font-semibold mb-4 text-slate-900">결제 수단 선택</h3>
+            
+            <RadioGroup value={selectedCardId} onValueChange={setSelectedCardId} className="space-y-3">
+              
+              {/* 1. 기존 등록된 카드 */}
+              {cards.map((card) => (
+                <div 
+                  key={card.paymentId} 
+                  className={`flex items-center space-x-3 border p-4 rounded-lg cursor-pointer transition-all ${
+                    selectedCardId === String(card.paymentId) 
+                      ? "border-primary bg-primary/5 ring-1 ring-primary" 
+                      : "hover:border-slate-400"
+                  }`}
+                  onClick={() => setSelectedCardId(String(card.paymentId))}
+                >
+                  <RadioGroupItem value={String(card.paymentId)} id={`card-${card.paymentId}`} />
+                  <Label htmlFor={`card-${card.paymentId}`} className="flex-1 flex items-center cursor-pointer">
+                    <CreditCard className="w-5 h-5 mr-3 text-slate-500" />
+                    <div className="flex flex-col">
+                      <span className="font-medium">{card.cardName || "신용카드"}</span>
+                      <span className="text-xs text-slate-500">
+                        {card.cardNumber ? `${card.cardNumber}` : "****"} 
+                        {card.isDefault && <span className="ml-2 text-primary font-semibold">(기본)</span>}
+                      </span>
+                    </div>
+                  </Label>
+                  {selectedCardId === String(card.paymentId) && (
+                    <Check className="w-5 h-5 text-primary" />
+                  )}
+                </div>
+              ))}
+              
+              {/* 2. 새 카드 등록 */}
+              <div 
+                className={`flex items-center space-x-3 border p-4 rounded-lg cursor-pointer transition-all ${
+                  selectedCardId === "new" 
+                    ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500" 
+                    : "hover:border-slate-400"
+                }`}
+                onClick={() => setSelectedCardId("new")}
+              >
+                <RadioGroupItem value="new" id="card-new" />
+                <Label htmlFor="card-new" className="flex-1 flex items-center cursor-pointer">
+                  <Plus className="w-5 h-5 mr-3 text-blue-600" />
+                  <span className="font-medium text-blue-700">새로운 카드로 결제</span>
+                </Label>
+              </div>
 
-        {/* Payment Form */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              <CardTitle>결제 정보</CardTitle>
-            </div>
-            <CardDescription>카드 정보를 입력하세요</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* ⭐️ 폼 핸들러 연결 */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="card-name">카드 소유자명</Label>
-                <Input
-                  id="card-name"
-                  placeholder="홍길동"
-                  value={cardName}
-                  onChange={(e) => setCardName(e.target.value)}
-                  required
-                  disabled={isProcessing}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="card-number">카드 번호</Label>
-                <Input
-                  id="card-number"
-                  placeholder="1234 5678 9012 3456"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                  maxLength={19}
-                  required
-                  disabled={isProcessing}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="card-expiry">만료일</Label>
-                  <Input
-                    id="card-expiry"
-                    placeholder="MM/YY"
-                    value={cardExpiry}
-                    onChange={(e) => setCardExpiry(e.target.value)}
-                    maxLength={5}
-                    required
-                    disabled={isProcessing}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="card-cvc">CVC</Label>
-                  <Input
-                    id="card-cvc"
-                    placeholder="123"
-                    value={cardCvc}
-                    onChange={(e) => setCardCvc(e.target.value)}
-                    maxLength={3}
-                    required
-                    disabled={isProcessing}
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="w-full" disabled={isProcessing}>
-                {isProcessing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Lock className="mr-2 h-4 w-4" />
-                )}
-                ₩{plan.price.toLocaleString()} 결제하기
-              </Button>
-            </form>
-          </CardContent>
-          <CardFooter>
-            <p className="text-xs text-muted-foreground text-center w-full">
-              결제 정보는 안전하게 암호화되어 처리됩니다
-            </p>
-          </CardFooter>
-        </Card>
-      </div>
+            </RadioGroup>
+          </div>
+        </CardContent>
+
+        <CardFooter className="pt-2 pb-6">
+          <Button 
+            className="w-full h-12 text-lg font-bold" 
+            size="lg" 
+            onClick={handlePayment} 
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin mr-2 h-5 w-5" />
+                처리 중...
+              </>
+            ) : (
+              `${plan.price.toLocaleString()}원 결제하기`
+            )}
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
-  )
+  );
 }

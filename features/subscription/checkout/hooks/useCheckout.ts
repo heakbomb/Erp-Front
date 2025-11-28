@@ -1,84 +1,170 @@
 // features/subscription/checkout/hooks/useCheckout.ts
-"use client"
+"use client";
 
-import type React from "react"
-// ⭐️ 'useState'와 'useMemo'만 남기고 'useEffect'는 제거해도 됩니다.
-import { useState, useMemo } from "react" 
-import { useSearchParams, useRouter } from "next/navigation"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { processPayment } from "../checkoutService" // ⭐️ 수정된 서비스 임포트
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/components/ui/use-toast';
+import { checkoutService } from '../checkoutService';
+import { paymentMethodService } from '../../payment-method/paymentMethodService';
+import { Owner } from '@/lib/types/database';
 
-// subId가 포함된 plans 상수 (동일)
 const plans = {
   basic: { subId: 1, name: "베이직", price: 29000 },
   pro: { subId: 2, name: "프로", price: 59000 },
   enterprise: { subId: 3, name: "엔터프라이즈", price: 99000 },
-}
+};
 type PlanIdKey = keyof typeof plans;
 
-export function useCheckout() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const queryClient = useQueryClient()
-  const planIdKey = searchParams.get("plan") as PlanIdKey | null
+export const useCheckout = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  
+  const planIdKey = searchParams.get("plan") as PlanIdKey | null;
+  const plan = useMemo(() => (planIdKey && plans[planIdKey]) ? plans[planIdKey] : null, [planIdKey]);
 
-  const plan = useMemo(() => (planIdKey && plans[planIdKey]) ? plans[planIdKey] : null, [planIdKey])
+  const [cards, setCards] = useState<any[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string>('new');
+  const [loading, setLoading] = useState(false);
 
-  // ⭐️ 결제 폼 상태 (카드 정보)
-  // (참고: 이 정보들은 이제 '시각적'으로는 존재하지만,
-  // 백엔드로 '전송'되지는 않습니다.)
-  const [cardNumber, setCardNumber] = useState("")
-  const [cardExpiry, setCardExpiry] = useState("")
-  const [cardCvc, setCardCvc] = useState("")
-  const [cardName, setCardName] = useState("")
+  // 1. 진입 로그
+  useEffect(() => {
+    console.log("========================================");
+    console.log("[DEBUG] Checkout 페이지 로드됨");
+    console.log("[DEBUG] 현재 User 정보:", user);
+    console.log("[DEBUG] 현재 Plan 정보:", plan);
 
-  // ⭐️ 플랜 유효성 검사 (기존 useEffect 대신 useMemo와 렌더링 시 확인으로 변경)
-  // (서버 로직이 아니므로 useEffect가 없어도 됩니다)
-  if (!plan) {
-    // 훅 실행 중에 라우팅을 시도하기보다,
-    // 컴포넌트 렌더링 단에서 null을 반환하는 것이 더 안정적입니다.
-    // (CheckoutPageFeature.tsx에서 이미 !plan이면 null을 반환하고 있습니다)
-  }
+    if (user && user.role === 'OWNER') {
+      paymentMethodService.getMyCards()
+        .then((data) => {
+          console.log("[DEBUG] 내 카드 목록 로드 성공:", data);
+          setCards(data);
+          const defaultCard = data.find((c: any) => c.isDefault);
+          if (defaultCard) setSelectedCardId(String(defaultCard.paymentId));
+        })
+        .catch((err) => console.error("[DEBUG] 카드 목록 로드 실패:", err));
+    }
+  }, [user]);
 
-  // 결제 처리 뮤테이션 (동일)
-  const paymentMutation = useMutation({
-    mutationFn: processPayment,
-    onSuccess: () => {
-      // ⭐️ 여기가 중요합니다.
-      // 백엔드에서 사장님(1L)에게 구독 정보가 저장된 후,
-      // 'currentSubscription' 쿼리를 새로고침하여 
-      // 구독 관리 페이지에 갱신된 내용을 반영합니다.
-      alert("구독이 등록되었습니다!") 
-      queryClient.invalidateQueries({ queryKey: ["currentSubscription"] })
-      router.push("/owner/subscription")
-    },
-    onError: (error) => {
-      // (1단계 SQL 실행 후) 이 오류는 이제 DTO 불일치 등 다른 문제일 것입니다.
-      alert(`구독 등록 실패: ${error.message}`)
-    },
-  })
-
-  // ⭐️ 폼 제출 핸들러 (가장 중요)
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!plan) return; 
-
-    // ⭐️ 'cardInfo' 객체를 아예 보내지 않습니다.
-    // 'subId'만 포함된 객체를 전달합니다.
-    paymentMutation.mutate({
-      subId: plan.subId, 
-    })
-  }
-
-  return {
-    plan,
-    handleSubmit,
-    isProcessing: paymentMutation.isPending,
+  // ✅ 2. 리다이렉트 복귀 감지 로직 (이게 있어야 작동합니다!)
+  useEffect(() => {
+    const billingKey = searchParams.get('billingKey');
+    const code = searchParams.get('code');
     
-    // (시각적 입력을 위한 상태값들은 그대로 둠)
-    cardName, setCardName,
-    cardNumber, setCardNumber,
-    cardExpiry, setCardExpiry,
-    cardCvc, setCardCvc,
-  }
-}
+    // URL에 파라미터가 있을 때만 로그 출력
+    if (billingKey || code) {
+        console.log(`[DEBUG] 리다이렉트 복귀 감지! billingKey=${billingKey}, code=${code}`);
+    }
+
+    if (code) {
+      toast({ title: "결제 실패", description: searchParams.get('message') || "인증 취소" });
+      return;
+    }
+
+    if (billingKey && plan) {
+      console.log("[DEBUG] 서버로 구독 요청 전송 시작...");
+      setLoading(true);
+      
+      checkoutService.subscribe({
+        subId: plan.subId,
+        customerUid: billingKey,
+        newCardName: '새 카드' 
+      })
+      .then((res) => {
+        console.log("[DEBUG] 서버 응답 성공:", res);
+        toast({ title: "구독 시작!", description: "결제가 완료되었습니다." });
+        router.push('/owner/dashboard');
+      })
+      .catch((error) => {
+        console.error("[DEBUG] 서버 요청 에러:", error);
+        toast({ title: "오류", description: "구독 처리 중 문제가 발생했습니다." });
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+    }
+  }, [searchParams, plan, router]);
+
+  const handlePayment = async () => {
+    console.log("[DEBUG] 결제하기 버튼 클릭됨");
+
+    if (!plan) {
+        console.error("[DEBUG] Plan 정보 없음");
+        return;
+    }
+    
+    setLoading(true);
+
+    try {
+      // 기존 카드 결제
+      if (selectedCardId !== 'new') {
+        console.log("[DEBUG] 기존 카드로 결제 시도:", selectedCardId);
+        await checkoutService.subscribe({ 
+          subId: plan.subId, 
+          paymentMethodId: Number(selectedCardId) 
+        });
+        toast({ title: "구독 성공", description: "완료되었습니다." });
+        router.push('/owner/dashboard');
+        return;
+      }
+
+      // 새 카드 결제 (포트원)
+      console.log("[DEBUG] 포트원 SDK 호출 시작");
+      if (!window.PortOne) {
+        console.error("[DEBUG] PortOne SDK 로드 안됨");
+        toast({ title: "모듈 로딩 중...", description: "잠시 후 다시 시도해주세요." });
+        setLoading(false);
+        return;
+      }
+
+      // User 타입 안전하게 처리
+      const isOwner = user?.role === 'OWNER';
+      const ownerId = isOwner ? (user as Owner).owner_id : 1; 
+      const userName = isOwner ? (user as Owner).username : '테스트유저';
+
+      const generatedIssueId = `sub_${ownerId}_${new Date().getTime()}`;
+      const returnUrl = window.location.href; // 현재 페이지로 돌아옴
+
+      console.log("[DEBUG] requestIssueBillingKey 파라미터:", {
+        issueId: generatedIssueId,
+        redirectUrl: returnUrl
+      });
+
+      const response = await window.PortOne.requestIssueBillingKey({
+        storeId: process.env.NEXT_PUBLIC_PORTONE_STORE_ID!,
+        channelKey: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY!,
+        billingKeyMethod: "CARD",
+        issueId: generatedIssueId,
+        issueName: `ERP 구독 (${plan.name})`,
+        redirectUrl: returnUrl, // ✅ 리다이렉트 URL 필수
+        customer: {
+          fullName: userName,
+          phoneNumber: '010-0000-0000', 
+          email: user?.email || 'test@test.com',
+        }
+      });
+      
+      // PC 등에서 바로 완료된 경우
+      console.log("[DEBUG] 포트원 응답(모달):", response);
+      if (!response.code && response.billingKey) {
+         console.log("[DEBUG] 빌링키 즉시 수신. 서버 요청.");
+         await checkoutService.subscribe({
+          subId: plan.subId,
+          customerUid: response.billingKey,
+          newCardName: '새 카드' 
+        });
+        toast({ title: "구독 시작!", description: "결제가 완료되었습니다." });
+        router.push('/owner/dashboard');
+      }
+
+    } catch (error: any) {
+      // 리다이렉트 되면 에러가 아니라 페이지 이동임
+      console.error("[DEBUG] handlePayment 예외:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { plan, cards, selectedCardId, setSelectedCardId, handlePayment, loading };
+};
