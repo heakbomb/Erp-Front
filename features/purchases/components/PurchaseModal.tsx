@@ -1,4 +1,3 @@
-// features/purchases/components/PurchaseModal.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -14,12 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox"; // ⭐️ Checkbox 임포트
+import { Checkbox } from "@/components/ui/checkbox"; 
 import { Loader2 } from "lucide-react";
 import { TODAY, PurchaseFormValues } from "../hooks/usePurchases";
-import type { InventoryOption } from "../purchasesService";
+// ✅ [수정 1] PurchaseHistoryResponse 타입 import 추가
+import type { InventoryOption, PurchaseHistoryResponse } from "../purchasesService";
 
-// 1. Zod 스키마 정의
 const purchaseSchema = z.object({
   formQty: z.preprocess(
     (val) => (val === "" ? "" : Number(val)),
@@ -35,29 +34,27 @@ const purchaseSchema = z.object({
   
   newItemMode: z.boolean(),
   
-  // ⭐️ 조건부 검증
-  formItemId: z.string(),
-  newItemName: z.string(),
-  newItemType: z.string(),
-  newStockType: z.string(),
+  formItemId: z.string().optional(),
+  newItemName: z.string().optional(),
+  newItemType: z.string().optional(),
+  newStockType: z.string().optional(),
 }).refine((data) => {
-  // 새 품목 모드가 아닐 때, formItemId는 필수
   if (!data.newItemMode && !data.formItemId) return false;
   return true;
 }, { message: "품목을 선택하세요.", path: ["formItemId"] })
 .refine((data) => {
-  // 새 품목 모드일 때, 새 품목 필드들 필수
-  if (data.newItemMode && (!data.newItemName.trim() || !data.newItemType.trim() || !data.newStockType.trim())) return false;
+  if (data.newItemMode && (!data.newItemName?.trim() || !data.newItemType?.trim() || !data.newStockType?.trim())) return false;
   return true;
-}, { message: "새 품목명/타입/단위를 모두 입력하세요.", path: ["newItemName"] }); // 대표로 하나만
+}, { message: "새 품목명/타입/단위를 모두 입력하세요.", path: ["newItemName"] });
 
-// 2. Props 정의
+// ✅ [수정 2] Interface에 initialData 추가
 interface PurchaseModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: PurchaseFormValues) => void;
   isPending: boolean;
   inventoryOpts: InventoryOption[];
+  initialData: PurchaseHistoryResponse | null; // 👈 이 부분이 빠져서 에러가 났습니다.
 }
 
 export function PurchaseModal({
@@ -66,16 +63,16 @@ export function PurchaseModal({
   onSubmit,
   isPending,
   inventoryOpts,
+  initialData, // ✅ [수정 3] Props 구조 분해에 추가
 }: PurchaseModalProps) {
   
-  // 3. react-hook-form 설정
   const form = useForm<PurchaseFormValues>({
     resolver: zodResolver(purchaseSchema),
     defaultValues: {
       formItemId: "",
       formQty: "",
       formUnitPrice: "",
-      formDate: TODAY, // ⭐️ 오늘 날짜 기본값
+      formDate: TODAY, 
       newItemMode: false,
       newItemName: "",
       newItemType: "",
@@ -83,56 +80,76 @@ export function PurchaseModal({
     },
   });
 
-  // 4. 모달이 열릴 때 폼 리셋
+  // ✅ [수정 4] 모달 열릴 때 초기 데이터 세팅 로직
   useEffect(() => {
     if (open) {
-      form.reset({
-        formItemId: "",
-        formQty: "",
-        formUnitPrice: "",
-        formDate: TODAY,
-        newItemMode: false,
-        newItemName: "",
-        newItemType: "",
-        newStockType: "",
-      });
+      if (initialData) {
+        // 수정 모드: 기존 데이터 채우기
+        form.reset({
+          formItemId: String(initialData.itemId),
+          formQty: initialData.purchaseQty,
+          formUnitPrice: initialData.unitPrice,
+          formDate: initialData.purchaseDate,
+          newItemMode: false,
+          newItemName: "",
+          newItemType: "",
+          newStockType: "",
+        });
+      } else {
+        // 생성 모드: 초기화
+        form.reset({
+          formItemId: "",
+          formQty: "",
+          formUnitPrice: "",
+          formDate: TODAY,
+          newItemMode: false,
+          newItemName: "",
+          newItemType: "",
+          newStockType: "",
+        });
+      }
     }
-  }, [open, form]);
+  }, [open, initialData, form]);
 
-  // 5. 'newItemMode' 상태 감시
   const newItemMode = form.watch("newItemMode");
+  // initialData가 있으면 수정 모드로 판단
+  const isEditMode = !!initialData;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>매입 기록 추가</DialogTitle>
-          <DialogDescription>새로운 매입 내역을 등록하세요</DialogDescription>
+          <DialogTitle>{isEditMode ? "매입 내역 수정" : "매입 기록 추가"}</DialogTitle>
+          <DialogDescription>
+            {isEditMode ? "매입 정보를 수정합니다." : "새로운 매입 내역을 등록하세요."}
+          </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
             
-            <FormField
-              control={form.control}
-              name="newItemMode"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center gap-2 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormLabel className="font-normal">
-                    재고에 없는 새 품목 추가
-                  </FormLabel>
-                </FormItem>
-              )}
-            />
+            {/* 수정 모드가 아닐 때만 '새 품목 추가' 체크박스 노출 */}
+            {!isEditMode && (
+              <FormField
+                control={form.control}
+                name="newItemMode"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal">
+                      재고에 없는 새 품목 추가
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
+            )}
             
             {!newItemMode ? (
-              // --- 기존 품목 선택 ---
               <FormField
                 control={form.control}
                 name="formItemId"
@@ -142,7 +159,8 @@ export function PurchaseModal({
                     <FormControl>
                       <select
                         {...field}
-                        className="w-full h-9 rounded-md border px-3 text-sm bg-transparent"
+                        disabled={isEditMode} // 수정 시 품목 변경 불가
+                        className="w-full h-9 rounded-md border px-3 text-sm bg-transparent disabled:opacity-50"
                       >
                         <option value="">품목 선택</option>
                         {inventoryOpts.map((opt) => (
@@ -157,7 +175,6 @@ export function PurchaseModal({
                 )}
               />
             ) : (
-              // --- 새 품목 입력 ---
               <>
                 <FormField
                   control={form.control}
@@ -176,7 +193,7 @@ export function PurchaseModal({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>품목 타입</FormLabel>
-                        <FormControl><Input placeholder="예: RAW / PACK" {...field} /></FormControl>
+                        <FormControl><Input placeholder="예: RAW" {...field} /></FormControl>
                       </FormItem>
                     )}
                   />
@@ -186,7 +203,7 @@ export function PurchaseModal({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>수량 단위</FormLabel>
-                        <FormControl><Input placeholder="예: kg / L / ea" {...field} /></FormControl>
+                        <FormControl><Input placeholder="예: kg" {...field} /></FormControl>
                       </FormItem>
                     )}
                   />
@@ -195,7 +212,6 @@ export function PurchaseModal({
               </>
             )}
 
-            {/* --- 공통 입력 --- */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -239,7 +255,7 @@ export function PurchaseModal({
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isPending ? "저장 중..." : "추가"}
+                {isEditMode ? "수정" : "추가"}
               </Button>
             </DialogFooter>
           </form>
