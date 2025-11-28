@@ -1,8 +1,12 @@
+// features/owner/employees/hooks/useEmployeesAll.ts
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+
+// ✅ Employee 타입은 공용 타입 정의에서 가져오기
+import type { Employee } from "@/lib/types/database"
+
 import {
-  Employee,
   fetchEmployees,
   updateEmployee as svcUpdateEmployee,
   deleteEmployee as svcDeleteEmployee,
@@ -73,7 +77,12 @@ export default function useEmployeesAll() {
 
   const handleUpdate = async () => {
     if (!editingId) return
-    if (!editForm.name.trim() || !editForm.email.trim() || !editForm.phone.trim() || !editForm.provider.trim()) {
+    if (
+      !editForm.name.trim() ||
+      !editForm.email.trim() ||
+      !editForm.phone.trim() ||
+      !editForm.provider.trim()
+    ) {
       alert("이름/이메일/전화/Provider는 필수입니다.")
       return
     }
@@ -116,14 +125,28 @@ export default function useEmployeesAll() {
 
   return {
     // state
-    searchQuery, employees, loading, banner,
-    openEdit, editingId, editForm, saving,
-    openDelete, targetToDelete,
+    searchQuery,
+    employees,
+    loading,
+    banner,
+    openEdit,
+    editingId,
+    editForm,
+    saving,
+    openDelete,
+    targetToDelete,
     // setters
-    setSearchQuery, setOpenEdit, setEditForm, setOpenDelete, setTargetToDelete,
+    setSearchQuery,
+    setOpenEdit,
+    setEditForm,
+    setOpenDelete,
+    setTargetToDelete,
     // derived
-    filtered, formatDate,
+    filtered,
+    formatDate,
     // actions
-    openEditDialog, handleUpdate, confirmDelete,
+    openEditDialog,
+    handleUpdate,
+    confirmDelete,
   }
 }
