@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Upload, Download, FileText, Loader2 } from "lucide-react";
+import { Plus, Search, Upload, Download, FileText, Loader2, Pencil, Trash2 } from "lucide-react";
 import { usePurchases } from "./hooks/usePurchases";
 import { PurchaseModal } from "./components/PurchaseModal";
 
@@ -38,6 +38,10 @@ export default function PurchasesPageFeature() {
     isAddOpen, setIsAddOpen,
     handleSubmit,
     isSubmitting,
+    editingPurchase,
+    handleEditClick,
+    handleDeleteClick,
+    handleModalClose
   } = usePurchases();
 
   // 2. 페이지네이션 UI (inline)
@@ -106,7 +110,7 @@ export default function PurchasesPageFeature() {
           <Button variant="outline" className="bg-transparent">
             <FileText className="mr-2 h-4 w-4" /> PDF 내보내기
           </Button>
-          
+
           {mounted && (
             <Button onClick={() => setIsAddOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> 매입 기록
@@ -227,9 +231,10 @@ export default function PurchasesPageFeature() {
                   <TableHead>수량</TableHead>
                   <TableHead>단가</TableHead>
                   <TableHead>총액</TableHead>
+                  <TableHead className="text-right">관리</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+               <TableBody>
                 {filteredRows.map((r) => {
                   const inv = inventoryOpts.find((i) => i.itemId === r.itemId);
                   const unit = inv?.stockType ? ` ${inv.stockType}` : "";
@@ -241,30 +246,38 @@ export default function PurchasesPageFeature() {
                       <TableCell>{KR.format(Number(r.purchaseQty))}{unit}</TableCell>
                       <TableCell>₩{KR.format(Number(r.unitPrice))}</TableCell>
                       <TableCell className="font-medium">₩{KR.format(total)}</TableCell>
+                      {/* ✅ 수정/삭제 버튼 추가 */}
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-blue-100" onClick={() => handleEditClick(r)}>
+                            <Pencil className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-100" onClick={() => handleDeleteClick(r.purchaseId)}>
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
                 {!filteredRows.length && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
-                      데이터가 없습니다.
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
-      
+
       {/* 4. 모달 렌더링 */}
       {mounted && (
         <PurchaseModal
           open={isAddOpen}
-          onOpenChange={setIsAddOpen}
+           onOpenChange={handleModalClose} 
           onSubmit={handleSubmit}
           isPending={isSubmitting}
           inventoryOpts={inventoryOpts}
+          initialData={editingPurchase}
         />
       )}
     </div>

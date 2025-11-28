@@ -9,6 +9,8 @@ import {
   getInventoryForOptions,
   createPurchase,
   createInventory,
+  updatePurchase,
+  deletePurchase
 } from "../purchasesService";
 import type { InventoryOption, PurchaseHistoryResponse } from "../purchasesService";
 
@@ -38,7 +40,10 @@ export function usePurchases() {
   const [endDate, setEndDate] = useState<string>("");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
-  const [searchText, setSearchText] = useState(""); // ⭐️ UI 표시용 검색어 (즉시 반영)
+  const [searchText, setSearchText] = useState(""); 
+  
+  // ✅ 수정 모드 상태 (null이면 생성 모드)
+  const [editingPurchase, setEditingPurchase] = useState<PurchaseHistoryResponse | null>(null);
 
   // 2. 모달 상태
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -72,7 +77,6 @@ export function usePurchases() {
   const createInventoryMutation = useMutation({
     mutationFn: createInventory,
     onSuccess: (newItem) => {
-      // ⭐️ 재고 옵션 목록을 즉시 갱신 (모달 드롭다운에 반영)
       queryClient.setQueryData(
         ["inventoryOptions", currentStoreId],
         (oldData: InventoryOption[] | undefined) => (oldData ? [...oldData, newItem] : [newItem])
@@ -85,18 +89,74 @@ export function usePurchases() {
   const createPurchaseMutation = useMutation({
     mutationFn: createPurchase,
     onSuccess: () => {
-      setIsAddOpen(false); // 모달 닫기
-      setPage(0); // 1페이지로 이동
-      // ⭐️ 매입 내역 갱신
+      setIsAddOpen(false);
+      setPage(0);
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
-      // ⭐️ 재고 목록도 갱신 (새 품목 추가 시 수량 반영 등)
       queryClient.invalidateQueries({ queryKey: ["inventory"] }); 
     },
     onError: (error) => alert(`매입 등록 실패: ${error.message}`),
   });
 
-  // 7. 이벤트 핸들러: 모달 제출 (handleCreate)
+  // ✅ (Mutation) 매입 기록 수정
+  const updatePurchaseMutation = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: any }) => updatePurchase(id, body),
+    onSuccess: () => {
+      setIsAddOpen(false);
+      setEditingPurchase(null); // 수정 모드 종료
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+    onError: (error) => alert(`매입 수정 실패: ${error.message}`),
+  });
+
+  // ✅ (Mutation) 매입 기록 삭제
+  const deletePurchaseMutation = useMutation({
+    mutationFn: deletePurchase,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+    onError: (error) => alert(`삭제 실패: ${error.message}`),
+  });
+
+  // ✅ 수정 버튼 클릭 시 핸들러
+  const handleEditClick = (purchase: PurchaseHistoryResponse) => {
+    setEditingPurchase(purchase); 
+    setIsAddOpen(true); 
+  };
+
+  // ✅ 삭제 버튼 클릭 시 핸들러
+  const handleDeleteClick = async (purchaseId: number) => {
+    if (confirm("정말 이 매입 내역을 삭제하시겠습니까? 재고가 다시 차감됩니다.")) {
+      deletePurchaseMutation.mutate(purchaseId);
+    }
+  };
+
+  // ✅ 모달 닫기 핸들러 (수정 상태 초기화 포함)
+  const handleModalClose = (open: boolean) => {
+    setIsAddOpen(open);
+    if (!open) {
+      setEditingPurchase(null);
+    }
+  };
+
+  // 7. 이벤트 핸들러: 모달 제출 (생성 및 수정 분기 처리)
   const handleSubmit = async (values: PurchaseFormValues) => {
+    // 🅰️ 수정 모드일 때
+    if (editingPurchase) {
+      updatePurchaseMutation.mutate({
+        id: editingPurchase.purchaseId,
+        body: {
+          storeId: currentStoreId!,
+          purchaseQty: Number(values.formQty),
+          unitPrice: Number(values.formUnitPrice),
+          purchaseDate: values.formDate,
+        }
+      });
+      return;
+    }
+
+    // 🅱️ 생성 모드일 때 (기존 로직)
     const norm = (s: string) => s.trim().toLowerCase();
     let itemIdToUse: number | null = null;
     const inventoryOptions = inventoryQuery.data ?? [];
@@ -110,7 +170,6 @@ export function usePurchases() {
         if (exist) {
           itemIdToUse = exist.itemId;
         } else {
-          // ⭐️ mutateAsync를 사용해 생성 완료를 기다림
           const newInv = await createInventoryMutation.mutateAsync({
             storeId: currentStoreId!,
             itemName: values.newItemName.trim(),
@@ -129,7 +188,6 @@ export function usePurchases() {
         return;
       }
 
-      // 3) 매입 기록 생성
       createPurchaseMutation.mutate({
         storeId: currentStoreId!,
         itemId: itemIdToUse,
@@ -138,9 +196,7 @@ export function usePurchases() {
         purchaseDate: values.formDate,
       });
     } catch (e: any) {
-      // (createInventoryMutation.mutateAsync 실패 시)
       console.error(e);
-      // (Mutation의 onError가 이미 처리함)
     }
   };
   
@@ -173,7 +229,7 @@ export function usePurchases() {
     // 데이터
     purchasesQuery,
     inventoryQuery,
-    filteredRows, // ⭐️ UI 표시용 필터된 행
+    filteredRows,
     inventoryOpts,
 
     // 로딩/에러
@@ -193,12 +249,18 @@ export function usePurchases() {
     totalElements: purchasesQuery.data?.totalElements ?? 0,
     handlePageChange,
 
-    // 통계
     totalAmount,
-
-    // 모달
     isAddOpen, setIsAddOpen,
+    editingPurchase,   
+    handleEditClick,   
+    handleDeleteClick, 
+    handleModalClose,  
     handleSubmit,
-    isSubmitting: createInventoryMutation.isPending || createPurchaseMutation.isPending,
+    
+    isSubmitting: 
+      createInventoryMutation.isPending || 
+      createPurchaseMutation.isPending || 
+      updatePurchaseMutation.isPending || 
+      deletePurchaseMutation.isPending,
   };
 }

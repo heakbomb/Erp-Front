@@ -67,6 +67,14 @@ type CreatePurchaseBody = {
   unitPrice: number;
   purchaseDate: string; // "YYYY-MM-DD"
 };
+
+type UpdatePurchaseBody = {
+  storeId: number;
+  purchaseQty?: number;
+  unitPrice?: number;
+  purchaseDate?: string;
+};
+
 export const createPurchase = async (body: CreatePurchaseBody) => {
   const res = await apiClient.post<PurchaseHistoryResponse>(
     `/owner/purchases`, 
@@ -101,4 +109,20 @@ export const createInventory = async (body: CreateInventoryBody) => {
     payload
   );
   return res.data;
+};
+
+export const updatePurchase = async (purchaseId: number, body: UpdatePurchaseBody) => {
+  const res = await apiClient.patch<PurchaseHistoryResponse>(
+    `/owner/purchases/${purchaseId}`,
+    body
+  );
+  return res.data;
+};
+
+/**
+ * (사장) 매입 내역 삭제
+ * DELETE /owner/purchases/{purchaseId}
+ */
+export const deletePurchase = async (purchaseId: number) => {
+  await apiClient.delete(`/owner/purchases/${purchaseId}`);
 };
