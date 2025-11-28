@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,11 +11,20 @@ import useEmployeesPending from "@/features/owner/employees/hooks/useEmployeesPe
 
 export default function EmployeesPending() {
   const {
-    pending, loadingPending, storeIdForPending,
-    recentApproved, recentRejected, banner,
+    pending,
+    loadingPending,
+    storeIdForPending,
+    recentApproved,
+    recentRejected,
+    banner,
     setStoreIdForPending,
-    fetchPending, approve, reject,
+    fetchPending,
+    approve,
+    reject,
   } = useEmployeesPending()
+
+  // 🔹 “신청 이력 조회” 버튼으로 최근 승인/거절 카드 보이기/숨기기
+  const [showHistory, setShowHistory] = useState(false)
 
   return (
     <div className="space-y-6">
@@ -30,12 +40,13 @@ export default function EmployeesPending() {
         </div>
       )}
 
+      {/* ───────────────── 기존 신청 대기 카드 ───────────────── */}
       <Card>
         <CardHeader>
           <CardTitle>신청 대기 중인 직원</CardTitle>
           <CardDescription>사업장 코드로 근무 신청한 직원 목록입니다</CardDescription>
 
-          <div className="mt-3 flex gap-2 items-center">
+          <div className="mt-3 flex flex-wrap gap-2 items-center">
             <Input
               placeholder="사업장 ID (예: 1)"
               value={storeIdForPending}
@@ -46,6 +57,16 @@ export default function EmployeesPending() {
             <Badge variant="secondary" className="ml-2">
               대기 {pending.length}
             </Badge>
+
+            {/* 🔹 추가: 신청 이력 조회 버튼 (최근 승인/거절 카드 토글) */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              onClick={() => setShowHistory((prev) => !prev)}
+            >
+              신청 이력 조회
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -91,17 +112,21 @@ export default function EmployeesPending() {
         </CardContent>
       </Card>
 
-      {(recentApproved.length > 0 || recentRejected.length > 0) && (
+      {/* ───────────────── 기존 최근 승인 / 최근 거절 카드 ───────────────── */}
+      {showHistory && (recentApproved.length > 0 || recentRejected.length > 0) && (
         <div className="grid md:grid-cols-2 gap-4">
           {recentApproved.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">최근 승인</CardTitle>
-                <CardDescription>방금 승인한 직원</CardDescription>
+                <CardDescription>방금 승인했거나 저장된 승인 이력</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {recentApproved.map((r) => (
-                  <div key={`ap-${r.assignmentId}`} className="flex items-center justify-between rounded border p-3">
+                  <div
+                    key={`ap-${r.assignmentId}`}
+                    className="flex items-center justify-between rounded border p-3"
+                  >
                     <div>
                       <div className="font-medium">{r.name ?? `EMP#${r.employeeId}`}</div>
                       <div className="text-xs text-muted-foreground">{r.email ?? "-"}</div>
@@ -116,11 +141,14 @@ export default function EmployeesPending() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">최근 거절</CardTitle>
-                <CardDescription>방금 거절한 신청</CardDescription>
+                <CardDescription>방금 거절했거나 저장된 거절 이력</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {recentRejected.map((r) => (
-                  <div key={`rj-${r.assignmentId}`} className="flex items-center justify-between rounded border p-3">
+                  <div
+                    key={`rj-${r.assignmentId}`}
+                    className="flex items-center justify-between rounded border p-3"
+                  >
                     <div>
                       <div className="font-medium">{r.name ?? `EMP#${r.employeeId}`}</div>
                       <div className="text-xs text-muted-foreground">{r.email ?? "-"}</div>
