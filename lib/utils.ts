@@ -51,6 +51,7 @@ export function formatStoreStatus(status?: string): string {
     case "REJECTED": return "거절됨";
     case "ACTIVE":
     case "OPERATING": return "운영중";
+    case "INACTIVE": return "비활성화";
     default: return status ?? "-";
   }
 }

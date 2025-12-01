@@ -37,18 +37,34 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response, // 성공 응답
   (error) => {
-    // 401 인증 오류 공통 처리
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      console.error("401 Unauthorized. 토큰 만료 또는 인증 실패.");
-      // TODO: AuthContext의 logout() 호출
-      // if (typeof window !== "undefined") window.location.href = "/login";
-    }
-
-    // ✅ 서버 에러 메시지를 friendlyMessage로 추출
-    const friendlyMessage = extractErrorMessage(error);
-
-    // ✅ Error를 새로 만들지 말고, 기존 AxiosError에 메시지만 붙인다.
     if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const data = error.response?.data;
+
+      // ✅ 비활성화된 사업장 공통 처리
+      const isInactiveStore =
+        status === 423 ||
+        (status === 403 &&
+          (data === "INACTIVE_STORE" ||
+            (typeof data === "object" && data !== null && (data as any).code === "INACTIVE_STORE")));
+
+      if (isInactiveStore && typeof window !== "undefined") {
+        alert("비활성화된 사업장입니다.\n사업장 관리에서 활성화 후 다시 이용해주세요.");
+        // 👉 실제 라우트에 맞게 경로만 조정하면 됨
+        window.location.href = "/owner/stores";
+      }
+
+      // 401 인증 오류 공통 처리
+      if (status === 401) {
+        console.error("401 Unauthorized. 토큰 만료 또는 인증 실패.");
+        // TODO: AuthContext의 logout() 호출
+        // if (typeof window !== "undefined") window.location.href = "/login";
+      }
+
+      // ✅ 서버 에러 메시지를 friendlyMessage로 추출
+      const friendlyMessage = extractErrorMessage(error);
+
+      // ✅ Error를 새로 만들지 말고, 기존 AxiosError에 메시지만 붙인다.
       (error as any).friendlyMessage = friendlyMessage;
     }
 

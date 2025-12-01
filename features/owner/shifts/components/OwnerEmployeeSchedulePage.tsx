@@ -1,9 +1,11 @@
+// features/owner/shifts/components/OwnerEmployeeSchedulePage.tsx
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns"
+import { useQueryClient } from "@tanstack/react-query" // ✅ 추가
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -50,6 +52,7 @@ function endOfMonth(d: Date): Date {
 export default function EmployeeSchedulePage() {
   const router = useRouter()
   const { currentStoreId } = useStore()
+  const queryClient = useQueryClient() // ✅ 추가
 
   const [mode, setMode] = useState<"WEEK" | "MONTH">("WEEK")
   const [anchorDate, setAnchorDate] = useState<Date>(startOfWeek(new Date()))
@@ -210,7 +213,8 @@ export default function EmployeeSchedulePage() {
     setCreateOpen(false)
     setEditingShift(null)
   }
-    // ✅ 이번 달 전체 삭제
+
+  // ✅ 이번 달 전체 삭제
   const handleDeleteMonthAll = async (employeeId: number) => {
     if (!currentStoreId || !selectedDate) return
 
@@ -284,6 +288,11 @@ export default function EmployeeSchedulePage() {
       endTime: values.endTime,
       breakMinutes: values.breakMinutes ?? 0,
       isFixed: values.isFixed ?? false,
+    })
+
+    // ✅ 일괄 등록 후 현재 범위 근무표 강제 리프레시
+    await queryClient.invalidateQueries({
+      queryKey: ["employeeShifts", currentStoreId, from, to],
     })
 
     setBulkOpen(false)

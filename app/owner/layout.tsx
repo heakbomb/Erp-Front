@@ -7,6 +7,7 @@ import { ownerNavigation } from "@/lib/navigation";
 import { StoreProvider, useStore } from "@/contexts/StoreContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Store as StoreIcon, ChevronDown } from "lucide-react";
+import { OwnerStoreGuard } from "@/features/owner/common/OwnerStoreGuard";
 
 /**
  * 사장님 레이아웃 전용 사용자 / 사업장 정보 UI
@@ -19,7 +20,7 @@ function OwnerInfo() {
   const [open, setOpen] = React.useState(false);
 
   // 타입 오류 없는 가장 안전한 이름 처리 방식
-    const displayName =
+  const displayName =
     (user as any)?.name ??
     (user as any)?.username ??
     (user as any)?.email ??
@@ -92,14 +93,17 @@ export default function OwnerLayout({
 }) {
   return (
     <StoreProvider>
-      <AppLayout
-        navigation={ownerNavigation}
-        userInfo={<OwnerInfo />}
-        logoIcon={StoreIcon}
-        logoText="요식업 ERP"
-      >
-        {children}
-      </AppLayout>
+      {/* ✅ owner 영역 전체를 Guard로 한 번만 감쌈 */}
+      <OwnerStoreGuard>
+        <AppLayout
+          navigation={ownerNavigation}
+          userInfo={<OwnerInfo />}
+          logoIcon={StoreIcon}
+          logoText="요식업 ERP"
+        >
+          {children}
+        </AppLayout>
+      </OwnerStoreGuard>
     </StoreProvider>
   );
 }
