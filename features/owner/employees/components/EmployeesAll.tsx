@@ -1,3 +1,4 @@
+// features/owner/employees/components/EmployeesAll.tsx
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,21 +21,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 
 import useEmployeesAll from "@/features/owner/employees/hooks/useEmployeesAll"
 
 export default function EmployeesAll() {
   const {
     // state
-    searchQuery, employees, loading, banner,
-    openEdit, editForm, saving, openDelete, targetToDelete,
+    searchQuery,
+    employees,
+    loading,
+    banner,
+    openDelete,
+    targetToDelete,
     // setters
-    setSearchQuery, setOpenEdit, setEditForm, setOpenDelete, setTargetToDelete,
+    setSearchQuery,
+    setOpenDelete,
+    setTargetToDelete,
     // derived
-    filtered, formatDate,
+    filtered,
+    formatDate,
     // actions
-    openEditDialog, handleUpdate, confirmDelete,
+    confirmDelete,
   } = useEmployeesAll()
 
   return (
@@ -50,8 +57,6 @@ export default function EmployeesAll() {
           {banner.message}
         </div>
       )}
-
-      
 
       <Card>
         <CardHeader>
@@ -89,15 +94,20 @@ export default function EmployeesAll() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((e) => (
-                  <TableRow key={e.employeeId}>
-                    <TableCell className="font-medium">{e.name}</TableCell>
-                    <TableCell>{e.email}</TableCell>
-                    <TableCell>{e.phone}</TableCell>
+                {filtered.map((e, idx) => (
+                  <TableRow key={e.employeeId ?? `emp-${idx}`}>
+                    <TableCell className="font-medium">{e.name || "-"}</TableCell>
+                    <TableCell>{e.email || "-"}</TableCell>
+                    <TableCell>{e.phone || "-"}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{e.provider}</Badge>
+                      {e.provider ? (
+                        <Badge variant="secondary">{e.provider}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>{formatDate(e.createdAt)}</TableCell>
+                    {/* 🔹 삭제 전용 작업 메뉴 */}
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -106,7 +116,6 @@ export default function EmployeesAll() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-28">
-                          <DropdownMenuItem onClick={() => openEditDialog(e)}>수정</DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-red-600 focus:text-red-600"
                             onClick={() => {
@@ -134,51 +143,7 @@ export default function EmployeesAll() {
         </CardContent>
       </Card>
 
-      {/* 수정 다이얼로그 (UI 동일) */}
-      <Dialog open={openEdit} onOpenChange={setOpenEdit}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>직원 정보 수정</DialogTitle>
-            <DialogDescription>이름, 이메일, 전화번호, Provider를 변경할 수 있습니다.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>이름</Label>
-              <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>이메일</Label>
-              <Input
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>전화번호</Label>
-              <Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>Provider</Label>
-              <Input
-                value={editForm.provider}
-                onChange={(e) => setEditForm({ ...editForm, provider: e.target.value })}
-                placeholder="google / kakao / naver ..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenEdit(false)}>
-              취소
-            </Button>
-            <Button onClick={handleUpdate}>
-              저장
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 삭제 확인 다이얼로그 (UI 동일) */}
+      {/* 삭제 확인 다이얼로그 */}
       <Dialog open={openDelete} onOpenChange={setOpenDelete}>
         <DialogContent>
           <DialogHeader>

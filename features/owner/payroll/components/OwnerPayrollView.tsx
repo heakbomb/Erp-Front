@@ -2,13 +2,11 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { format, differenceInCalendarDays } from "date-fns"
+import { format, differenceInCalendarDays, addMonths } from "date-fns"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
@@ -20,9 +18,22 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Search, Download, FileText, DollarSign, Users, Calculator } from "lucide-react"
+import {
+  Download,
+  FileText,
+  DollarSign,
+  Users,
+  Calculator,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
 
 import useOwnerPayroll from "@/features/owner/payroll/hooks/useOwnerPayroll"
+
+// 새로 나눈 컴포넌트들
+import CurrentPayrollTab from "@/features/owner/payroll/components/CurrentPayrollTab"
+import PayrollHistoryTab from "@/features/owner/payroll/components/PayrollHistoryTab"
+import PayrollSettingsTab from "@/features/owner/payroll/components/PayrollSettingsTab"
 
 export default function OwnerPayrollView() {
   // ✅ 선택 월 (기본: 오늘 기준)
@@ -74,10 +85,21 @@ export default function OwnerPayrollView() {
     error,
   } = useOwnerPayroll(yearMonth)
 
+  // ✅ 월 변경 (이전/다음 달 버튼용)
+  const handleChangeMonth = (offset: number) => {
+    try {
+      const base = new Date(`${yearMonth}-01`)
+      const next = addMonths(base, offset)
+      setYearMonth(format(next, "yyyy-MM"))
+    } catch {
+      // yearMonth 포맷이 깨졌을 때만 방어
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">급여 관리</h1>
           <p className="text-muted-foreground">
@@ -90,77 +112,103 @@ export default function OwnerPayrollView() {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* ✅ 월 선택 */}
-          <div className="flex flex-col items-end gap-1">
-            <Label className="text-xs text-muted-foreground">조회 월</Label>
-            <Input
-              type="month"
-              className="w-[160px]"
-              value={yearMonth}
-              onChange={(e) => setYearMonth(e.target.value)}
-            />
+        {/* 우측 컨트롤 영역 */}
+        <div className="flex flex-col items-end gap-3">
+          {/* ▶ 월 선택 + 이전/다음 버튼 */}
+          <div className="flex items-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => handleChangeMonth(-1)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            <div className="flex flex-col items-end gap-1">
+              <Label className="text-xs text-muted-foreground">조회 월</Label>
+              <Input
+                type="month"
+                className="w-[190px]"
+                value={yearMonth}
+                onChange={(e) => setYearMonth(e.target.value)}
+              />
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => handleChangeMonth(1)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
 
-          <Button variant="outline" className="bg-transparent">
-            <FileText className="mr-2 h-4 w-4" />
-            급여명세서 일괄 생성
-          </Button>
-          <Button variant="outline" className="bg-transparent">
-            <Download className="mr-2 h-4 w-4" />
-            Excel 내보내기
-          </Button>
+          {/* ▶ 액션 버튼들 (명세서/엑셀/급여계산) */}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" className="bg-transparent">
+              <FileText className="mr-2 h-4 w-4" />
+              급여명세서 일괄 생성
+            </Button>
+            <Button variant="outline" className="bg-transparent">
+              <Download className="mr-2 h-4 w-4" />
+              Excel 내보내기
+            </Button>
 
-          <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={loading || employees.length === 0}>
-                <Calculator className="mr-2 h-4 w-4" />
-                급여 계산
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>급여 자동 계산</DialogTitle>
-                <DialogDescription>
-                  {monthLabel} 근무 기록을 기반으로 급여를 자동 계산합니다
-                </DialogDescription>
-              </DialogHeader>
-              <div className="py-4">
-                <p className="text-sm text-muted-foreground">
-                  {monthLabel} 근무 기록을 기반으로{" "}
-                  <span className="font-medium">{employees.length}</span>명의 직원 급여를 계산하시겠습니까?
-                </p>
-                <div className="mt-4 p-4 rounded-lg bg-muted">
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>총 근무 시간</span>
-                      <span className="font-medium">
-                        {totalWorkHours.toLocaleString()}시간
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>예상 총 급여</span>
-                      <span className="font-medium text-primary">
-                        ₩{totalPayroll.toLocaleString()}
-                      </span>
+            <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button disabled={loading || employees.length === 0}>
+                  <Calculator className="mr-2 h-4 w-4" />
+                  급여 계산
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>급여 자동 계산</DialogTitle>
+                  <DialogDescription>
+                    {monthLabel} 근무 기록을 기반으로 급여를 자동 계산합니다
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <p className="text-sm text-muted-foreground">
+                    {monthLabel} 근무 기록을 기반으로{" "}
+                    <span className="font-medium">{employees.length}</span>명의 직원 급여를 계산하시겠습니까?
+                  </p>
+                  <div className="mt-4 p-4 rounded-lg bg-muted">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>총 근무 시간</span>
+                        <span className="font-medium">
+                          {totalWorkHours.toLocaleString()}시간
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>예상 총 급여</span>
+                        <span className="font-medium text-primary">
+                          ₩{totalPayroll.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
-                  취소
-                </Button>
-                <Button onClick={() => setIsSettingsDialogOpen(false)} disabled={employees.length === 0}>
-                  계산 시작
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
+                    취소
+                  </Button>
+                  <Button onClick={() => setIsSettingsDialogOpen(false)} disabled={employees.length === 0}>
+                    계산 시작
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* 상단 통계 카드 */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -170,7 +218,6 @@ export default function OwnerPayrollView() {
           <CardContent>
             <div className="text-2xl font-bold">₩{totalPayroll.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {/* 전월 대비 증감은 나중에 백엔드에서 내려주는 값으로 교체 예정 */}
               전월 대비 추이는 추후 제공 예정
             </p>
           </CardContent>
@@ -214,6 +261,7 @@ export default function OwnerPayrollView() {
         </Card>
       </div>
 
+      {/* 탭 구조 */}
       <Tabs defaultValue="current" className="space-y-4">
         <TabsList>
           <TabsTrigger value="current">이번 달 급여</TabsTrigger>
@@ -221,106 +269,25 @@ export default function OwnerPayrollView() {
           <TabsTrigger value="settings">급여 설정</TabsTrigger>
         </TabsList>
 
-        {/* 이번 달 급여 */}
+        {/* 이번 달 급여 탭 */}
         <TabsContent value="current" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <CardTitle>{monthLabel} 급여 내역</CardTitle>
-                  <CardDescription>직원별 급여 상세 내역</CardDescription>
-                </div>
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="직원 검색..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <p className="text-sm text-muted-foreground">급여 데이터를 불러오는 중입니다…</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>이름</TableHead>
-                      <TableHead>역할</TableHead>
-                      <TableHead>근무일</TableHead>
-                      <TableHead>근무시간</TableHead>
-                      <TableHead>기본급</TableHead>
-                      <TableHead>상여금</TableHead>
-                      <TableHead>공제액</TableHead>
-                      <TableHead>실수령액</TableHead>
-                      <TableHead>상태</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredEmployees.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell className="font-medium">{employee.name}</TableCell>
-                        <TableCell>{employee.role}</TableCell>
-                        <TableCell>{employee.workDays}일</TableCell>
-                        <TableCell>{employee.workHours}시간</TableCell>
-                        <TableCell>₩{employee.basePay.toLocaleString()}</TableCell>
-                        <TableCell className="text-green-600">
-                          {employee.bonus > 0 ? `+₩${employee.bonus.toLocaleString()}` : "-"}
-                        </TableCell>
-                        <TableCell className="text-red-600">
-                          -₩{employee.deductions.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          ₩{employee.netPay.toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="default">{employee.status}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          <CurrentPayrollTab
+            monthLabel={monthLabel}
+            loading={loading}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            filteredEmployees={filteredEmployees}
+          />
         </TabsContent>
 
-        {/* 급여 지급 내역 */}
+        {/* 급여 지급 내역 탭 */}
         <TabsContent value="history" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>급여 지급 내역</CardTitle>
-              <CardDescription>과거 급여 지급 기록</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {history.map((record, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 rounded-lg border">
-                    <div>
-                      <h3 className="font-medium">{record.month}</h3>
-                      <p className="text-sm text-muted-foreground">{record.employees}명 지급</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold">
-                        ₩{record.totalPaid.toLocaleString()}
-                      </p>
-                      <Badge variant="default" className="mt-1">
-                        {record.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <PayrollHistoryTab history={history} />
         </TabsContent>
 
-        {/* 급여 설정 (그대로) */}
+        {/* 급여 설정 탭 */}
         <TabsContent value="settings" className="space-y-4">
-          {/* ... 네가 준 설정 카드 그대로 유지 ... */}
+          <PayrollSettingsTab />
         </TabsContent>
       </Tabs>
     </div>

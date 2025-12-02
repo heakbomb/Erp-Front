@@ -16,9 +16,30 @@ export type PendingRequest = {
   requestedAt?: string;
 };
 
-export async function fetchEmployees(): Promise<Employee[]> {
-  const res = await apiClient.get<Employee[]>(`/employees`);
-  return res.data || [];
+/**
+ * ✅ 현재 사업장(storeId)의 직원 목록 조회
+ */
+export async function fetchEmployees(storeId: number): Promise<Employee[]> {
+  const res = await apiClient.get<any[]>(`/employees`, {
+    params: { storeId },
+  });
+
+  const rows = res.data || [];
+
+  return rows.map((raw: any): Employee => {
+    // 🔹 만약 { employee: { ... } } 형태라면 안쪽 employee를 우선 사용
+    const src = raw.employee ?? raw
+
+    return {
+      employeeId: src.employeeId ?? src.id ?? src.employee_id,
+      name: src.name ?? src.employeeName ?? src.employee_name ?? "",
+      email: src.email ?? "",
+      phone: src.phone ?? "",
+      provider: src.provider ?? src.providerType ?? "",
+      provider_id: src.provider_id ?? src.providerId ?? null,
+      createdAt: src.createdAt ?? src.created_at ?? null,
+    }
+  })
 }
 
 export async function updateEmployee(payload: {
@@ -72,14 +93,10 @@ export type EmployeeAttendanceSummary = {
   storeName: string;
 
   // 이번 달 기준
-  workDaysThisMonth: number;    // 총 근무일수
-  workHoursThisMonth: number;   // 총 근무시간 (시간 단위)
+  workDaysThisMonth: number; // 총 근무일수
+  workHoursThisMonth: number; // 총 근무시간 (시간 단위)
 };
 
-/**
- * 사장페이지 - 직원 출결 월간 요약 조회
- * GET /attendance/owner/summary?storeId=11&month=2025-11
- */
 export async function fetchEmployeesAttendanceSummary(params: {
   storeId: number;
   month: string; // "YYYY-MM"
@@ -102,10 +119,6 @@ export type OwnerAttendanceLogItem = {
   employeeName?: string | null;
 };
 
-/**
- * 사장페이지 - 특정 사업장 / 날짜 기준 전체 출퇴근 로그 조회
- * GET /attendance/owner/logs?storeId=11&from=2025-11-05&to=2025-11-05
- */
 export async function fetchOwnerAttendanceLogs(params: {
   storeId: number;
   date: string; // "YYYY-MM-DD"

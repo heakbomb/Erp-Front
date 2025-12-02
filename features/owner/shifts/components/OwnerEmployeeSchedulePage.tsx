@@ -131,7 +131,7 @@ export default function EmployeeSchedulePage() {
   // 직원 목록 조회 (현재 사업장 기준)
   useEffect(() => {
     if (!currentStoreId) return
-    fetchEmployees().then(setEmployees).catch(console.error)
+    fetchEmployees(currentStoreId).then(setEmployees).catch(console.error)
   }, [currentStoreId])
 
   const handlePrev = () => {

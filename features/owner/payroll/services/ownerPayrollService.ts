@@ -27,17 +27,17 @@ export type OwnerPayrollData = {
   history: PayrollHistory[]
 }
 
-// (원래 있던 MOCK_*는 필요하면 남겨두고, 실제 화면은 API 응답 사용)
-export const MOCK_EMPLOYEE_PAYROLL: EmployeePayroll[] = [/* ... 생략 ... */]
-export const MOCK_PAYROLL_HISTORY: PayrollHistory[] = [/* ... 생략 ... */]
-
 // ✅ 실제 API 연동용 함수
 export async function fetchOwnerPayroll(params: {
   storeId: number
   month: string // "yyyy-MM"
 }): Promise<OwnerPayrollData> {
   const res = await apiClient.get<OwnerPayrollData>("/owner/payroll", {
-    params,
+    params: {
+      storeId: params.storeId,
+      yearMonth: params.month, // ← 여기 중요!
+    },
   })
+
   return res.data
 }

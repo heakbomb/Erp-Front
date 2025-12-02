@@ -21,38 +21,41 @@ export default function useOwnerPayroll(yearMonth: string) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let mounted = true
-    if (!currentStoreId || !yearMonth) return
+  // features/owner/payroll/hooks/useOwnerPayroll.ts
+    useEffect(() => {
+      let mounted = true
+      if (!currentStoreId || !yearMonth) return
 
-    const run = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+      const run = async () => {
+        try {
+          setLoading(true)
+          setError(null)
 
-        const data = await fetchOwnerPayroll({
-          storeId: currentStoreId,
-          month: yearMonth, // "yyyy-MM"
-        })
+          const data = await fetchOwnerPayroll({
+            storeId: currentStoreId,
+            month: yearMonth, // "yyyy-MM"
+          })
 
-        if (!mounted) return
-        setEmployees(data.employees)
-        setHistory(data.history)
-      } catch (e: any) {
-        if (!mounted) return
-        console.error("급여 데이터 불러오기 실패:", e)
-        setError(e?.friendlyMessage ?? e?.message ?? "급여 데이터를 불러오지 못했습니다.")
-      } finally {
-        if (mounted) setLoading(false)
+          if (!mounted) return
+
+          // ✅ 응답에 값이 없으면 기본값으로 빈 배열을 사용
+          setEmployees(data.employees ?? [])
+          setHistory(data.history ?? [])
+        } catch (e: any) {
+          if (!mounted) return
+          console.error("급여 데이터 불러오기 실패:", e)
+          setError(e?.friendlyMessage ?? e?.message ?? "급여 데이터를 불러오지 못했습니다.")
+        } finally {
+          if (mounted) setLoading(false)
+        }
       }
-    }
 
-    run()
+      run()
 
-    return () => {
-      mounted = false
-    }
-  }, [currentStoreId, yearMonth])
+      return () => {
+        mounted = false
+      }
+    }, [currentStoreId, yearMonth])
 
   const totalPayroll = useMemo(
     () => employees.reduce((sum, emp) => sum + emp.netPay, 0),
