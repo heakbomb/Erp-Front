@@ -52,6 +52,8 @@ export default function InventoryPageFeature() {
     handleUpdate,
     handleDeactivate,
     handleReactivate,
+    handleExportExcel,   
+    isExporting,
     isCreating,
     isUpdating,
     isDeactivating,
@@ -79,15 +81,25 @@ export default function InventoryPageFeature() {
           <h1 className="text-3xl font-bold text-foreground">재고 관리</h1>
           <p className="text-muted-foreground">재고 현황을 확인하고 관리하세요</p>
         </div>
-        {mounted && (
+         {mounted && (
           <div className="flex gap-2">
-            <Button variant="outline" className="bg-transparent">
-              <Upload className="mr-2 h-4 w-4" />
-              Excel 가져오기
-            </Button>
-            <Button variant="outline" className="bg-transparent">
-              <Download className="mr-2 h-4 w-4" />
-              Excel 내보내기
+            <Button
+              variant="outline"
+              className="bg-transparent"
+              onClick={handleExportExcel}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  내보내는 중...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Excel 내보내기
+                </>
+              )}
             </Button>
             <Button onClick={openAddModal}>
               <Plus className="mr-2 h-4 w-4" />

@@ -10,6 +10,7 @@ import {
   updateInventory,
   deactivateInventory,
   reactivateInventory,
+  downloadInventoryExcel, 
 } from "../inventoryService"; 
 import type { Inventory } from "../../../lib/types/database"; 
 import { DEFAULT_PAGE_SIZE } from "../../../lib/constants"; // ⭐️
@@ -33,6 +34,7 @@ export function useInventory() {
   const [searchQuery, setSearchQuery] = useState(""); // ⭐️ API 호출용
   const [showInactiveOnly, setShowInactiveOnly] = useState(false);
   const sort = "itemName,asc";
+  const [isExporting, setIsExporting] = useState(false);
   
   // 2. 모달 상태
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -160,6 +162,37 @@ export function useInventory() {
     }
   };
 
+   const handleExportExcel = async () => {
+    if (!currentStoreId) {
+      alert("매장이 선택되지 않았습니다.");
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+
+      const blob = await downloadInventoryExcel(currentStoreId);
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+      a.href = url;
+      a.download = `inventory_${today}.xlsx`;
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("재고 엑셀 내보내기 실패", e);
+      alert("재고 엑셀 내보내기에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // 11. 이벤트 핸들러: 모달 열기
   const openAddModal = () => {
     setEditingItem(null);
@@ -209,12 +242,13 @@ export function useInventory() {
     isEditModalOpen,
     setIsEditModalOpen,
     editingItem,
+    isExporting,
 
     openAddModal,
     openEditModal,
     handleCreate,
     handleUpdate,
-    
+    handleExportExcel,
     handleDeactivate,
     handleReactivate,
     

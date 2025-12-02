@@ -19,7 +19,7 @@ type InventoryParams = {
 export const getInventory = async (params: InventoryParams) => {
   // 'status'가 params에 포함되어 백엔드로 전달됨
   const res = await apiClient.get<PageResponse<Inventory>>(
-    "/owner/inventory", 
+    "/owner/inventory",
     { params }
   );
   return res.data;
@@ -64,4 +64,13 @@ export const reactivateInventory = async ({ itemId, storeId }: { itemId: number;
   await apiClient.post(`/owner/inventory/${itemId}/reactivate`, null, {
     params: { storeId },
   });
+};
+
+export const downloadInventoryExcel = async (storeId: number) => {
+  const res = await apiClient.get("/owner/inventory/export/excel", {
+    params: { storeId },      
+    responseType: "blob",     
+  });
+
+  return res.data as Blob;
 };
