@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { useStore } from "@/contexts/StoreContext"
 import { toast } from "sonner"
-import { format, startOfWeek, endOfWeek, startOfMonth, getWeek, parseISO } from "date-fns"
+import { format, startOfWeek, endOfWeek, startOfMonth, getWeek, parseISO, startOfYear } from "date-fns"
 import { ko } from "date-fns/locale"
 import {
   SalesSummaryResponse,
@@ -62,6 +62,36 @@ const getRange = (period: Period) => {
     start.setMonth(today.getMonth() - 11) 
   } else if (period === "YEAR") {
     start.setFullYear(today.getFullYear() - 4) 
+  }
+
+  return {
+    from: toDateString(start),
+    to: toDateString(end),
+  }
+}
+
+const getMenuRange = (period: Period) => {
+  const today = new Date()
+  let start = new Date(today)
+  const end = new Date(today)
+
+  const toDateString = (date: Date) => {
+    const offset = date.getTimezoneOffset() * 60000
+    return new Date(date.getTime() - offset).toISOString().slice(0, 10)
+  }
+
+  if (period === "DAY") {
+    // 👉 오늘 하루만
+    // start = today 그대로, end = today
+  } else if (period === "WEEK") {
+    // 👉 이번 주 (월~오늘)
+    start = startOfWeek(today, { weekStartsOn: 1 })
+  } else if (period === "MONTH") {
+    // 👉 이번 달 1일 ~ 오늘
+    start = startOfMonth(today)
+  } else if (period === "YEAR") {
+    // 👉 올해 1월 1일 ~ 오늘
+    start = startOfYear(today)
   }
 
   return {
@@ -129,7 +159,7 @@ export default function useOwnerSales() {
     const fetchData = async () => {
       try {
         const salesRange = getRange(salesPeriod)
-        const menuRange = getRange(menuPeriod)
+        const menuRange = getMenuRange(menuPeriod)  
 
         // TopMenu는 any[]로 받아서 직접 매핑합니다.
         const [sumRes, dailyRes, menuRes] = await Promise.all([
