@@ -81,11 +81,16 @@ function EmployeeInfo() {
 }
 
 export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
+  // ⭐️ '설정' 메뉴 필터링 (이름이 '설정'이거나 href에 'settings'가 포함된 경우 제외)
+  const filteredNavigation = employeeNavigation.filter(
+    (item) => item.name !== "설정" && !item.href.includes("/settings")
+  );
+
   return (
     <AppLayout
-      navigation={employeeNavigation}
+      navigation={filteredNavigation} // ⭐️ 필터링된 네비게이션 전달
       userInfo={<EmployeeInfo />}
-      logoIcon={Clock} //
+      logoIcon={Clock}
       logoText="요식업 ERP"
     >
       {children}
