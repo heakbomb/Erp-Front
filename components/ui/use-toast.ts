@@ -2,12 +2,14 @@
 
 import * as React from "react"
 
+// ✅ 수정됨: variant 속성 추가 ("default" | "destructive")
 export type ToastParams = {
   id?: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: React.ReactNode
   durationMs?: number
+  variant?: "default" | "destructive" 
 }
 
 type ToasterState = {
