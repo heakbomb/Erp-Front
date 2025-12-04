@@ -123,3 +123,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  /* 카드/섹션을 페이지 중간에서 쪼개지 않도록 */
+  .print-avoid-break {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+}
