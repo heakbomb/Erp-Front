@@ -3,7 +3,7 @@
 import type React from "react";
 import { AppLayout } from "@/components/common/AppLayout"; // 👈 공용 레이아웃
 import { adminNavigation } from "@/lib/navigation"; // 👈 공용 네비게이션
-import { Building2 } from "lucide-react"; //
+import { Building2, MessageCircleQuestion } from "lucide-react"; // ⭐️ 아이콘 추가
 
 /**
  * 관리자 레이아웃 전용 사용자 정보 UI (간단 버전)
@@ -23,11 +23,17 @@ function AdminInfo() {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  // ⭐️ 기존 네비게이션에 문의 관리 메뉴 추가
+  const navigationWithInquiry = [
+    ...adminNavigation,
+    { name: "문의 관리", href: "/admin/inquiries", icon: MessageCircleQuestion }
+  ];
+
   return (
     <AppLayout
-      navigation={adminNavigation}
+      navigation={navigationWithInquiry} // ⭐️ 수정된 네비게이션 전달
       userInfo={<AdminInfo />}
-      logoIcon={Building2} //
+      logoIcon={Building2} 
       logoText="관리자"
     >
       {children}
