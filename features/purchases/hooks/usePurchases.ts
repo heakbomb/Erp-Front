@@ -8,11 +8,15 @@ import {
   getPurchases,
   getInventoryForOptions,
   createPurchase,
-  createInventory,
   updatePurchase,
-  deletePurchase
+  deletePurchase,
+  createInventory,            // ✅ 새로 추가 (실제 함수)
+  type CreateInventoryBody,   // ✅ 타입으로 import
 } from "../purchasesService";
-import type { InventoryOption, PurchaseHistoryResponse } from "../purchasesService";
+import type {
+  InventoryOption,
+  PurchaseHistoryResponse,
+} from "../purchasesService";
 
 // 1. 폼 검증 및 타입을 위한 상수
 export const TODAY = new Date().toISOString().slice(0, 10);
@@ -40,10 +44,11 @@ export function usePurchases() {
   const [endDate, setEndDate] = useState<string>("");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
-  const [searchText, setSearchText] = useState(""); 
-  
+  const [searchText, setSearchText] = useState("");
+
   // ✅ 수정 모드 상태 (null이면 생성 모드)
-  const [editingPurchase, setEditingPurchase] = useState<PurchaseHistoryResponse | null>(null);
+  const [editingPurchase, setEditingPurchase] =
+    useState<PurchaseHistoryResponse | null>(null);
 
   // 2. 모달 상태
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -70,16 +75,22 @@ export function usePurchases() {
     queryFn: () => getInventoryForOptions(currentStoreId!),
     enabled: !!currentStoreId,
   });
-  
+
   const inventoryOpts: InventoryOption[] = inventoryQuery.data ?? [];
 
-  // 5. (Mutation) 재고 생성
-  const createInventoryMutation = useMutation({
-    mutationFn: createInventory,
+  // 5. (Mutation) 재고 생성 (새 품목용)
+  const createInventoryMutation = useMutation<
+    InventoryOption,      // ✅ 성공 타입
+    Error,                // ✅ 에러 타입
+    CreateInventoryBody   // ✅ variables 타입
+  >({
+    mutationFn: (vars) => createInventory(vars),
     onSuccess: (newItem) => {
+      // 재고 옵션 캐시에 새 품목 추가
       queryClient.setQueryData(
         ["inventoryOptions", currentStoreId],
-        (oldData: InventoryOption[] | undefined) => (oldData ? [...oldData, newItem] : [newItem])
+        (oldData: InventoryOption[] | undefined) =>
+          oldData ? [...oldData, newItem] : [newItem]
       );
     },
     onError: (error) => alert(`새 품목 생성 실패: ${error.message}`),
@@ -92,14 +103,15 @@ export function usePurchases() {
       setIsAddOpen(false);
       setPage(0);
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
-      queryClient.invalidateQueries({ queryKey: ["inventory"] }); 
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
     onError: (error) => alert(`매입 등록 실패: ${error.message}`),
   });
 
   // ✅ (Mutation) 매입 기록 수정
   const updatePurchaseMutation = useMutation({
-    mutationFn: ({ id, body }: { id: number; body: any }) => updatePurchase(id, body),
+    mutationFn: ({ id, body }: { id: number; body: any }) =>
+      updatePurchase(id, body),
     onSuccess: () => {
       setIsAddOpen(false);
       setEditingPurchase(null); // 수정 모드 종료
@@ -121,8 +133,8 @@ export function usePurchases() {
 
   // ✅ 수정 버튼 클릭 시 핸들러
   const handleEditClick = (purchase: PurchaseHistoryResponse) => {
-    setEditingPurchase(purchase); 
-    setIsAddOpen(true); 
+    setEditingPurchase(purchase);
+    setIsAddOpen(true);
   };
 
   // ✅ 삭제 버튼 클릭 시 핸들러
@@ -142,21 +154,23 @@ export function usePurchases() {
 
   // 7. 이벤트 핸들러: 모달 제출 (생성 및 수정 분기 처리)
   const handleSubmit = async (values: PurchaseFormValues) => {
+    if (!currentStoreId) return;
+
     // 🅰️ 수정 모드일 때
     if (editingPurchase) {
       updatePurchaseMutation.mutate({
         id: editingPurchase.purchaseId,
         body: {
-          storeId: currentStoreId!,
+          storeId: currentStoreId,
           purchaseQty: Number(values.formQty),
           unitPrice: Number(values.formUnitPrice),
           purchaseDate: values.formDate,
-        }
+        },
       });
       return;
     }
 
-    // 🅱️ 생성 모드일 때 (기존 로직)
+    // 🅱️ 생성 모드일 때
     const norm = (s: string) => s.trim().toLowerCase();
     let itemIdToUse: number | null = null;
     const inventoryOptions = inventoryQuery.data ?? [];
@@ -173,8 +187,11 @@ export function usePurchases() {
           const newInv = await createInventoryMutation.mutateAsync({
             storeId: currentStoreId!,
             itemName: values.newItemName.trim(),
-            itemType: values.newItemType.trim(),
+            itemType: values.newItemType.trim(),   // "VEGETABLE" 등 선택한 enum 코드
             stockType: values.newStockType.trim(),
+            stockQty: Number(values.formQty),      // 처음 매입한 만큼 재고도 채워 넣기
+            safetyQty: 0,
+            status: "ACTIVE",
           });
           itemIdToUse = newInv.itemId;
         }
@@ -189,7 +206,7 @@ export function usePurchases() {
       }
 
       createPurchaseMutation.mutate({
-        storeId: currentStoreId!,
+        storeId: currentStoreId,
         itemId: itemIdToUse,
         purchaseQty: Number(values.formQty),
         unitPrice: Number(values.formUnitPrice),
@@ -199,12 +216,15 @@ export function usePurchases() {
       console.error(e);
     }
   };
-  
+
   // 8. 파생 상태 (Memo)
   const rows = purchasesQuery.data?.content ?? [];
 
   const totalAmount = useMemo(() => {
-    return rows.reduce((sum, r) => sum + Number(r.purchaseQty) * Number(r.unitPrice), 0);
+    return rows.reduce(
+      (sum, r) => sum + Number(r.purchaseQty) * Number(r.unitPrice),
+      0
+    );
   }, [rows]);
 
   const filteredRows = useMemo(() => {
@@ -237,11 +257,16 @@ export function usePurchases() {
     error: purchasesQuery.error as Error | null,
 
     // 필터 상태
-    selectedItemId, setSelectedItemId,
-    startDate, setStartDate,
-    endDate, setEndDate,
-    searchText, setSearchText,
-    size, setSize,
+    selectedItemId,
+    setSelectedItemId,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    searchText,
+    setSearchText,
+    size,
+    setSize,
 
     // 페이지네이션
     page,
@@ -250,17 +275,18 @@ export function usePurchases() {
     handlePageChange,
 
     totalAmount,
-    isAddOpen, setIsAddOpen,
-    editingPurchase,   
-    handleEditClick,   
-    handleDeleteClick, 
-    handleModalClose,  
+    isAddOpen,
+    setIsAddOpen,
+    editingPurchase,
+    handleEditClick,
+    handleDeleteClick,
+    handleModalClose,
     handleSubmit,
-    
-    isSubmitting: 
-      createInventoryMutation.isPending || 
-      createPurchaseMutation.isPending || 
-      updatePurchaseMutation.isPending || 
+
+    isSubmitting:
+      createInventoryMutation.isPending ||
+      createPurchaseMutation.isPending ||
+      updatePurchaseMutation.isPending ||
       deletePurchaseMutation.isPending,
   };
 }

@@ -2,6 +2,7 @@
 import { apiClient } from "@/lib/api/client";
 import type { PageResponse } from "@/lib/types/api";
 import type { Inventory, PurchaseHistory } from "@/lib/types/database";
+import { INGREDIENT_CATEGORIES } from "@/features/inventory/constants/itemCategory";
 
 // == 1. 타입 정의 ==
 
@@ -16,6 +17,9 @@ export type InventoryOption = Inventory & {
   avgUnitCost?: number;
   lastUnitCost?: number;
 };
+
+export type IngredientCategoryCode =
+  (typeof INGREDIENT_CATEGORIES)[number]["value"]
 
 // == 2. API 함수 ==
 
@@ -36,7 +40,7 @@ export const getPurchases = async (params: GetPurchasesParams) => {
   const { storeId, ...rest } = params;
   // ⭐️ 참고: 실제 백엔드 API 경로가 /owner/purchases/store/{storeId} 일 수 있음
   const res = await apiClient.get<PageResponse<PurchaseHistoryResponse>>(
-    `/owner/purchases`, 
+    `/owner/purchases`,
     { params: { storeId, ...rest } } // storeId를 쿼리 파라미터로 전송
   );
   return res.data;
@@ -77,7 +81,7 @@ type UpdatePurchaseBody = {
 
 export const createPurchase = async (body: CreatePurchaseBody) => {
   const res = await apiClient.post<PurchaseHistoryResponse>(
-    `/owner/purchases`, 
+    `/owner/purchases`,
     body
   );
   return res.data;
@@ -87,30 +91,35 @@ export const createPurchase = async (body: CreatePurchaseBody) => {
  * (사장) 신규 재고 품목 생성 (매입 등록 모달에서)
  * POST /owner/inventory
  */
-type CreateInventoryBody = {
+export type CreateInventoryBody = {
   storeId: number;
-  itemName: string;
-  itemType: string;
-  stockType: string;
-  stockQty?: number;
-  safetyQty?: number;
-  status?: string;
+  itemName: string;          // 새 품목명
+  itemType: string;          // "VEGETABLE" 같은 enum 코드 문자열
+  stockType: string;         // 단위 (kg / L / ea 등)
+  stockQty?: number;         // 초기 수량 (없으면 0)
+  safetyQty?: number;        // 없으면 0
+  status?: string;           // 없으면 "ACTIVE"
 };
-export const createInventory = async (body: CreateInventoryBody) => {
-  // ⭐️ 매입 기록 시 재고는 0으로 시작
+
+export async function createInventory(
+  body: CreateInventoryBody
+): Promise<InventoryOption> {
   const payload = {
-    ...body,
+    storeId: body.storeId,
+    itemName: body.itemName,
+    itemType: body.itemType,          // 백엔드 enum으로 매핑됨
+    stockType: body.stockType,
     stockQty: body.stockQty ?? 0,
     safetyQty: body.safetyQty ?? 0,
     status: body.status ?? "ACTIVE",
   };
+
   const res = await apiClient.post<InventoryOption>(
-    `/owner/inventory`, 
+    "/owner/inventory",
     payload
   );
   return res.data;
-};
-
+}
 export const updatePurchase = async (purchaseId: number, body: UpdatePurchaseBody) => {
   const res = await apiClient.patch<PurchaseHistoryResponse>(
     `/owner/purchases/${purchaseId}`,
