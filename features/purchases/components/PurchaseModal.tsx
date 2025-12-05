@@ -63,9 +63,8 @@ const purchaseSchema = z
 
     formItemId: z.string().optional(),
     newItemName: z.string().optional(),
-    newItemType: z
-      .enum(INGREDIENT_CATEGORIES.map((c) => c.value) as [string, ...string[]])
-      .optional(), // 값은 enum 코드지만, 스키마는 string으로 둬도 됨
+    newItemType: z.string().optional(),
+
     newStockType: z.string().optional(),
   })
   .refine(
