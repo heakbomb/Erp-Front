@@ -13,6 +13,17 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { RefreshCw, Save } from "lucide-react"
 
 import usePayrollSettings from "@/features/owner/payroll/hooks/usePayrollSettings"
+import type { PayrollSetting } from "@/features/owner/payroll/services/payrollSettingService"
+
+// ✅ 공제 옵션 정의 (레이블 + 기본 비율)
+const DEDUCTION_OPTIONS: Record<
+  NonNullable<PayrollSetting["deductionType"]>,
+  { label: string; rate: number | null }
+> = {
+  NONE: { label: "없음", rate: null },
+  FOUR_INSURANCE: { label: "4대 보험", rate: 0.09 }, // 예시 9%
+  TAX_3_3: { label: "3.3% 공제", rate: 0.033 },
+}
 
 export default function PayrollSettingsTab() {
   const {
@@ -36,8 +47,23 @@ export default function PayrollSettingsTab() {
     updateSettingField(employeeId, { wageType: value as any })
   }
 
+  // ✅ 공제 항목 변경 시 타입 + 비율 동시 갱신
+  const handleDeductionChange = (
+    employeeId: number,
+    value: NonNullable<PayrollSetting["deductionType"]>,
+  ) => {
+    const option = DEDUCTION_OPTIONS[value]
+    updateSettingField(employeeId, {
+      deductionType: value,
+      deductionRate: option.rate,
+    })
+  }
+
   const handleSaveOne = async (employeeId: number) => {
-    await saveOne(employeeId)
+    const ok = await saveOne(employeeId)
+    if (ok) {
+      window.alert("급여 설정이 저장되었습니다.")
+    }
   }
 
   return (
@@ -93,75 +119,110 @@ export default function PayrollSettingsTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {settings.map((s: any) => (
-                  <TableRow key={s.settingId ?? s.employeeId}>
-                    {/* 직원명 */}
-                    <TableCell className="font-medium">
-                      {s.employeeName ?? s.name ?? "-"}
-                    </TableCell>
+                {settings.map((s: PayrollSetting) => {
+                  const selectedOption =
+                    s.deductionType && DEDUCTION_OPTIONS[s.deductionType]
+                      ? DEDUCTION_OPTIONS[s.deductionType]
+                      : null
 
-                    {/* 역할 */}
-                    <TableCell>
-                      {s.role ?? "-"}
-                    </TableCell>
+                  return (
+                    <TableRow key={s.settingId ?? s.employeeId}>
+                      {/* 직원명 */}
+                      <TableCell className="font-medium">
+                        {s.employeeName ?? (s as any).name ?? "-"}
+                      </TableCell>
 
-                    {/* 급여 형태 */}
-                    <TableCell>
-                      <Select
-                        value={s.wageType ?? ""}
-                        onValueChange={(v) => handleWageTypeChange(s.employeeId, v)}
-                      >
-                        <SelectTrigger className="w-[120px]">
-                          <SelectValue placeholder="선택" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="HOURLY">시급제</SelectItem>
-                          <SelectItem value="MONTHLY">월급제</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
+                      {/* 역할 */}
+                      <TableCell>
+                        {(s as any).role ?? "-"}
+                      </TableCell>
 
-                    {/* 기본급 */}
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          className="w-[140px]"
-                          inputMode="numeric"
-                          value={s.baseWage ?? ""}
-                          onChange={(e) => handleBaseWageChange(s.employeeId, e)}
-                          placeholder="숫자만 입력"
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          원 / {s.wageType === "HOURLY" ? "시간" : "월"}
-                        </span>
-                      </div>
-                    </TableCell>
+                      {/* 급여 형태 */}
+                      <TableCell>
+                        <Select
+                          value={s.wageType ?? ""}
+                          onValueChange={(v) => handleWageTypeChange(s.employeeId, v)}
+                        >
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue placeholder="선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="HOURLY">시급제</SelectItem>
+                            <SelectItem value="MONTHLY">월급제</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
 
-                    {/* 공제 항목 (지금은 개수만 표시) */}
-                    <TableCell>
-                      {s.deductionItems && Array.isArray(s.deductionItems) && s.deductionItems.length > 0 ? (
-                        <span className="text-xs text-muted-foreground">
-                          {s.deductionItems.length}개 항목
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">없음</span>
-                      )}
-                    </TableCell>
+                      {/* 기본급 */}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            className="w-[140px]"
+                            inputMode="numeric"
+                            value={s.baseWage ?? ""}
+                            onChange={(e) => handleBaseWageChange(s.employeeId, e)}
+                            placeholder="숫자만 입력"
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            원 / {s.wageType === "MONTHLY" ? "월" : "시간"}
+                          </span>
+                        </div>
+                      </TableCell>
 
-                    {/* 저장 버튼 */}
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        className="flex items-center gap-1"
-                        onClick={() => handleSaveOne(s.employeeId)}
-                        disabled={savingEmployeeId === s.employeeId}
-                      >
-                        <Save className="h-3 w-3" />
-                        {savingEmployeeId === s.employeeId ? "저장 중..." : "저장"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                       {/* ✅ 공제 항목 - 드롭다운과 비율 텍스트 폭/정렬 맞추기 */}
+                      <TableCell>
+                        {/* 공제 영역 전체를 고정 폭으로 잡고, 안에서 세로 정렬 */}
+                        <div className="flex flex-col gap-1 w-[180px]">
+                          <Select
+                            value={s.deductionType ?? "NONE"}
+                            onValueChange={(v) =>
+                              handleDeductionChange(
+                                s.employeeId,
+                                v as NonNullable<PayrollSetting["deductionType"]>,
+                              )
+                            }
+                          >
+                            {/* 트리거는 전체 폭 사용 */}
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="공제 없음" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(DEDUCTION_OPTIONS).map(([value, opt]) => (
+                                <SelectItem key={value} value={value}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {selectedOption &&
+                            selectedOption.rate != null &&
+                            s.deductionType !== "NONE" && (
+                              <p className="text-[11px] text-muted-foreground text-left w-full pl-[2px]">
+                                {((selectedOption.rate * 100).toFixed(1)).replace(/\.0$/, "")}
+                                % 공제
+                              </p>
+                            )}
+                        </div>
+                      </TableCell>
+
+                      {/* 저장 버튼 - 오른쪽 끝 정렬 */}
+                      <TableCell className="text-right">
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            className="flex items-center gap-1"
+                            onClick={() => handleSaveOne(s.employeeId)}
+                            disabled={savingEmployeeId === s.employeeId}
+                          >
+                            <Save className="h-3 w-3" />
+                            {savingEmployeeId === s.employeeId ? "저장 중..." : "저장"}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}

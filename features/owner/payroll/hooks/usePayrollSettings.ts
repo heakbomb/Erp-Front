@@ -23,7 +23,15 @@ export default function usePayrollSettings() {
       setLoading(true)
       setError(null)
       const data = await fetchPayrollSettings(storeId)
-      setSettings(data)
+
+      // ✅ 공제 기본값 보정
+      const normalized = data.map((s) => ({
+        ...s,
+        deductionType: s.deductionType ?? "NONE",
+        deductionRate: s.deductionRate ?? null,
+      }))
+
+      setSettings(normalized)
     } catch (e) {
       console.error("급여 설정 불러오기 실패:", e)
       setError(extractErrorMessage(e))
@@ -39,19 +47,19 @@ export default function usePayrollSettings() {
 
   /** 로컬 상태에서 특정 직원의 필드만 수정 */
   const updateSettingField = (employeeId: number, patch: Partial<PayrollSetting>) => {
-    setSettings(prev =>
-      prev.map(s => (s.employeeId === employeeId ? { ...s, ...patch } : s)),
+    setSettings((prev) =>
+      prev.map((s) => (s.employeeId === employeeId ? { ...s, ...patch } : s)),
     )
   }
 
   /** 실제 저장 호출 */
-  const saveOne = async (employeeId: number) => {
+  const saveOne = async (employeeId: number): Promise<boolean> => {
     if (!currentStoreId) {
       alert("현재 선택된 사업장이 없습니다.")
-      return
+      return false
     }
-    const target = settings.find(s => s.employeeId === employeeId)
-    if (!target) return
+    const target = settings.find((s) => s.employeeId === employeeId)
+    if (!target) return false
 
     try {
       setSavingEmployeeId(employeeId)
@@ -62,15 +70,20 @@ export default function usePayrollSettings() {
         employeeId,
         baseWage: Number(target.baseWage) || 0,
         wageType: target.wageType || "HOURLY",
+        deductionType: target.deductionType || "NONE",
+        deductionRate: target.deductionRate ?? null,
       })
 
       // 서버에서 리턴한 값으로 갱신
-      setSettings(prev =>
-        prev.map(s => (s.employeeId === employeeId ? { ...s, ...saved } : s)),
+      setSettings((prev) =>
+        prev.map((s) => (s.employeeId === employeeId ? { ...s, ...saved } : s)),
       )
+
+      return true
     } catch (e) {
       console.error("급여 설정 저장 실패:", e)
       setError(extractErrorMessage(e))
+      return false
     } finally {
       setSavingEmployeeId(null)
     }

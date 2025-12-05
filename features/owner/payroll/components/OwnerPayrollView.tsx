@@ -1,25 +1,16 @@
 // features/owner/payroll/components/OwnerPayrollView.tsx
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect, useRef } from "react"
 import { format, differenceInCalendarDays, addMonths } from "date-fns"
+import { useStore } from "@/contexts/StoreContext"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import {
-  Download,
   FileText,
   DollarSign,
   Users,
@@ -28,16 +19,21 @@ import {
   ChevronRight,
 } from "lucide-react"
 
+import { useReactToPrint } from "react-to-print"
+
 import useOwnerPayroll from "@/features/owner/payroll/hooks/useOwnerPayroll"
 
-// 새로 나눈 컴포넌트들
 import CurrentPayrollTab from "@/features/owner/payroll/components/CurrentPayrollTab"
 import PayrollHistoryTab from "@/features/owner/payroll/components/PayrollHistoryTab"
 import PayrollSettingsTab from "@/features/owner/payroll/components/PayrollSettingsTab"
+import PayslipTemplate from "@/features/owner/payroll/components/PayslipTemplate"
 
 export default function OwnerPayrollView() {
   // ✅ 선택 월 (기본: 오늘 기준)
   const [yearMonth, setYearMonth] = useState<string>(format(new Date(), "yyyy-MM"))
+
+  // ✅ 실수령액 노출 여부 (급여 자동 계산 완료 후에만 true)
+  const [isNetPayVisible, setIsNetPayVisible] = useState(false)
 
   // 보기 좋게 "2024년 4월" 같은 라벨로 변환
   const monthLabel = useMemo(() => {
@@ -49,12 +45,16 @@ export default function OwnerPayrollView() {
     }
   }, [yearMonth])
 
+  // 월이 바뀌면 실수령액 표시 다시 숨기기
+  useEffect(() => {
+    setIsNetPayVisible(false)
+  }, [yearMonth])
+
   // 지급 예정일: 선택 월의 다음 달 5일
   const { payDateLabel, payDDayLabel } = useMemo(() => {
     try {
       const [y, m] = yearMonth.split("-").map(Number)
-      // 다음 달 5일
-      const payDate = new Date(y, m, 5) // month는 0-based라 m이 다음 달 index
+      const payDate = new Date(y, m, 5) // 다음 달 5일
       const label = format(payDate, "M월 d일")
 
       const today = new Date()
@@ -85,6 +85,17 @@ export default function OwnerPayrollView() {
     error,
   } = useOwnerPayroll(yearMonth)
 
+  // 🔥 TODO: 실제 선택된 사업장 ID로 교체
+  const storeId = 11
+
+  // 🔥 StoreContext 에서 사업장 이름 가져오기
+  const { currentStoreId, currentStoreName, currentStore } = useStore() as any
+  const storeName =
+    currentStore?.storeName ??
+    currentStore?.name ??
+    currentStoreName ??
+    "(사업장)"
+
   // ✅ 월 변경 (이전/다음 달 버튼용)
   const handleChangeMonth = (offset: number) => {
     try {
@@ -94,6 +105,28 @@ export default function OwnerPayrollView() {
     } catch {
       // yearMonth 포맷이 깨졌을 때만 방어
     }
+  }
+
+  // ================================
+  // 🔥 급여명세서 일괄 인쇄용 설정
+  // ================================
+  const printAreaRef = useRef<HTMLDivElement | null>(null)
+
+  const handlePrintAllPayslips = useReactToPrint({
+    contentRef: printAreaRef,
+    documentTitle: `${monthLabel} 급여지급명세서`,
+  })
+
+  const handleClickPayslipPrint = () => {
+    if (!employees.length) {
+      alert("이번 달 급여 데이터가 없습니다.")
+      return
+    }
+    if (!isNetPayVisible) {
+      alert("먼저 '급여 자동 계산'을 실행한 후 급여명세서를 생성해 주세요.")
+      return
+    }
+    handlePrintAllPayslips()
   }
 
   return (
@@ -147,63 +180,16 @@ export default function OwnerPayrollView() {
             </Button>
           </div>
 
-          {/* ▶ 액션 버튼들 (명세서/엑셀/급여계산) */}
+          {/* ▶ 액션 버튼들 (명세서/엑셀) */}
           <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" className="bg-transparent">
+            <Button
+              variant="outline"
+              className="bg-transparent"
+              onClick={handleClickPayslipPrint}
+            >
               <FileText className="mr-2 h-4 w-4" />
               급여명세서 일괄 생성
             </Button>
-            <Button variant="outline" className="bg-transparent">
-              <Download className="mr-2 h-4 w-4" />
-              Excel 내보내기
-            </Button>
-
-            <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button disabled={loading || employees.length === 0}>
-                  <Calculator className="mr-2 h-4 w-4" />
-                  급여 계산
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>급여 자동 계산</DialogTitle>
-                  <DialogDescription>
-                    {monthLabel} 근무 기록을 기반으로 급여를 자동 계산합니다
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <p className="text-sm text-muted-foreground">
-                    {monthLabel} 근무 기록을 기반으로{" "}
-                    <span className="font-medium">{employees.length}</span>명의 직원 급여를 계산하시겠습니까?
-                  </p>
-                  <div className="mt-4 p-4 rounded-lg bg-muted">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>총 근무 시간</span>
-                        <span className="font-medium">
-                          {totalWorkHours.toLocaleString()}시간
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>예상 총 급여</span>
-                        <span className="font-medium text-primary">
-                          ₩{totalPayroll.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
-                    취소
-                  </Button>
-                  <Button onClick={() => setIsSettingsDialogOpen(false)} disabled={employees.length === 0}>
-                    계산 시작
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </div>
         </div>
       </div>
@@ -212,7 +198,7 @@ export default function OwnerPayrollView() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">이번 달 총 급여</CardTitle>
+            <CardTitle className="text-sm font-medium">이번 달 직원 총 급여</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -277,12 +263,18 @@ export default function OwnerPayrollView() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             filteredEmployees={filteredEmployees}
+            employeesCount={employees.length}
+            totalWorkHours={totalWorkHours}
+            totalPayroll={totalPayroll}
+            showNetPay={isNetPayVisible}
+            onCalcFinished={() => setIsNetPayVisible(true)}
+            storeId={storeId}
           />
         </TabsContent>
 
         {/* 급여 지급 내역 탭 */}
         <TabsContent value="history" className="space-y-4">
-          <PayrollHistoryTab history={history} />
+          <PayrollHistoryTab />
         </TabsContent>
 
         {/* 급여 설정 탭 */}
@@ -290,6 +282,35 @@ export default function OwnerPayrollView() {
           <PayrollSettingsTab />
         </TabsContent>
       </Tabs>
+
+      {/* ================================
+          🔒 인쇄용 숨겨진 급여명세서 영역
+         ================================ */}
+      <div style={{ position: "absolute", top: -9999, left: -9999 }}>
+        <div ref={printAreaRef}>
+          {employees.map((emp) => {
+            const grossPay = emp.netPay + emp.deductions
+
+            return (
+              <div key={emp.id} style={{ pageBreakAfter: "always" }}>
+                <PayslipTemplate
+                  yearMonth={yearMonth}
+                  employeeName={emp.name}
+                  department={storeName}
+                  basePay={emp.basePay}
+                  grossPay={grossPay}
+                  deductions={emp.deductions}
+                  netPay={emp.netPay}
+                  workDays={emp.workDays}
+                  workHours={emp.workHours}
+                  wageType={(emp as any).wageType}
+                  deductionType={(emp as any).deductionType}
+                />
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
