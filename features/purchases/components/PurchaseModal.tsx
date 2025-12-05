@@ -5,56 +5,100 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox"; 
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { TODAY, PurchaseFormValues } from "../hooks/usePurchases";
-// ✅ [수정 1] PurchaseHistoryResponse 타입 import 추가
-import type { InventoryOption, PurchaseHistoryResponse } from "../purchasesService";
+import type {
+  InventoryOption,
+  PurchaseHistoryResponse,
+} from "../purchasesService";
 
-const purchaseSchema = z.object({
-  formQty: z.preprocess(
-    (val) => (val === "" ? "" : Number(val)),
-    z.number({ invalid_type_error: "숫자를 입력하세요." }).gt(0, "수량은 0보다 커야 합니다.")
-  ),
-  formUnitPrice: z.preprocess(
-    (val) => (val === "" ? "" : Number(val)),
-    z.number({ invalid_type_error: "숫자를 입력하세요." }).gt(0, "단가는 0보다 커야 합니다.")
-  ),
-  formDate: z.string()
-    .min(1, "매입일은 필수입니다.")
-    .refine((date) => date <= TODAY, "매입일은 오늘 이후일 수 없습니다."),
-  
-  newItemMode: z.boolean(),
-  
-  formItemId: z.string().optional(),
-  newItemName: z.string().optional(),
-  newItemType: z.string().optional(),
-  newStockType: z.string().optional(),
-}).refine((data) => {
-  if (!data.newItemMode && !data.formItemId) return false;
-  return true;
-}, { message: "품목을 선택하세요.", path: ["formItemId"] })
-.refine((data) => {
-  if (data.newItemMode && (!data.newItemName?.trim() || !data.newItemType?.trim() || !data.newStockType?.trim())) return false;
-  return true;
-}, { message: "새 품목명/타입/단위를 모두 입력하세요.", path: ["newItemName"] });
+// ✅ 추가: Select + 카테고리 상수
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { INGREDIENT_CATEGORIES } from "@/features/inventory/constants/itemCategory";
 
-// ✅ [수정 2] Interface에 initialData 추가
+const purchaseSchema = z
+  .object({
+    formQty: z.preprocess(
+      (val) => (val === "" ? "" : Number(val)),
+      z
+        .number({ invalid_type_error: "숫자를 입력하세요." })
+        .gt(0, "수량은 0보다 커야 합니다.")
+    ),
+    formUnitPrice: z.preprocess(
+      (val) => (val === "" ? "" : Number(val)),
+      z
+        .number({ invalid_type_error: "숫자를 입력하세요." })
+        .gt(0, "단가는 0보다 커야 합니다.")
+    ),
+    formDate: z
+      .string()
+      .min(1, "매입일은 필수입니다.")
+      .refine((date) => date <= TODAY, "매입일은 오늘 이후일 수 없습니다."),
+
+    newItemMode: z.boolean(),
+
+    formItemId: z.string().optional(),
+    newItemName: z.string().optional(),
+    newItemType: z
+      .enum(INGREDIENT_CATEGORIES.map((c) => c.value) as [string, ...string[]])
+      .optional(), // 값은 enum 코드지만, 스키마는 string으로 둬도 됨
+    newStockType: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (!data.newItemMode && !data.formItemId) return false;
+      return true;
+    },
+    { message: "품목을 선택하세요.", path: ["formItemId"] }
+  )
+  .refine(
+    (data) => {
+      if (
+        data.newItemMode &&
+        (!data.newItemName?.trim() ||
+          !data.newItemType?.trim() ||
+          !data.newStockType?.trim())
+      )
+        return false;
+      return true;
+    },
+    {
+      message: "새 품목명/타입/단위를 모두 입력하세요.",
+      path: ["newItemName"],
+    }
+  );
+
 interface PurchaseModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: PurchaseFormValues) => void;
   isPending: boolean;
   inventoryOpts: InventoryOption[];
-  initialData: PurchaseHistoryResponse | null; // 👈 이 부분이 빠져서 에러가 났습니다.
+  initialData: PurchaseHistoryResponse | null;
 }
 
 export function PurchaseModal({
@@ -63,16 +107,15 @@ export function PurchaseModal({
   onSubmit,
   isPending,
   inventoryOpts,
-  initialData, // ✅ [수정 3] Props 구조 분해에 추가
+  initialData,
 }: PurchaseModalProps) {
-  
   const form = useForm<PurchaseFormValues>({
     resolver: zodResolver(purchaseSchema),
     defaultValues: {
       formItemId: "",
       formQty: "",
       formUnitPrice: "",
-      formDate: TODAY, 
+      formDate: TODAY,
       newItemMode: false,
       newItemName: "",
       newItemType: "",
@@ -80,11 +123,10 @@ export function PurchaseModal({
     },
   });
 
-  // ✅ [수정 4] 모달 열릴 때 초기 데이터 세팅 로직
   useEffect(() => {
     if (open) {
       if (initialData) {
-        // 수정 모드: 기존 데이터 채우기
+        // 수정 모드
         form.reset({
           formItemId: String(initialData.itemId),
           formQty: initialData.purchaseQty,
@@ -96,7 +138,7 @@ export function PurchaseModal({
           newStockType: "",
         });
       } else {
-        // 생성 모드: 초기화
+        // 생성 모드
         form.reset({
           formItemId: "",
           formQty: "",
@@ -112,22 +154,27 @@ export function PurchaseModal({
   }, [open, initialData, form]);
 
   const newItemMode = form.watch("newItemMode");
-  // initialData가 있으면 수정 모드로 판단
   const isEditMode = !!initialData;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isEditMode ? "매입 내역 수정" : "매입 기록 추가"}</DialogTitle>
+          <DialogTitle>
+            {isEditMode ? "매입 내역 수정" : "매입 기록 추가"}
+          </DialogTitle>
           <DialogDescription>
-            {isEditMode ? "매입 정보를 수정합니다." : "새로운 매입 내역을 등록하세요."}
+            {isEditMode
+              ? "매입 정보를 수정합니다."
+              : "새로운 매입 내역을 등록하세요."}
           </DialogDescription>
         </DialogHeader>
-        
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4 py-4"
+          >
             {/* 수정 모드가 아닐 때만 '새 품목 추가' 체크박스 노출 */}
             {!isEditMode && (
               <FormField
@@ -148,7 +195,8 @@ export function PurchaseModal({
                 )}
               />
             )}
-            
+
+            {/* 기존 재고 선택 vs 새 품목 추가 모드 */}
             {!newItemMode ? (
               <FormField
                 control={form.control}
@@ -159,7 +207,7 @@ export function PurchaseModal({
                     <FormControl>
                       <select
                         {...field}
-                        disabled={isEditMode} // 수정 시 품목 변경 불가
+                        disabled={isEditMode}
                         className="w-full h-9 rounded-md border px-3 text-sm bg-transparent disabled:opacity-50"
                       >
                         <option value="">품목 선택</option>
@@ -182,33 +230,66 @@ export function PurchaseModal({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>새 품목명</FormLabel>
-                      <FormControl><Input placeholder="예: Kenya AA" {...field} /></FormControl>
+                      <FormControl>
+                        <Input placeholder="예: Kenya AA" {...field} />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <div className="grid grid-cols-2 gap-4">
+                  {/* 🔽 여기: Input → Select로 변경 */}
                   <FormField
                     control={form.control}
                     name="newItemType"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>품목 타입</FormLabel>
-                        <FormControl><Input placeholder="예: RAW" {...field} /></FormControl>
+                        <FormControl>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="카테고리를 선택하세요" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {INGREDIENT_CATEGORIES.map((cat) => (
+                                <SelectItem
+                                  key={cat.value}
+                                  value={cat.value}
+                                >
+                                  {cat.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
+
                   <FormField
                     control={form.control}
                     name="newStockType"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>수량 단위</FormLabel>
-                        <FormControl><Input placeholder="예: kg" {...field} /></FormControl>
+                        <FormControl>
+                          <Input placeholder="예: kg" {...field} />
+                        </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-                <FormMessage>{form.formState.errors.newItemName?.message}</FormMessage>
+
+                {/* 공통 에러 메시지 (새 품목명/타입/단위 미입력 시) */}
+                <FormMessage>
+                  {form.formState.errors.newItemName?.message}
+                </FormMessage>
               </>
             )}
 
@@ -219,7 +300,14 @@ export function PurchaseModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>수량</FormLabel>
-                    <FormControl><Input type="number" step="0.01" placeholder="예: 20" {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="예: 20"
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -230,31 +318,47 @@ export function PurchaseModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>단가</FormLabel>
-                    <FormControl><Input type="number" step="0.01" placeholder="예: 25000" {...field} /></FormControl>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="예: 25000"
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            
+
             <FormField
               control={form.control}
               name="formDate"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>매입일</FormLabel>
-                  <FormControl><Input type="date" max={TODAY} {...field} /></FormControl>
+                  <FormControl>
+                    <Input type="date" max={TODAY} {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
             <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={isPending}>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => onOpenChange(false)}
+                disabled={isPending}
+              >
                 취소
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 {isEditMode ? "수정" : "추가"}
               </Button>
             </DialogFooter>

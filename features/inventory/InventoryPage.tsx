@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Search, AlertTriangle, Upload, Download, Edit, Loader2 } from "lucide-react"
-import { PAGE_WINDOW } from "@/lib/constants"; // ⭐️ (경로 수정)
+import { PAGE_WINDOW } from "@/lib/constants"; 
+import { INGREDIENT_CATEGORIES } from "@/features/inventory/constants/itemCategory";
+
 
 // ⭐️ 2. (핵심) 훅 및 신규 컴포넌트 임포트 (경로 수정)
 import { useInventory } from "@/features/inventory/hooks/useInventory";
@@ -19,6 +21,13 @@ import type { Inventory } from "@/lib/types/database"; // ⭐️ (경로 수정)
 // ⭐️ 3. 백엔드 DTO가 status를 포함하므로, Inventory 타입을 확장하는 로컬 타입을 정의
 type InventoryResponse = Inventory & {
   status?: "ACTIVE" | "INACTIVE"; // DTO에만 있는 필드로, optional 처리
+};
+
+const renderCategoryLabel = (value?: string) => {
+  const found = INGREDIENT_CATEGORIES.find(
+    (c) => c.value === value // 여기서 c는 자동으로 추론됨(as const 덕분에)
+  );
+  return found ? found.label : value ?? "-";
 };
 
 export default function InventoryPageFeature() {
@@ -219,7 +228,7 @@ export default function InventoryPageFeature() {
                         className={status === "INACTIVE" ? "opacity-50" : (isLow ? "bg-red-50/70 dark:bg-red-950/20" : "")}
                       >
                         <TableCell className="font-medium">{i.itemName}</TableCell>
-                        <TableCell>{i.itemType}</TableCell>
+                        <TableCell>{renderCategoryLabel(i.itemType)}</TableCell>
                         <TableCell>
                           {i.stockQty} {i.stockType}
                           {status === "ACTIVE" && isLow && (
