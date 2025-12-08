@@ -1,110 +1,124 @@
 // features/owner/dashboard/services/ownerDashboardService.ts
-import { apiClient } from "@/lib/api/client"; // ✅ apiClient 사용
+import { apiClient } from "@/lib/api/client"
+import { fetchSalesSummary } from "@/features/owner/sales/ownerSalesService"
+
+// ───────────────── 타입 정의 ─────────────────
 
 export type OwnerDashboardStats = {
-  todaySales: number;
-  todaySalesChange: number;
-  monthSales: number;
-  monthSalesChange: number;
-  lowStockCount: number;
-  workingEmployees: number;
-  totalEmployees: number;
-};
+  todaySales: number
+  todaySalesChange: number
+  monthSales: number
+  monthSalesChange: number
+  lowStockCount: number
+  workingEmployees: number
+  totalEmployees: number
+}
+
+export type OwnerAlertSeverity = "info" | "medium" | "high"
 
 export type OwnerAlert = {
-  id: string;
-  level: "info" | "warning" | "danger" | "primary";
-  title: string;
-  description: string;
-};
+  id: string
+  title: string
+  description: string
+  severity: OwnerAlertSeverity
+}
 
 export type QuickAction = {
-  id: string;
-  title: string;
-  description: string;
-};
+  id: string
+  title: string
+  description: string
+}
 
 export type AiInsight = {
-  id: string;
-  title: string;
-  description: string;
-};
+  id: string
+  title: string
+  description: string
+}
 
 export type OwnerDashboardData = {
-  stats: OwnerDashboardStats;
-  alerts: OwnerAlert[];
-  quickActions: QuickAction[];
-  aiInsights: AiInsight[];
-};
+  stats: OwnerDashboardStats
+  alerts: OwnerAlert[]
+  quickActions: QuickAction[]
+  aiInsights: AiInsight[]
+}
 
-// ───── 목 데이터 (현재 화면 그대로 반영) ─────
+// ───────────────── 목 데이터 (알림/빠른작업/AI 인사이트) ─────────────────
+
 export const MOCK_OWNER_DASHBOARD: OwnerDashboardData = {
   stats: {
-    todaySales: 1_234_000,
-    todaySalesChange: 12.5,
-    monthSales: 28_450_000,
-    monthSalesChange: 8.2,
-    lowStockCount: 5,
-    workingEmployees: 8,
-    totalEmployees: 12,
+    todaySales: 0,
+    todaySalesChange: 0,
+    monthSales: 0,
+    monthSalesChange: 0,
+    lowStockCount: 0,
+    workingEmployees: 0,
+    totalEmployees: 0,
   },
   alerts: [
     {
-      id: "raw-price-up",
-      level: "warning",
-      title: "원자재 가격 상승",
-      description: "커피 원두 가격이 8% 상승했습니다. 메뉴 가격 조정을 검토하세요.",
-    },
-    {
-      id: "pending-employees",
-      level: "primary",
-      title: "직원 신청 대기",
-      description: "3명의 직원이 사업장 가입을 신청했습니다.",
-    },
-    {
-      id: "low-stock",
-      level: "danger",
-      title: "재고 부족",
-      description: "5개 품목이 안전 재고 수준 이하입니다. 발주가 필요합니다.",
+      id: "alert-1",
+      title: "재고 부족 품목이 있습니다",
+      description: "몇 가지 재고가 안전 재고 아래로 내려갔습니다. 발주를 검토하세요.",
+      severity: "medium",
     },
   ],
   quickActions: [
     {
-      id: "add-sales",
-      title: "매출 기록 추가",
-      description: "오늘의 매출을 기록하세요",
+      id: "qa-1",
+      title: "오늘 매출 상세 보기",
+      description: "오늘 발생한 거래 내역과 인기 메뉴를 확인합니다.",
     },
     {
-      id: "check-stock",
-      title: "재고 확인",
-      description: "현재 재고 현황을 확인하세요",
-    },
-    {
-      id: "check-attendance",
-      title: "직원 출결 확인",
-      description: "오늘의 출결 현황을 확인하세요",
+      id: "qa-2",
+      title: "재고 관리로 이동",
+      description: "안전 재고 미달 품목을 확인하고 발주를 생성합니다.",
     },
   ],
   aiInsights: [
     {
-      id: "demand-forecast",
-      title: "수요 예측",
-      description: "이번 주말 방문객이 평소보다 20% 증가할 것으로 예상됩니다.",
-    },
-    {
-      id: "price-optimization",
-      title: "가격 최적화",
-      description: "아메리카노 가격을 4,800원으로 조정하면 마진율 25.5%를 유지할 수 있습니다.",
+      id: "ai-1",
+      title: "주말 오후 시간대 매출 상승",
+      description:
+        "최근 4주간 토/일요일 14~17시 매출이 평일 대비 23% 높습니다. 프로모션을 고려해 보세요.",
     },
   ],
-};
+}
 
-// ───── 나중에 실제 API 붙일 때 여기만 바꾸면 됨 ─────
-export async function fetchOwnerDashboard(): Promise<OwnerDashboardData> {
-  // TODO: 백엔드 연동되면 axios.get으로 교체
-  // const res = await apiClient.get<OwnerDashboardData>(`/api/owner/dashboard`); // ✅ apiClient 사용
-  // return res.data;
+// ───────────────── 유틸: 증감률 계산 ─────────────────
 
-  // 지금은 화면용 목데이터 리턴
-  return MOCK_OWNER_DASHBOARD;
+const calcRate = (curr: number, prev: number) => {
+  if (!prev || prev === 0) return 0
+  return ((curr - prev) / prev) * 100
+}
+
+// ───────────────── 실제 백엔드 연동용 함수 ─────────────────
+
+export async function fetchOwnerDashboard(storeId: number): Promise<OwnerDashboardData> {
+  // 1) 매출 요약 + 재고 부족 개수 병렬 호출
+  const [summary, lowStockRes] = await Promise.all([
+    fetchSalesSummary(storeId), // 이미 매출 관리에서 쓰고 있는 함수
+    apiClient.get<number>("/owner/inventory/low-stock-count", {
+      params: { storeId },
+    }),
+  ])
+
+  const lowStockCount = lowStockRes.data
+
+  // 2) stats 조합 (직원 수는 나중에 백엔드 연결)
+  const stats: OwnerDashboardStats = {
+    todaySales: summary.todaySales,
+    todaySalesChange: calcRate(summary.todaySales, summary.yesterdaySales),
+    monthSales: summary.thisMonthSales,
+    monthSalesChange: calcRate(summary.thisMonthSales, summary.lastMonthSales),
+    lowStockCount,
+    workingEmployees: 0, // TODO: 직원 쪽 붙일 때 교체
+    totalEmployees: 0,   // TODO: 직원 쪽 붙일 때 교체
+  }
+
+  return {
+    stats,
+    alerts: MOCK_OWNER_DASHBOARD.alerts,
+    quickActions: MOCK_OWNER_DASHBOARD.quickActions,
+    aiInsights: MOCK_OWNER_DASHBOARD.aiInsights,
+  }
 }

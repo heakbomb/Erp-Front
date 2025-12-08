@@ -169,11 +169,17 @@ export default function OwnerSalesView() {
               POS
             </Link>
           </Button>
-          <Button variant="outline" className="bg-transparent">
-            <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel 내보내기
-          </Button>
-          <Button variant="outline" className="bg-transparent">
-            <FileText className="mr-2 h-4 w-4" /> PDF 내보내기
+          <Button
+            asChild
+            variant="outline"
+            className="bg-transparent"
+          >
+            <Link
+              href={`/owner/sales/report?year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}`}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              월간 리포트
+            </Link>
           </Button>
         </div>
       </div>

@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Search, AlertTriangle, Upload, Download, Edit, Loader2 } from "lucide-react"
-import { PAGE_WINDOW } from "@/lib/constants"; // ⭐️ (경로 수정)
+import { PAGE_WINDOW } from "@/lib/constants"; 
+import { INGREDIENT_CATEGORIES } from "@/features/inventory/constants/itemCategory";
+
 
 // ⭐️ 2. (핵심) 훅 및 신규 컴포넌트 임포트 (경로 수정)
 import { useInventory } from "@/features/inventory/hooks/useInventory";
@@ -19,6 +21,13 @@ import type { Inventory } from "@/lib/types/database"; // ⭐️ (경로 수정)
 // ⭐️ 3. 백엔드 DTO가 status를 포함하므로, Inventory 타입을 확장하는 로컬 타입을 정의
 type InventoryResponse = Inventory & {
   status?: "ACTIVE" | "INACTIVE"; // DTO에만 있는 필드로, optional 처리
+};
+
+const renderCategoryLabel = (value?: string) => {
+  const found = INGREDIENT_CATEGORIES.find(
+    (c) => c.value === value // 여기서 c는 자동으로 추론됨(as const 덕분에)
+  );
+  return found ? found.label : value ?? "-";
 };
 
 export default function InventoryPageFeature() {
@@ -52,6 +61,8 @@ export default function InventoryPageFeature() {
     handleUpdate,
     handleDeactivate,
     handleReactivate,
+    handleExportExcel,   
+    isExporting,
     isCreating,
     isUpdating,
     isDeactivating,
@@ -79,15 +90,25 @@ export default function InventoryPageFeature() {
           <h1 className="text-3xl font-bold text-foreground">재고 관리</h1>
           <p className="text-muted-foreground">재고 현황을 확인하고 관리하세요</p>
         </div>
-        {mounted && (
+         {mounted && (
           <div className="flex gap-2">
-            <Button variant="outline" className="bg-transparent">
-              <Upload className="mr-2 h-4 w-4" />
-              Excel 가져오기
-            </Button>
-            <Button variant="outline" className="bg-transparent">
-              <Download className="mr-2 h-4 w-4" />
-              Excel 내보내기
+            <Button
+              variant="outline"
+              className="bg-transparent"
+              onClick={handleExportExcel}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  내보내는 중...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Excel 내보내기
+                </>
+              )}
             </Button>
             <Button onClick={openAddModal}>
               <Plus className="mr-2 h-4 w-4" />
@@ -207,7 +228,7 @@ export default function InventoryPageFeature() {
                         className={status === "INACTIVE" ? "opacity-50" : (isLow ? "bg-red-50/70 dark:bg-red-950/20" : "")}
                       >
                         <TableCell className="font-medium">{i.itemName}</TableCell>
-                        <TableCell>{i.itemType}</TableCell>
+                        <TableCell>{renderCategoryLabel(i.itemType)}</TableCell>
                         <TableCell>
                           {i.stockQty} {i.stockType}
                           {status === "ACTIVE" && isLow && (

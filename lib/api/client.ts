@@ -1,6 +1,7 @@
 import axios from "axios";
 import { API_BASE_URL } from "@/lib/constants";
 import { extractErrorMessage } from "@/lib/utils";
+import { ApiErrorResponse } from "@/lib/types/api"; // ✅ [추가] 타입 임포트
 
 /**
  * 프로젝트 전역에서 사용할 공용 API 클라이언트
@@ -39,14 +40,14 @@ apiClient.interceptors.response.use(
   (error) => {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      const data = error.response?.data;
+      const rawdata = error.response?.data;
 
       // ✅ 비활성화된 사업장 공통 처리
       const isInactiveStore =
         status === 423 ||
         (status === 403 &&
-          (data === "INACTIVE_STORE" ||
-            (typeof data === "object" && data !== null && (data as any).code === "INACTIVE_STORE")));
+          (rawdata === "INACTIVE_STORE" ||
+            (typeof rawdata === "object" && rawdata !== null && (rawdata as any).code === "INACTIVE_STORE")));
 
       if (isInactiveStore && typeof window !== "undefined") {
         alert("비활성화된 사업장입니다.\n사업장 관리에서 활성화 후 다시 이용해주세요.");
@@ -66,6 +67,13 @@ apiClient.interceptors.response.use(
 
       // ✅ Error를 새로 만들지 말고, 기존 AxiosError에 메시지만 붙인다.
       (error as any).friendlyMessage = friendlyMessage;
+
+      // ✅ [추가됨] 백엔드 유효성 검사 에러(details)가 있다면 에러 객체에 붙여줌
+      //    (컴포넌트에서 error.fieldErrors 로 접근하여 폼 에러 표시에 사용 가능)
+      const data = error.response?.data as ApiErrorResponse | undefined;
+      if (data?.details) {
+        (error as any).fieldErrors = data.details;
+      }
     }
 
     // ✅ 원래 error 그대로 던지기 때문에

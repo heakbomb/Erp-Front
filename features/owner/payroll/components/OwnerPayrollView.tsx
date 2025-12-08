@@ -108,14 +108,15 @@ export default function OwnerPayrollView() {
   }
 
   // ================================
-  // 🔥 급여명세서 일괄 인쇄용 설정
+  // 🔥 급여명세서 일괄 인쇄용 설정 (react-to-print v3)
   // ================================
   const printAreaRef = useRef<HTMLDivElement | null>(null)
 
   const handlePrintAllPayslips = useReactToPrint({
-    contentRef: printAreaRef,
+    contentRef: printAreaRef, // ✅ v3 스타일: contentRef 사용
     documentTitle: `${monthLabel} 급여지급명세서`,
-  })
+  }as any
+) 
 
   const handleClickPayslipPrint = () => {
     if (!employees.length) {
@@ -124,6 +125,12 @@ export default function OwnerPayrollView() {
     }
     if (!isNetPayVisible) {
       alert("먼저 '급여 자동 계산'을 실행한 후 급여명세서를 생성해 주세요.")
+      return
+    }
+    if (!printAreaRef.current) {
+      // ref가 아직 붙지 않은 경우 방어
+      console.error("printAreaRef is null")
+      alert("인쇄 영역이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.")
       return
     }
     handlePrintAllPayslips()

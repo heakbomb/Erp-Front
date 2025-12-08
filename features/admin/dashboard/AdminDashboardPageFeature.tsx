@@ -147,7 +147,7 @@ export default function AdminDashboardPageFeature() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-3">
-                            {statsData?.recentActivities.length === 0 ? (
+                            {(statsData?.recentActivities?.length ?? 0) === 0 ? (
                                 <p className="text-sm text-muted-foreground text-center py-4">최근 활동이 없습니다.</p>
                             ) : (
                                 statsData?.recentActivities.map((log) => (

@@ -1,7 +1,7 @@
 // features/employee/payroll/components/EmployeePayrollView.tsx
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -38,23 +38,31 @@ export function EmployeePayrollView({
   // 👉 어떤 기록을 다운로드할지 선택
   const [selectedRecord, setSelectedRecord] = useState<PayrollRecord | null>(null)
 
-  // 👉 react-to-print 설정
+  // 👉 react-to-print 설정 (v3: contentRef 사용)
   const printAreaRef = useRef<HTMLDivElement | null>(null)
 
-  const handlePrint = useReactToPrint({
-    contentRef: printAreaRef,
-    documentTitle: selectedRecord
-      ? `${selectedRecord.month} 급여지급명세서`
-      : "급여지급명세서",
-  })
+  const handlePrint = useReactToPrint(
+    {
+      contentRef: printAreaRef,
+      documentTitle: selectedRecord
+        ? `${selectedRecord.month} 급여지급명세서`
+        : "급여지급명세서",
+    } as any // 타입은 v2 정의라서 v3 옵션(contentRef)을 위해 한 번 무시
+  )
 
+  // 버튼 클릭 시: 어떤 기록을 인쇄할지만 선택
   const handleDownloadPayslip = (record: PayrollRecord) => {
     setSelectedRecord(record)
-    // 상태 반영 후 프린트 호출
-    setTimeout(() => {
-      handlePrint()
-    }, 0)
   }
+
+  // selectedRecord가 설정되고, 숨겨진 DOM이 렌더된 뒤에 프린트 실행
+  useEffect(() => {
+    if (!selectedRecord) return
+    if (!printAreaRef.current) return
+
+    handlePrint()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRecord])
 
   // 👉 명세서에 찍을 직원 이름
   // 1순위: 선택한 기록의 employeeName

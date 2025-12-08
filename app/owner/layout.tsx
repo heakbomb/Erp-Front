@@ -6,8 +6,11 @@ import { AppLayout } from "@/components/common/AppLayout";
 import { ownerNavigation } from "@/lib/navigation";
 import { StoreProvider, useStore } from "@/contexts/StoreContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Store as StoreIcon, ChevronDown } from "lucide-react";
+
+import { Store as StoreIcon, ChevronDown,MessageCircleQuestion } from "lucide-react";
 import { OwnerStoreGuard } from "@/features/owner/common/OwnerStoreGuard";
+
+
 
 /**
  * 사장님 레이아웃 전용 사용자 / 사업장 정보 UI
@@ -91,19 +94,24 @@ export default function OwnerLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // ⭐️ 기존 네비게이션에 문의 메뉴 추가
+  const navigationWithInquiry = [
+    ...ownerNavigation,
+    { name: "1:1 문의", href: "/owner/inquiries", icon: MessageCircleQuestion }
+  ];
+
   return (
     <StoreProvider>
-      {/* ✅ owner 영역 전체를 Guard로 한 번만 감쌈 */}
       <OwnerStoreGuard>
-        <AppLayout
-          navigation={ownerNavigation}
-          userInfo={<OwnerInfo />}
-          logoIcon={StoreIcon}
-          logoText="요식업 ERP"
-        >
-          {children}
-        </AppLayout>
+      <AppLayout
+        navigation={navigationWithInquiry} // ⭐️ 수정된 네비게이션 전달
+        userInfo={<OwnerInfo />}
+        logoIcon={StoreIcon}
+        logoText="요식업 ERP"
+      >
+        {children}
+      </AppLayout>
       </OwnerStoreGuard>
-    </StoreProvider>
+    </StoreProvider> 
   );
 }
