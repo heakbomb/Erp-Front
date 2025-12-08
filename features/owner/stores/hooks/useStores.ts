@@ -5,11 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { 
   fetchStores, 
   updateStore, 
-  deleteStore,  // ✅ 1. deleteStore 임포트
-  StoreType       // ✅ 2. StoreType 임포트 (Store의 별칭)
+  deleteStore,
+  activateStore, // ✅ 활성화 API
+  StoreType
 } from "../services/storesService";
-// ✅ 3. Store 타입을 직접 임포트할 수도 있습니다.
-// import type { Store as StoreType } from "@/lib/types/database";
 
 export function useStores(version?: number) {
   const [stores, setStores] = useState<StoreType[]>([]);
@@ -44,10 +43,19 @@ export function useStores(version?: number) {
     await load();
   }, [load]);
 
-  const patch = useCallback(async (id: number, payload: Parameters<typeof updateStore>[1]) => {
-    await updateStore(id, payload);
+  const reactivate = useCallback(async (id: number) => {
+    await activateStore(id);
     await load();
   }, [load]);
 
-  return { stores, loading, hasData, reload: load, hardDelete, softDelete, patch };
+  const patch = useCallback(
+    async (id: number, payload: Parameters<typeof updateStore>[1]) => {
+      await updateStore(id, payload);
+      await load();
+    },
+    [load]
+  );
+
+  // ✅ reactivate 추가
+  return { stores, loading, hasData, reload: load, hardDelete, softDelete, reactivate, patch };
 }

@@ -1,17 +1,19 @@
+// features/owner/payroll/hooks/useOwnerPayroll.ts
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
+import { useStore } from "@/contexts/StoreContext"
 import {
   fetchOwnerPayroll,
-  MOCK_EMPLOYEE_PAYROLL,
-  MOCK_PAYROLL_HISTORY,
   type EmployeePayroll,
   type PayrollHistory,
 } from "@/features/owner/payroll/services/ownerPayrollService"
 
-export default function useOwnerPayroll() {
-  const [employees, setEmployees] = useState<EmployeePayroll[]>(MOCK_EMPLOYEE_PAYROLL)
-  const [history, setHistory] = useState<PayrollHistory[]>(MOCK_PAYROLL_HISTORY)
+export default function useOwnerPayroll(yearMonth: string) {
+  const { currentStoreId } = useStore()
+
+  const [employees, setEmployees] = useState<EmployeePayroll[]>([])
+  const [history, setHistory] = useState<PayrollHistory[]>([])
 
   const [searchQuery, setSearchQuery] = useState("")
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false)
@@ -19,37 +21,49 @@ export default function useOwnerPayroll() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // 나중에 진짜 API 붙일 때 사용
-  useEffect(() => {
-    let mounted = true
+  // features/owner/payroll/hooks/useOwnerPayroll.ts
+    useEffect(() => {
+      let mounted = true
+      if (!currentStoreId || !yearMonth) return
 
-    const run = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const data = await fetchOwnerPayroll()
-        if (!mounted) return
-        setEmployees(data.employees)
-        setHistory(data.history)
-      } catch (e: any) {
-        if (mounted) {
-          setError(e?.message ?? "급여 데이터를 불러오지 못했습니다.")
+      const run = async () => {
+        try {
+          setLoading(true)
+          setError(null)
+
+          const data = await fetchOwnerPayroll({
+            storeId: currentStoreId,
+            month: yearMonth, // "yyyy-MM"
+          })
+
+          if (!mounted) return
+
+          // ✅ 응답에 값이 없으면 기본값으로 빈 배열을 사용
+          setEmployees(data.employees ?? [])
+          setHistory(data.history ?? [])
+        } catch (e: any) {
+          if (!mounted) return
+          console.error("급여 데이터 불러오기 실패:", e)
+          setError(e?.friendlyMessage ?? e?.message ?? "급여 데이터를 불러오지 못했습니다.")
+        } finally {
+          if (mounted) setLoading(false)
         }
-      } finally {
-        if (mounted) setLoading(false)
       }
-    }
 
-    // 지금은 목데이터만 쓰니까 호출 안 함
-    // run()
+      run()
 
-    return () => {
-      mounted = false
-    }
-  }, [])
+      return () => {
+        mounted = false
+      }
+    }, [currentStoreId, yearMonth])
 
   const totalPayroll = useMemo(
     () => employees.reduce((sum, emp) => sum + emp.netPay, 0),
+    [employees],
+  )
+
+  const totalWorkHours = useMemo(
+    () => employees.reduce((sum, emp) => sum + emp.workHours, 0),
     [employees],
   )
 
@@ -67,6 +81,7 @@ export default function useOwnerPayroll() {
     employees,
     history,
     totalPayroll,
+    totalWorkHours,
     filteredEmployees,
     searchQuery,
     setSearchQuery,

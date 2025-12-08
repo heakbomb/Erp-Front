@@ -32,52 +32,40 @@ export function useEmployeeShifts(range: { from: string; to: string }) {
       } as ShiftQueryParams),
   })
 
+  // 🔥 invalidate 함수 만들기 (중복 제거)
+  const invalidateShifts = () =>
+    queryClient.invalidateQueries({
+      queryKey: ["employeeShifts", currentStoreId, range.from, range.to],
+    })
+
   const createMutation = useMutation({
     mutationFn: (body: Omit<SaveShiftPayload, "storeId">) =>
       createShiftApi({
         storeId: currentStoreId!,
         ...body,
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employeeShifts", currentStoreId],
-      })
-    },
+    onSuccess: invalidateShifts,
   })
 
   const updateMutation = useMutation({
     mutationFn: (params: { shiftId: number; body: Partial<SaveShiftPayload> }) =>
       updateShiftApi(currentStoreId!, params.shiftId, params.body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employeeShifts", currentStoreId],
-      })
-    },
+    onSuccess: invalidateShifts,
   })
 
   const deleteMutation = useMutation({
     mutationFn: (shiftId: number) => deleteShiftApi(currentStoreId!, shiftId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employeeShifts", currentStoreId],
-      })
-    },
+    onSuccess: invalidateShifts,
   })
 
-  // ✅ 추가: 기간 일괄 삭제 mutation
   const deleteRangeMutation = useMutation({
     mutationFn: (body: Omit<DeleteShiftRangeParams, "storeId">) =>
       deleteShiftRangeApi({
         storeId: currentStoreId!,
         ...body,
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["employeeShifts", currentStoreId],
-      })
-    },
+    onSuccess: invalidateShifts,
   })
-
 
   return {
     ...query,

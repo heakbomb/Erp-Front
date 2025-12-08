@@ -32,7 +32,7 @@ export interface Store {
   storeName: string; // VARCHAR(100)
   industry: string; // VARCHAR(50)
   posVendor: string | null; // VARCHAR(50)
-  status: "PENDING" | "APPROVED" | "REJECTED" | "ACTIVE" | "OPERATING"; // VARCHAR(20)
+  status: "PENDING" | "APPROVED" | "REJECTED" | "ACTIVE" | "OPERATING"| "INACTIVE"; // VARCHAR(20)
   approvedAt: string | null; // DATETIME
   bizNum?: string | null;
   // ✅✅✅ 

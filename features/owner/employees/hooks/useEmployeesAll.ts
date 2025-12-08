@@ -1,9 +1,8 @@
-// features/owner/employees/hooks/useEmployeesAll.ts
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useStore } from "@/contexts/StoreContext"
 
-// ✅ Employee 타입은 공용 타입 정의에서 가져오기
 import type { Employee } from "@/lib/types/database"
 
 import {
@@ -16,6 +15,8 @@ import {
 export type Banner = { type: "success" | "error"; message: string } | null
 
 export default function useEmployeesAll() {
+  const { currentStoreId } = useStore()
+
   const [searchQuery, setSearchQuery] = useState("")
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(false)
@@ -35,32 +36,38 @@ export default function useEmployeesAll() {
     setTimeout(() => setBanner(null), 2400)
   }
 
-  const loadEmployees = async () => {
+  const loadEmployees = async (storeId: number) => {
     try {
       setLoading(true)
-      const data = await fetchEmployees()
+      // ✅ 여기서만 storeId 사용
+      const data = await fetchEmployees(storeId)
       setEmployees(data)
     } catch (e) {
       console.error("직원 목록 불러오기 실패:", e)
-      alert("직원 목록을 불러오지 못했습니다.")
+      bannerShow({ type: "error", message: "직원 목록을 불러오지 못했습니다." })
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadEmployees()
-  }, [])
+    if (!currentStoreId) {
+      // 매장 선택 안 된 경우 목록 비우기
+      setEmployees([])
+      return
+    }
+    loadEmployees(currentStoreId)
+  }, [currentStoreId])
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) return employees
     return employees.filter(
       (e) =>
-        e.name.toLowerCase().includes(q) ||
-        e.email.toLowerCase().includes(q) ||
-        e.phone.toLowerCase().includes(q) ||
-        (e.provider || "").toLowerCase().includes(q),
+        (e.name ?? "").toLowerCase().includes(q) ||
+        (e.email ?? "").toLowerCase().includes(q) ||
+        (e.phone ?? "").toLowerCase().includes(q) ||
+        (e.provider ?? "").toLowerCase().includes(q),
     )
   }, [employees, searchQuery])
 
@@ -97,7 +104,7 @@ export default function useEmployeesAll() {
       })
       setOpenEdit(false)
       setEditingId(null)
-      await loadEmployees()
+      if (currentStoreId) await loadEmployees(currentStoreId)
       bannerShow({ type: "success", message: "직원 정보가 수정되었습니다." })
     } catch (e: any) {
       console.error("직원 수정 실패:", e)
@@ -113,7 +120,7 @@ export default function useEmployeesAll() {
     try {
       await svcDeleteEmployee(targetToDelete.employeeId)
       setOpenDelete(false)
-      await loadEmployees()
+      if (currentStoreId) await loadEmployees(currentStoreId)
       bannerShow({ type: "success", message: "직원이 삭제되었습니다." })
     } catch (e) {
       console.error("직원 삭제 실패:", e)
@@ -121,7 +128,7 @@ export default function useEmployeesAll() {
     }
   }
 
-  const formatDate = (iso?: string) => (iso ? iso.slice(0, 10) : "-")
+  const formatDate = (iso?: string | null) => (iso ? iso.slice(0, 10) : "-")
 
   return {
     // state

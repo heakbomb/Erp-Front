@@ -58,6 +58,18 @@ export async function fetchOwnerStores(ownerId: number) {
   return res.data as { storeId: number; storeName: string }[];
 }
 
+// ✅ [추가] 비활성화된 사업장만 조회 (owner 기준)
+export async function fetchInactiveStoresByOwner(ownerId: number) {
+  const res = await apiClient.get(`/store/inactive/by-owner/${ownerId}`);
+  return res.data as Store[];
+}
+
+// ✅ 추가: 비활성화된 매장을 다시 활성화
+export async function activateStore(storeId: number) {
+  const res = await apiClient.patch(`/store/${storeId}/activate`);
+  return res.data;
+}
+
 // ✅ 3. deleteStore 함수를 정상적으로 export 합니다.
 export async function deleteStore(storeId: number, force = false) {
   const res = await apiClient.delete(`/store/${storeId}`, { params: { force } });

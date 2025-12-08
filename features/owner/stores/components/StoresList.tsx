@@ -2,7 +2,6 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-// UI 컴포넌트 임포트
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,15 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Store, MapPin, Phone, Edit, Trash2, Copy } from "lucide-react"
+import { Store, MapPin, Phone, Edit, Trash2, Copy, RefreshCcw } from "lucide-react"
 
-// ✅ 1. 로직을 처리할 훅 임포트
 import { useStores } from "@/features/owner/stores/hooks/useStores"
-// ✅ 2. 분리된 NaverMapPicker 컴포넌트 임포트
-import { NaverMapPicker } from "./NaverMapPicker" // (이 파일은 이전 단계에서 생성했습니다)
-// ✅ 3. 전역 유틸리티 함수 임포트
+import { NaverMapPicker } from "./NaverMapPicker"
 import { formatStoreStatus, extractErrorMessage } from "@/lib/utils"
-// ✅ 4. StoreType 임포트 (서비스 파일에서)
 import type { StoreType } from "../services/storesService"
 
 export default function StoresList({
@@ -34,17 +29,30 @@ export default function StoresList({
   version?: number
   onChangedAction?: () => void
 }) {
-  // ✅ 5. 훅을 호출하여 상태와 로직(핸들러)을 가져옴
   const { 
     stores, 
     loading, 
     hasData, 
     hardDelete, 
-    softDelete, 
+    softDelete,
+    reactivate,
     patch 
   } = useStores(version);
 
-  // ✅ 6. 모달 관련 상태는 UI 컴포넌트가 직접 관리
+  // ✅ 활성 / 비활성 필터 상태
+  const [showInactiveOnly, setShowInactiveOnly] = useState(false);
+
+  // ✅ 필터된 목록 (기본: 활성만, 토글 시: 비활성만)
+  const visibleStores = useMemo(
+    () =>
+      showInactiveOnly
+        ? stores.filter((s) => s.status === "INACTIVE")
+        : stores.filter((s) => s.status !== "INACTIVE"),
+    [stores, showInactiveOnly]
+  );
+
+  const hasVisible = visibleStores.length > 0;
+
   const [openEdit, setOpenEdit] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({
@@ -58,42 +66,63 @@ export default function StoresList({
   const [savingEdit, setSavingEdit] = useState(false)
   const [openEditMap, setOpenEditMap] = useState(false)
 
-  // handleCopy는 UI 로직이므로 그대로 둠
   const handleCopy = (id: number) => {
     navigator.clipboard.writeText(String(id))
     alert("사업장 코드가 복사되었습니다!")
   }
 
-  // ✅ 7. handleDelete를 훅의 핸들러(softDelete, hardDelete)를 사용하도록 수정
-     const handleDelete = async (id: number) => {
-      // 1차 확인
-      if (!confirm("정말로 이 사업장을 삭제하시겠습니까?")) return;
+  // ✅ 비활성화
+  const handleDelete = async (id: number) => {
+    if (!confirm("정말로 이 사업장을 비활성화하시겠습니까?")) return;
 
-      try {
-        // ✅ 항상 일반 삭제만 시도 (force=false)
-        await softDelete(id);
-        alert("사업장이 삭제되었습니다.");
-        onChangedAction?.();
-      } catch (err: any) {
-        console.error("사업장 삭제 실패:", err);
-        const status = err?.response?.status;
+    try {
+      await softDelete(id); // force=false → 백엔드에서 INACTIVE 처리
+      alert("사업장이 비활성화되었습니다.");
 
-        // ✅ 근무배정 / 직원 연결이 있는 경우 (백엔드에서 409 로 응답)
-        if (status === 409) {
-          alert(
-            "이 사업장에는 근무배정(직원 연결) 정보가 있어 삭제할 수 없습니다.\n" +
-            "근무 기록 보호를 위해 관리자에게 삭제를 요청해 주세요."
-          );
-          return;
-        }
-
-        // ✅ 그 외 에러는 기존 전역 유틸 그대로 사용
-        const msg = extractErrorMessage(err);
-        alert(msg);
+      // ✅ 상태 변경 즉시 전체 새로고침
+      if (typeof window !== "undefined") {
+        window.location.reload();
       }
-    };
 
-  // openEditModal은 UI 로직이므로 그대로 둠
+      onChangedAction?.();
+    } catch (err: any) {
+      console.error("사업장 비활성화 실패:", err);
+      const status = err?.response?.status;
+
+      if (status === 409) {
+        alert(
+          "이 사업장에는 근무배정(직원 연결) 정보가 있어 비활성화할 수 없습니다.\n" +
+          "근무 기록 보호를 위해 관리자에게 요청해 주세요."
+        );
+        return;
+      }
+
+      const msg = extractErrorMessage(err);
+      alert(msg);
+    }
+  };
+
+  // ✅ 활성화
+  const handleActivate = async (id: number) => {
+    if (!confirm("이 사업장을 다시 활성화하시겠습니까?")) return;
+
+    try {
+      await reactivate(id);
+      alert("사업장이 다시 활성화되었습니다.");
+
+      // ✅ 상태 변경 즉시 전체 새로고침
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
+
+      onChangedAction?.();
+    } catch (err: any) {
+      console.error("사업장 활성화 실패:", err);
+      const msg = extractErrorMessage(err);
+      alert(msg);
+    }
+  };
+
   const openEditModal = (s: StoreType) => {
     setEditingId(s.storeId)
     setEditForm({
@@ -107,7 +136,6 @@ export default function StoresList({
     setOpenEdit(true)
   }
 
-  // ✅ 8. handleUpdate를 훅의 핸들러(patch)를 사용하도록 수정
   const handleUpdate = async () => {
     if (!editingId) return
     if (!editForm.bizId.trim() || !editForm.storeName.trim() || !editForm.industry.trim()) {
@@ -116,7 +144,7 @@ export default function StoresList({
     }
     try {
       setSavingEdit(true)
-      await patch(editingId, { // 훅의 patch 호출
+      await patch(editingId, {
         bizId: Number(editForm.bizId),
         storeName: editForm.storeName,
         industry: editForm.industry,
@@ -129,7 +157,7 @@ export default function StoresList({
       onChangedAction?.()
     } catch (e) {
       console.error("사업장 수정 실패:", e)
-      alert(`수정 중 오류가 발생했습니다: ${extractErrorMessage(e)}`) // 전역 유틸 사용
+      alert(`수정 중 오류가 발생했습니다: ${extractErrorMessage(e)}`)
     } finally {
       setSavingEdit(false)
     }
@@ -137,9 +165,20 @@ export default function StoresList({
 
   return (
     <>
+      {/* ✅ 상단 필터 버튼 */}
+      <div className="flex justify-end mb-4">
+        <Button
+          variant={showInactiveOnly ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowInactiveOnly((prev) => !prev)}
+        >
+          {showInactiveOnly ? "활성 사업장 보기" : "비활성화된 사업장 보기"}
+        </Button>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2">
-        {hasData &&
-          stores.map((store) => (
+        {hasVisible &&
+          visibleStores.map((store) => (
             <Card key={store.storeId}>
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -152,7 +191,6 @@ export default function StoresList({
                       <CardDescription>{store.industry}</CardDescription>
                     </div>
                   </div>
-                  {/* ✅ 상태에 따라 색상 달라지는 뱃지 */}
                   <Badge
                     variant="outline"
                     className={
@@ -160,7 +198,7 @@ export default function StoresList({
                         ? "bg-green-100 text-green-700 border-green-300"
                         : store.status === "REJECTED"
                         ? "bg-red-100 text-red-700 border-red-300"
-                        : "bg-yellow-100 text-yellow-700 border-yellow-300" // PENDING 또는 기타
+                        : "bg-yellow-100 text-yellow-700 border-yellow-300"
                     }
                   >
                     {formatStoreStatus(store.status)}
@@ -185,8 +223,6 @@ export default function StoresList({
                 </div>
 
                 <div className="space-y-3">
-
-                  {/* 사업자번호 표시 */}
                   <div className="flex items-start gap-2 text-sm">
                     <Store className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <span className="text-muted-foreground">
@@ -207,7 +243,6 @@ export default function StoresList({
                       lat: {store.latitude ?? "-"}, lng: {store.longitude ?? "-"}
                     </span>
                   </div>
-
                 </div>
 
                 <div className="flex gap-2 pt-2">
@@ -215,26 +250,42 @@ export default function StoresList({
                     <Edit className="mr-2 h-4 w-4" />
                     수정
                   </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 bg-transparent"
-                    onClick={() => handleDelete(store.storeId)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    삭제
-                  </Button>
+
+                  {store.status === "INACTIVE" ? (
+                    <Button
+                      variant="outline"
+                      className="flex-1 bg-transparent"
+                      onClick={() => handleActivate(store.storeId)}
+                    >
+                      <RefreshCcw className="mr-2 h-4 w-4" />
+                      활성화
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="flex-1 bg-transparent"
+                      onClick={() => handleDelete(store.storeId)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      비활성화
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
           ))}
 
-        {!hasData && !loading && (
-          <div className="text-sm text-muted-foreground">등록된 사업장이 없습니다. 오른쪽 상단에서 추가하세요.</div>
+        {!hasVisible && !loading && (
+          <div className="text-sm text-muted-foreground">
+            {showInactiveOnly
+              ? "비활성화된 사업장이 없습니다."
+              : "등록된 사업장이 없습니다. 오른쪽 상단에서 추가하세요."}
+          </div>
         )}
         {loading && <div className="text-sm text-muted-foreground">불러오는 중…</div>}
       </div>
 
-      {/* 수정 다이얼로그 (UI 로직은 동일) */}
+      {/* 수정 다이얼로그 */}
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
         <DialogContent>
           <DialogHeader>
@@ -333,7 +384,7 @@ export default function StoresList({
         </DialogContent>
       </Dialog>
 
-      {/* 수정 지도 다이얼로그 (NaverMapPicker 컴포넌트 사용) */}
+      {/* 위치 선택 다이얼로그 */}
       <Dialog open={openEditMap} onOpenChange={setOpenEditMap}>
         <DialogContent>
           <DialogHeader>

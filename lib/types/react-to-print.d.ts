@@ -2,16 +2,16 @@
 declare module "react-to-print" {
   import * as React from "react"
 
-  export interface ReactToPrintProps {
-    trigger: () => React.ReactElement
+  export interface UseReactToPrintOptions {
     content: () => React.ReactInstance | null
     documentTitle?: string
-    onBeforeGetContent?: () => void | Promise<void>
     onAfterPrint?: () => void
-    // 필요하면 나중에 추가
+    onBeforePrint?: () => void
+    removeAfterPrint?: boolean
   }
 
-  const ReactToPrint: React.ComponentType<ReactToPrintProps>
-
-  export default ReactToPrint
+  // 우리가 쓰는 훅 타입 최소 정의
+  export function useReactToPrint(
+    options: UseReactToPrintOptions,
+  ): () => void
 }
