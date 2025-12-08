@@ -101,16 +101,6 @@ export default function PurchasesPageFeature() {
           <p className="text-muted-foreground">매입 내역을 기록하고 관리하세요</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="bg-transparent">
-            <Upload className="mr-2 h-4 w-4" /> Excel 가져오기
-          </Button>
-          <Button variant="outline" className="bg-transparent">
-            <Download className="mr-2 h-4 w-4" /> Excel 내보내기
-          </Button>
-          <Button variant="outline" className="bg-transparent">
-            <FileText className="mr-2 h-4 w-4" /> PDF 내보내기
-          </Button>
-
           {mounted && (
             <Button onClick={() => setIsAddOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> 매입 기록
