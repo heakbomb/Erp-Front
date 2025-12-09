@@ -258,7 +258,8 @@ export default function OwnerSalesView() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={chartData}>
+                <BarChart data={chartData}
+                  margin={{ top: 16, right: 16, left: 56, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="date" />
                   <YAxis />

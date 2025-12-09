@@ -4,11 +4,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { useStore } from "@/contexts/StoreContext"; // ⭐ StoreContext 사용
+import { useStore } from "@/contexts/StoreContext";
 
 import {
   ActiveStatus,
-  CostingMethod,
   MenuItemResponse,
   InventoryResponse,
   RecipeIngredientResponse,
@@ -18,7 +17,7 @@ import {
   updateMenu,
   deactivateMenu,
   reactivateMenu,
-  fetchMenuStats,          // ⭐ 통계 API 추가
+  fetchMenuStats,
 } from "../menuService";
 
 export type MenuFormValues = {
@@ -30,38 +29,31 @@ export function useMenu() {
   const { currentStoreId } = useStore();
   const queryClient = useQueryClient();
 
-  // 검색/필터
+  // 🔍 검색/필터
   const [searchQuery, setSearchQuery] = useState("");
   const [showInactiveOnly, setShowInactiveOnly] = useState(false);
 
-  // (지금은 AVERAGE/LATEST 토글은 못씀 — 백엔드에서 calculatedCost 고정)
-  const [costingMethod, setCostingMethod] =
-    useState<CostingMethod>("AVERAGE");
+  // 📄 페이지네이션 상태
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(6); // ✅ 1페이지 6개
 
-  // 인벤토리 & 레시피 맵
+  // 인벤토리 & 레시피
   const [invOptions, setInvOptions] = useState<InventoryResponse[]>([]);
   const [recipeMap, setRecipeMap] = useState<
     Record<number, RecipeIngredientResponse[]>
   >({});
 
-  // 메뉴 추가/수정 모달
+  // 메뉴 모달
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingMenu, setEditingMenu] =
-    useState<MenuItemResponse | null>(null);
+  const [editingMenu, setEditingMenu] = useState<MenuItemResponse | null>(null);
 
   // 레시피 모달
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [selectedMenuForRecipe, setSelectedMenuForRecipe] =
     useState<MenuItemResponse | null>(null);
 
-  const page = 0;
-  const size = 50;
-  const sort = "menuName,asc";
-
-  /** =========================
-   *  1) 인벤토리 로드 (레시피 모달에서 사용)
-   * ========================= */
+  /** 1) 인벤토리 로드 */
   useEffect(() => {
     if (!currentStoreId) return;
 
@@ -76,9 +68,7 @@ export function useMenu() {
     run();
   }, [currentStoreId]);
 
-  /** =========================
-   *  2) 메뉴 목록을 useQuery로 로드
-   * ========================= */
+  /** 2) 메뉴 목록 쿼리 */
   const status: ActiveStatus | undefined = showInactiveOnly
     ? "INACTIVE"
     : "ACTIVE";
@@ -88,33 +78,31 @@ export function useMenu() {
     isLoading: loading,
     error,
   } = useQuery({
-    queryKey: ["menus", currentStoreId, searchQuery, status],
+    // ✅ page / pageSize 를 키에 포함
+    queryKey: ["menus", currentStoreId, searchQuery, status, page, pageSize],
     queryFn: () =>
       fetchMenus({
-        storeId: currentStoreId!, // enabled 조건 때문에 여기 올 땐 항상 존재
+        storeId: currentStoreId!,
         q: searchQuery || undefined,
         status,
         page,
-        size,
-        sort,
+        size: pageSize, // ✅ 여기서 6개씩 요청
+        sort: "menuName,asc",
       }),
-    enabled: !!currentStoreId, // storeId 없으면 요청 안 보냄
+    enabled: !!currentStoreId,
   });
 
   const items: MenuItemResponse[] = menuPage?.content ?? [];
+  const totalPages = menuPage?.totalPages ?? 0; // ✅ 전체 페이지 수
 
-  /** =========================
-   *  2-1) 메뉴 통계 쿼리 (전체/비활성 메뉴 개수)
-   * ========================= */
+  /** 2-1) 메뉴 통계 쿼리 */
   const { data: statsData } = useQuery({
     queryKey: ["menuStats", currentStoreId],
     queryFn: () => fetchMenuStats(currentStoreId!),
     enabled: !!currentStoreId,
   });
 
-  /** =========================
-   *  3) 원가/마진 계산 (백엔드 calculatedCost 기준)
-   * ========================= */
+  /** 3) 원가/마진 계산 */
   const calculatedCostMap = useMemo(() => {
     const map: Record<number, number> = {};
     for (const m of items) {
@@ -124,11 +112,9 @@ export function useMenu() {
   }, [items]);
 
   const stats = useMemo(() => {
-    // 🔹 DB 기준 전체 / 비활성 메뉴 개수
     const total = statsData?.totalMenus ?? 0;
     const inactive = statsData?.inactiveMenus ?? 0;
 
-    // 🔹 평균 마진율은 현재 페이지 기준 (원하면 나중에 이것도 서버에서 계산해도 됨)
     if (!items.length) {
       return { total, avgMargin: 0, inactive };
     }
@@ -141,23 +127,15 @@ export function useMenu() {
     });
 
     const avgMargin =
-      margins.reduce((a, b) => a + b, 0) /
-      Math.max(1, margins.length);
+      margins.reduce((a, b) => a + b, 0) / Math.max(1, margins.length);
 
     return { total, avgMargin, inactive };
   }, [items, statsData]);
 
-  /** =========================
-   *  4) 메뉴 생성/수정/상태 토글
-   *      -> 성공 시 메뉴/통계 쿼리 무효화(자동 재요청)
-   * ========================= */
+  /** 4) 메뉴 CRUD + 상태 토글 (기존 그대로) */
   const invalidateMenus = useCallback(() => {
-    queryClient.invalidateQueries({
-      queryKey: ["menus"],
-    });
-    queryClient.invalidateQueries({
-      queryKey: ["menuStats"], // ⭐ 통계도 같이 새로고침
-    });
+    queryClient.invalidateQueries({ queryKey: ["menus"] });
+    queryClient.invalidateQueries({ queryKey: ["menuStats"] });
   }, [queryClient]);
 
   const handleCreate = async (values: MenuFormValues) => {
@@ -181,7 +159,8 @@ export function useMenu() {
         price: Number(values.price),
       });
       setIsAddModalOpen(false);
-      invalidateMenus(); // ⭐ 메뉴/통계 자동 새로고침
+      setPage(0); // ✅ 새로 만들면 1페이지로
+      invalidateMenus();
     } catch (e: any) {
       console.error(e);
       const hint =
@@ -224,7 +203,7 @@ export function useMenu() {
       });
       setIsEditModalOpen(false);
       setEditingMenu(null);
-      invalidateMenus(); // ⭐ 메뉴/통계 자동 새로고침
+      invalidateMenus();
     } catch (e: any) {
       console.error(e);
       const hint =
@@ -264,7 +243,7 @@ export function useMenu() {
       } else {
         await reactivateMenu(row.menuId, currentStoreId);
       }
-      invalidateMenus(); // ⭐ 메뉴/통계 자동 새로고침
+      invalidateMenus();
     } catch (e: any) {
       console.error(e);
       const hint =
@@ -282,9 +261,7 @@ export function useMenu() {
     }
   };
 
-  /** =========================
-   *  5) 모달 헬퍼 & 레시피 업데이트 핸들러
-   * ========================= */
+  /** 5) 모달 헬퍼 & 레시피 핸들러 */
   const openAddModal = () => {
     setEditingMenu(null);
     setIsEditModalOpen(false);
@@ -302,7 +279,6 @@ export function useMenu() {
     setIsRecipeModalOpen(true);
   };
 
-  // 레시피 갱신 시 recipeMap 갱신 + 메뉴/통계 재조회(원가/마진/개수 반영)
   const handleRecipeUpdated = (
     menuId: number,
     list: RecipeIngredientResponse[]
@@ -311,12 +287,17 @@ export function useMenu() {
       ...prev,
       [menuId]: list,
     }));
-    invalidateMenus(); // ⭐ 레시피 변경 후 메뉴/통계 다시 불러옴
+    invalidateMenus();
   };
 
-  /** =========================
-   *  6) 훅 리턴
-   * ========================= */
+  /** 📄 페이지 이동 함수 */
+  const goToPage = (p: number) => {
+    if (!menuPage) return;
+    if (p < 0 || p >= totalPages) return;
+    setPage(p);
+  };
+
+  /** 6) 훅 리턴 */
   return {
     // 데이터
     items,
@@ -325,13 +306,18 @@ export function useMenu() {
     calculatedCostMap,
     stats,
 
-    // 검색/필터/원가
+    // 검색/필터
     searchQuery,
     setSearchQuery,
     showInactiveOnly,
     setShowInactiveOnly,
-    costingMethod,
-    setCostingMethod,
+
+    // 페이지네이션
+    page,
+    pageSize,
+    setPageSize,
+    totalPages,
+    goToPage,
 
     // 인벤토리 / 레시피
     invOptions,

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Search, AlertTriangle, Upload, Download, Edit, Loader2 } from "lucide-react"
-import { PAGE_WINDOW } from "@/lib/constants"; 
+import { PAGE_WINDOW } from "@/lib/constants";
 import { INGREDIENT_CATEGORIES } from "@/features/inventory/constants/itemCategory";
 
 
@@ -50,6 +50,8 @@ export default function InventoryPageFeature() {
     handleSearch, // ⭐️ 검색 핸들러
     showInactiveOnly,
     setShowInactiveOnly,
+    itemTypeFilter,
+    handleChangeItemType,
     isAddModalOpen,
     setIsAddModalOpen,
     isEditModalOpen,
@@ -61,7 +63,7 @@ export default function InventoryPageFeature() {
     handleUpdate,
     handleDeactivate,
     handleReactivate,
-    handleExportExcel,   
+    handleExportExcel,
     isExporting,
     isCreating,
     isUpdating,
@@ -90,7 +92,7 @@ export default function InventoryPageFeature() {
           <h1 className="text-3xl font-bold text-foreground">재고 관리</h1>
           <p className="text-muted-foreground">재고 현황을 확인하고 관리하세요</p>
         </div>
-         {mounted && (
+        {mounted && (
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -171,14 +173,29 @@ export default function InventoryPageFeature() {
                 />
               </div>
 
+              {/* ⭐ NEW: 품목 타입 필터 */}
+              <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={itemTypeFilter ?? ""}   // "" = 전체
+                onChange={(e) => handleChangeItemType(e.target.value)}
+              >
+                <option value="">전체 타입</option>
+                {INGREDIENT_CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+
+
               {/* '비활성만 보기' 체크박스 */}
               <label className="ml-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={showInactiveOnly}
-                  onChange={(e) => { 
-                    setShowInactiveOnly(e.target.checked); 
-                    goToPage(0); 
+                  onChange={(e) => {
+                    setShowInactiveOnly(e.target.checked);
+                    goToPage(0);
                   }}
                 />
                 비활성만 보기
@@ -188,9 +205,9 @@ export default function InventoryPageFeature() {
               <select
                 className="h-9 rounded-md border bg-background px-2 text-sm"
                 value={pageSize}
-                onChange={(e) => { 
-                  setPageSize(Number(e.target.value)); 
-                  goToPage(0); 
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  goToPage(0);
                 }}
               >
                 {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}/페이지</option>)}
@@ -202,7 +219,7 @@ export default function InventoryPageFeature() {
           {/* 로딩/에러 처리 (훅 상태 사용) */}
           {isInventoryLoading && <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div>}
           {error && <div className="text-sm text-red-500">{error.message}</div>}
-          
+
           {!isInventoryLoading && !error && (
             <>
               <Table>
@@ -220,10 +237,10 @@ export default function InventoryPageFeature() {
                   {/* 훅에서 받아온 items 맵핑 */}
                   {items.map((i) => {
                     const isLow = Number(i.stockQty) < Number(i.safetyQty)
-                    const status = i.status ?? (showInactiveOnly ? "INACTIVE" : "ACTIVE"); 
+                    const status = i.status ?? (showInactiveOnly ? "INACTIVE" : "ACTIVE");
 
                     return (
-                      <TableRow 
+                      <TableRow
                         key={i.itemId}
                         className={status === "INACTIVE" ? "opacity-50" : (isLow ? "bg-red-50/70 dark:bg-red-950/20" : "")}
                       >
@@ -250,22 +267,22 @@ export default function InventoryPageFeature() {
                             <Button variant="ghost" size="icon" onClick={() => openEditModal(i)} disabled={isDeactivating || isReactivating}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            
+
                             {/* 조건부 버튼 (비활성화/활성화) */}
                             {status === "ACTIVE" ? (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="bg-transparent" 
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-transparent"
                                 onClick={() => handleDeactivate(i.itemId)}
                                 disabled={isDeactivating || isReactivating}
                               >
                                 {isDeactivating ? <Loader2 className="h-4 w-4 animate-spin" /> : "비활성화"}
                               </Button>
                             ) : (
-                              <Button 
-                                variant="default" 
-                                size="sm" 
+                              <Button
+                                variant="default"
+                                size="sm"
                                 onClick={() => handleReactivate(i.itemId)}
                                 disabled={isDeactivating || isReactivating}
                               >

@@ -3,16 +3,16 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useStore } from "../../../contexts/StoreContext"; 
+import { useStore } from "../../../contexts/StoreContext";
 import {
   getInventory,
   createInventory,
   updateInventory,
   deactivateInventory,
   reactivateInventory,
-  downloadInventoryExcel, 
-} from "../inventoryService"; 
-import type { Inventory } from "../../../lib/types/database"; 
+  downloadInventoryExcel,
+} from "../inventoryService";
+import type { Inventory } from "../../../lib/types/database";
 import { DEFAULT_PAGE_SIZE } from "../../../lib/constants"; // ⭐️
 
 // react-hook-form에서 사용할 폼 타입
@@ -35,7 +35,10 @@ export function useInventory() {
   const [showInactiveOnly, setShowInactiveOnly] = useState(false);
   const sort = "itemName,asc";
   const [isExporting, setIsExporting] = useState(false);
-  
+
+  // ⭐️ NEW: 품목 타입 필터 상태 (BAKERY, BEVERAGE... / 전체는 undefined)
+  const [itemTypeFilter, setItemTypeFilter] = useState<string | undefined>(undefined);
+
   // 2. 모달 상태
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -50,6 +53,7 @@ export function useInventory() {
     size: pageSize,
     sort,
     status: currentStatus,
+    itemType: itemTypeFilter,
   };
 
   // 4. (Query) 재고 목록 조회
@@ -60,7 +64,7 @@ export function useInventory() {
   } = useQuery({
     queryKey: ["inventory", queryParams], // ⭐️ queryParams 객체를 키로 사용
     queryFn: () => getInventory(queryParams),
-    enabled: !!currentStoreId, 
+    enabled: !!currentStoreId,
   });
 
   // 5. (Query) 재고 부족 목록 조회
@@ -89,22 +93,22 @@ export function useInventory() {
   const createMutation = useMutation({
     mutationFn: createInventory,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory"] }); 
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["inventory", currentStoreId, "lowStock"] }); // ⭐️ 재고 부족 목록도 갱신
-      setIsAddModalOpen(false); 
+      setIsAddModalOpen(false);
       setPage(0); // ⭐️ 생성 후 1페이지로
     },
-    onError: (error: Error) => alert(`생성 실패: ${error.message}`), 
+    onError: (error: Error) => alert(`생성 실패: ${error.message}`),
   });
 
   // 7. (Mutation) 재고 수정
   const updateMutation = useMutation({
     mutationFn: ({ itemId, body }: { itemId: number; body: InventoryFormValues }) =>
-      updateInventory(itemId, { 
-        ...body, 
+      updateInventory(itemId, {
+        ...body,
         storeId: currentStoreId!,
-        stockQty: Number(body.stockQty), 
-        safetyQty: Number(body.safetyQty), 
+        stockQty: Number(body.stockQty),
+        safetyQty: Number(body.safetyQty),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
@@ -148,7 +152,7 @@ export function useInventory() {
     if (!editingItem) return;
     updateMutation.mutate({ itemId: editingItem.itemId, body: values });
   };
-  
+
   // 10. 이벤트 핸들러: 상태 변경
   const handleDeactivate = (itemId: number) => {
     if (confirm("이 품목을 비활성화할까요?")) {
@@ -162,7 +166,7 @@ export function useInventory() {
     }
   };
 
-   const handleExportExcel = async () => {
+  const handleExportExcel = async () => {
     if (!currentStoreId) {
       alert("매장이 선택되지 않았습니다.");
       return;
@@ -198,16 +202,26 @@ export function useInventory() {
     setEditingItem(null);
     setIsAddModalOpen(true);
   };
-  
+
   const openEditModal = (item: Inventory) => {
     setEditingItem(item);
     setIsEditModalOpen(true);
   };
-  
+
   // 12. 이벤트 핸들러: 필터 변경
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setPage(0); // 검색 시 1페이지로
+  };
+
+  const handleChangeItemType = (value: string) => {
+    // "" 또는 "ALL" 같은 값이면 전체
+    if (!value) {
+      setItemTypeFilter(undefined);
+    } else {
+      setItemTypeFilter(value); // 예: "BAKERY"
+    }
+    setPage(0); // 필터 바꾸면 1페이지로
   };
 
   const goToPage = (p: number) => {
@@ -222,20 +236,23 @@ export function useInventory() {
     inventoryData,
     isInventoryLoading,
     inventoryError,
-    
+
     lowStockItems: lowStockItems ?? [],
     isLowStockLoading,
-    
+
     page,
     pageSize,
     setPageSize,
     goToPage,
-    
+
     searchQuery, // ⭐️ API 호출용 searchQuery 반환
     handleSearch, // ⭐️ 검색 제출 핸들러
 
     showInactiveOnly,
     setShowInactiveOnly,
+
+    itemTypeFilter,
+    handleChangeItemType,
 
     isAddModalOpen,
     setIsAddModalOpen,
@@ -251,7 +268,7 @@ export function useInventory() {
     handleExportExcel,
     handleDeactivate,
     handleReactivate,
-    
+
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeactivating: deactivateMutation.isPending,
