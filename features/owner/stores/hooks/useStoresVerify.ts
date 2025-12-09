@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   requestPhoneVerification,
   pollPhoneVerification,
@@ -10,9 +10,16 @@ import {
 
 export type PhoneStep = "IDLE" | "CODE" | "VERIFIED";
 
-export default function useStoresVerify(onVerifiedAction?: (info: any) => void) {
+// ✅ [수정] Named Export로 변경 (export default 제거)
+export function useStoresVerify(onVerifiedAction?: (info: any) => void) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ bizNo: "", phone: "" });
+  
+  // ✅ [수정] State 타입 명시 (이것이 StoresVerify.tsx의 'p' 타입 에러를 해결함)
+  const [form, setForm] = useState<{ bizNo: string; phone: string }>({ 
+    bizNo: "", 
+    phone: "" 
+  });
+  
   const [error, setError] = useState("");
 
   const [phoneStep, setPhoneStep] = useState<PhoneStep>("IDLE");
@@ -22,6 +29,13 @@ export default function useStoresVerify(onVerifiedAction?: (info: any) => void) 
 
   const [saving, setSaving] = useState(false);
   const [verifiedInfo, setVerifiedInfo] = useState<any | null>(null);
+
+  // 컴포넌트 언마운트 시 폴링 정리
+  useEffect(() => {
+    return () => {
+      if (pollingId) clearInterval(pollingId);
+    };
+  }, [pollingId]);
 
   const handlePhoneVerify = async () => {
     if (!form.phone.trim()) {
@@ -41,17 +55,17 @@ export default function useStoresVerify(onVerifiedAction?: (info: any) => void) 
           if (status === "VERIFIED") {
             setPhoneStep("VERIFIED");
             setAuthCode(null);
-            if (pollingId) clearInterval(pollingId);
+            if (timer) clearInterval(timer);
             setPollingId(null);
           } else if (status === "EXPIRED") {
             setError("인증이 만료되었습니다. 다시 요청해주세요.");
             setPhoneStep("IDLE");
             setAuthCode(null);
-            if (pollingId) clearInterval(pollingId);
+            if (timer) clearInterval(timer);
             setPollingId(null);
           }
         } catch {
-          // 폴링 에러는 무시
+          // 폴링 에러 무시
         }
       }, 3000);
       setPollingId(timer);
@@ -106,7 +120,6 @@ export default function useStoresVerify(onVerifiedAction?: (info: any) => void) 
   };
 
   return {
-    // state
     open,
     form,
     error,
@@ -115,13 +128,9 @@ export default function useStoresVerify(onVerifiedAction?: (info: any) => void) 
     phoneLoading,
     saving,
     verifiedInfo,
-
-    // setters
     setOpen,
     setForm,
     setError,
-
-    // actions
     handlePhoneVerify,
     handleSave,
     handleClose,

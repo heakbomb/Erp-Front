@@ -12,11 +12,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import useStoresVerify from "@/features/owner/stores/hooks/useStoresVerify";
+
+// ✅ [수정] Named Import로 변경 (default import 제거)
+import { useStoresVerify } from "@/features/owner/stores/hooks/useStoresVerify";
 
 type StoresVerifyProps = {
   onVerifiedAction?: (info: any) => void;
-  /** 페이지 레이아웃에서 버튼 옆에 작은 카드 표시 여부(기본 true) — (현재는 카드 미사용) */
   showInlineCard?: boolean;
 };
 
@@ -40,7 +41,6 @@ export default function StoresVerify({
   } = useStoresVerify(onVerifiedAction);
 
   return (
-    // inline-flex 로 실제 내용 폭만 차지 → 옆 버튼이 밀리지 않음
     <div className="inline-flex flex-wrap items-start gap-3 align-top max-w-full">
       <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : handleClose(true))}>
         <DialogTrigger asChild>
@@ -59,9 +59,17 @@ export default function StoresVerify({
               <Label htmlFor="verify-phone">전화번호</Label>
               <Input
                 id="verify-phone"
+                type="tel"
                 value={form.phone}
-                onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                placeholder="예) 010-1234-5678"
+                onChange={(e) => {
+                  const onlyNumbers = e.target.value.replace(/[^0-9]/g, "");
+                  if (onlyNumbers.length <= 11) {
+                    // ✅ Hook에서 State 타입을 정의했으므로 'p' 타입 에러 해결됨
+                    setForm((p) => ({ ...p, phone: onlyNumbers }));
+                  }
+                }}
+                placeholder="예) 01012345678 (하이픈 없이 입력)"
+                maxLength={11}
                 disabled={phoneStep === "CODE" || phoneStep === "VERIFIED"}
               />
               {phoneStep === "VERIFIED" && (

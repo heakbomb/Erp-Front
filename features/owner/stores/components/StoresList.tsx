@@ -1,12 +1,15 @@
-// features/owner/stores/components/StoresList.tsx
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { useState, useEffect, useMemo } from "react"
+import { MoreHorizontal, Store as StoreIcon, MapPin, Edit, Trash2, RefreshCcw, Copy } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -15,12 +18,82 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Store, MapPin, Phone, Edit, Trash2, Copy, RefreshCcw } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 import { useStores } from "@/features/owner/stores/hooks/useStores"
-import { NaverMapPicker } from "./NaverMapPicker"
+import useNaverLoader from "@/features/owner/stores/hooks/useNaverLoader"
+import { 
+  fetchBusinessNumbersByOwner, 
+  type BusinessNumber,
+  type StoreResponse 
+} from "@/features/owner/stores/services/storesService"
 import { formatStoreStatus, extractErrorMessage } from "@/lib/utils"
-import type { StoreType } from "../services/storesService"
+
+// 내부 지도 컴포넌트
+function NaverMapPicker({
+  onSelect,
+  mapId = "naver-map-picker-edit",
+  defaultLat = 37.5665,
+  defaultLng = 126.978,
+}: {
+  onSelect: (lat: number, lng: number) => void
+  mapId?: string
+  defaultLat?: number
+  defaultLng?: number
+}) {
+  const loaded = useNaverLoader()
+  const [inited, setInited] = useState(false)
+
+  useEffect(() => {
+    if (!loaded || inited) return
+    const el = document.getElementById(mapId)
+    if (!el) return
+    const { naver } = window as any
+    
+    const centerLat = isNaN(defaultLat) ? 37.5665 : defaultLat
+    const centerLng = isNaN(defaultLng) ? 126.978 : defaultLng
+
+    const map = new naver.maps.Map(el, {
+      center: new naver.maps.LatLng(centerLat, centerLng),
+      zoom: 15,
+    })
+    const marker = new naver.maps.Marker({
+      position: new naver.maps.LatLng(centerLat, centerLng),
+      map,
+    })
+    naver.maps.Event.addListener(map, "click", (e: any) => {
+      const lat = e.coord.lat()
+      const lng = e.coord.lng()
+      marker.setPosition(e.coord)
+      onSelect(lat, lng)
+    })
+    setInited(true)
+  }, [loaded, inited, mapId, onSelect, defaultLat, defaultLng])
+
+  return (
+    <div
+      id={mapId}
+      style={{
+        width: "100%",
+        height: 320,
+        borderRadius: "0.5rem",
+        background: loaded ? "#eee" : "#f3f4f6",
+      }}
+    >
+      {!loaded && <p className="p-2 text-xs text-muted-foreground">지도를 불러오는 중…</p>}
+    </div>
+  )
+}
 
 export default function StoresList({
   version,
@@ -32,17 +105,14 @@ export default function StoresList({
   const { 
     stores, 
     loading, 
-    hasData, 
-    hardDelete, 
-    softDelete,
-    reactivate,
+    // hasData, 
+    softDelete, 
+    reactivate, 
     patch 
   } = useStores(version);
 
-  // ✅ 활성 / 비활성 필터 상태
   const [showInactiveOnly, setShowInactiveOnly] = useState(false);
 
-  // ✅ 필터된 목록 (기본: 활성만, 토글 시: 비활성만)
   const visibleStores = useMemo(
     () =>
       showInactiveOnly
@@ -53,7 +123,8 @@ export default function StoresList({
 
   const hasVisible = visibleStores.length > 0;
 
-  const [openEdit, setOpenEdit] = useState(false)
+  // 수정 모달 상태
+  const [editOpen, setEditOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({
     bizId: "",
@@ -62,68 +133,46 @@ export default function StoresList({
     posVendor: "",
     latitude: "",
     longitude: "",
+    gpsRadiusM: "80",
   })
   const [savingEdit, setSavingEdit] = useState(false)
   const [openEditMap, setOpenEditMap] = useState(false)
+  const [bizList, setBizList] = useState<BusinessNumber[]>([])
+
+  const OWNER_ID = 1
 
   const handleCopy = (id: number) => {
     navigator.clipboard.writeText(String(id))
     alert("사업장 코드가 복사되었습니다!")
   }
 
-  // ✅ 비활성화
   const handleDelete = async (id: number) => {
     if (!confirm("정말로 이 사업장을 비활성화하시겠습니까?")) return;
-
     try {
-      await softDelete(id); // force=false → 백엔드에서 INACTIVE 처리
+      await softDelete(id);
       alert("사업장이 비활성화되었습니다.");
-
-      // ✅ 상태 변경 즉시 전체 새로고침
-      if (typeof window !== "undefined") {
-        window.location.reload();
-      }
-
       onChangedAction?.();
     } catch (err: any) {
-      console.error("사업장 비활성화 실패:", err);
-      const status = err?.response?.status;
-
-      if (status === 409) {
-        alert(
-          "이 사업장에는 근무배정(직원 연결) 정보가 있어 비활성화할 수 없습니다.\n" +
-          "근무 기록 보호를 위해 관리자에게 요청해 주세요."
-        );
-        return;
-      }
-
+      console.error(err);
       const msg = extractErrorMessage(err);
       alert(msg);
     }
   };
 
-  // ✅ 활성화
   const handleActivate = async (id: number) => {
     if (!confirm("이 사업장을 다시 활성화하시겠습니까?")) return;
-
     try {
       await reactivate(id);
       alert("사업장이 다시 활성화되었습니다.");
-
-      // ✅ 상태 변경 즉시 전체 새로고침
-      if (typeof window !== "undefined") {
-        window.location.reload();
-      }
-
       onChangedAction?.();
     } catch (err: any) {
-      console.error("사업장 활성화 실패:", err);
+      console.error(err);
       const msg = extractErrorMessage(err);
       alert(msg);
     }
   };
 
-  const openEditModal = (s: StoreType) => {
+  const openEditModal = async (s: StoreResponse) => {
     setEditingId(s.storeId)
     setEditForm({
       bizId: s.bizId ? String(s.bizId) : "",
@@ -132,16 +181,52 @@ export default function StoresList({
       posVendor: s.posVendor ?? "",
       latitude: s.latitude != null ? String(s.latitude) : "",
       longitude: s.longitude != null ? String(s.longitude) : "",
+      gpsRadiusM: s.gpsRadiusM != null ? String(s.gpsRadiusM) : "80",
     })
-    setOpenEdit(true)
+    
+    // 사업자번호 목록 로드
+    try {
+      const data = await fetchBusinessNumbersByOwner(OWNER_ID)
+      setBizList(data)
+    } catch (e) {
+      console.error(e)
+    }
+
+    setEditOpen(true)
+  }
+
+  const getCurrent = () => {
+    if (!navigator.geolocation) {
+      alert("이 브라우저에서는 위치를 사용할 수 없습니다.")
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setEditForm((p) => ({
+          ...p,
+          latitude: String(pos.coords.latitude),
+          longitude: String(pos.coords.longitude),
+        }))
+      },
+      () => alert("위치를 가져오지 못했습니다."),
+      { enableHighAccuracy: true, timeout: 5000 }
+    )
   }
 
   const handleUpdate = async () => {
     if (!editingId) return
-    if (!editForm.bizId.trim() || !editForm.storeName.trim() || !editForm.industry.trim()) {
-      alert("사업자 ID, 사업장명, 업종은 필수입니다.")
+    if (!editForm.storeName.trim() || !editForm.industry.trim()) {
+      alert("필수 항목을 입력하세요.")
       return
     }
+    
+    // 위도/경도 필수 체크
+    if (!editForm.latitude || !editForm.longitude) {
+      alert("사업장 위치(위도/경도)는 필수입니다. 지도 버튼을 눌러 위치를 선택해주세요.")
+      setOpenEditMap(true) 
+      return
+    }
+
     try {
       setSavingEdit(true)
       await patch(editingId, {
@@ -149,23 +234,26 @@ export default function StoresList({
         storeName: editForm.storeName,
         industry: editForm.industry,
         posVendor: editForm.posVendor || null,
-        latitude: editForm.latitude ? Number(editForm.latitude) : null,
-        longitude: editForm.longitude ? Number(editForm.longitude) : null,
+        latitude: Number(editForm.latitude),
+        longitude: Number(editForm.longitude),
+        gpsRadiusM: Number(editForm.gpsRadiusM),
       })
-      setOpenEdit(false)
+      alert("수정되었습니다.")
+      setEditOpen(false)
       setEditingId(null)
       onChangedAction?.()
     } catch (e) {
-      console.error("사업장 수정 실패:", e)
-      alert(`수정 중 오류가 발생했습니다: ${extractErrorMessage(e)}`)
+      console.error(e)
+      alert("수정 실패")
     } finally {
       setSavingEdit(false)
     }
   }
 
+  if (loading) return <div>로딩 중...</div>
+
   return (
     <>
-      {/* ✅ 상단 필터 버튼 */}
       <div className="flex justify-end mb-4">
         <Button
           variant={showInactiveOnly ? "default" : "outline"}
@@ -184,7 +272,7 @@ export default function StoresList({
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Store className="h-6 w-6 text-primary" />
+                      <StoreIcon className="h-6 w-6 text-primary" />
                     </div>
                     <div>
                       <CardTitle>{store.storeName}</CardTitle>
@@ -217,30 +305,19 @@ export default function StoresList({
                       복사
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    💡 직원에게 이 코드를 공유하여 근무 신청을 받으세요
-                  </p>
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex items-start gap-2 text-sm">
-                    <Store className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <StoreIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <span className="text-muted-foreground">
                       사업자번호: {store.bizNum ?? "-"}
                     </span>
                   </div>
-
                   <div className="flex items-start gap-2 text-sm">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <span className="text-muted-foreground">
-                      POS {store.posVendor ? store.posVendor : "미등록"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-start gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <span className="text-muted-foreground">
-                      lat: {store.latitude ?? "-"}, lng: {store.longitude ?? "-"}
+                      {store.latitude ?? "-"}, {store.longitude ?? "-"}
                     </span>
                   </div>
                 </div>
@@ -250,7 +327,6 @@ export default function StoresList({
                     <Edit className="mr-2 h-4 w-4" />
                     수정
                   </Button>
-
                   {store.status === "INACTIVE" ? (
                     <Button
                       variant="outline"
@@ -274,138 +350,143 @@ export default function StoresList({
               </CardContent>
             </Card>
           ))}
-
+          
         {!hasVisible && !loading && (
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground col-span-2 text-center py-8">
             {showInactiveOnly
               ? "비활성화된 사업장이 없습니다."
               : "등록된 사업장이 없습니다. 오른쪽 상단에서 추가하세요."}
           </div>
         )}
-        {loading && <div className="text-sm text-muted-foreground">불러오는 중…</div>}
       </div>
 
       {/* 수정 다이얼로그 */}
-      <Dialog open={openEdit} onOpenChange={setOpenEdit}>
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>사업장 수정</DialogTitle>
-            <DialogDescription>사업장 정보를 변경합니다.</DialogDescription>
+            <DialogTitle>사업장 정보 수정</DialogTitle>
+            <DialogDescription>
+              변경할 정보를 입력하세요.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            
             <div className="space-y-2">
-              <Label htmlFor="edit-bizId">사업자 ID</Label>
-              <Input
-                id="edit-bizId"
-                type="number"
+              <Label>사업자번호</Label>
+              <Select
                 value={editForm.bizId}
-                onChange={(e) => setEditForm((p) => ({ ...p, bizId: e.target.value }))}
-              />
+                onValueChange={(val) => setEditForm(p => ({ ...p, bizId: val }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="사업자번호 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bizList.map(bn => (
+                    <SelectItem key={bn.bizId} value={String(bn.bizId)}>
+                      {bn.bizNum}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="edit-storeName">사업장명</Label>
+              <Label>사업장명</Label>
               <Input
-                id="edit-storeName"
                 value={editForm.storeName}
-                onChange={(e) => setEditForm((p) => ({ ...p, storeName: e.target.value }))}
+                onChange={(e) => setEditForm(p => ({ ...p, storeName: e.target.value }))}
               />
             </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="edit-industry">업종</Label>
+              <Label>업종</Label>
               <Input
-                id="edit-industry"
                 value={editForm.industry}
-                onChange={(e) => setEditForm((p) => ({ ...p, industry: e.target.value }))}
+                onChange={(e) => setEditForm(p => ({ ...p, industry: e.target.value }))}
               />
             </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="edit-posVendor">POS 시스템</Label>
+              <Label>POS 시스템</Label>
               <Input
-                id="edit-posVendor"
                 value={editForm.posVendor}
-                onChange={(e) => setEditForm((p) => ({ ...p, posVendor: e.target.value }))}
+                onChange={(e) => setEditForm(p => ({ ...p, posVendor: e.target.value }))}
               />
             </div>
+
+            {/* ⭐️ [수정] 위도/경도 직접 입력 차단 (disabled & onChange 제거) */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="edit-lat">위도</Label>
+                <Label>위도</Label>
                 <Input
-                  id="edit-lat"
                   value={editForm.latitude}
-                  onChange={(e) => setEditForm((p) => ({ ...p, latitude: e.target.value }))}
+                  disabled
+                  className="bg-gray-100 disabled:opacity-100 disabled:cursor-not-allowed text-foreground"
+                  placeholder="지도 버튼을 사용하세요"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-lng">경도</Label>
+                <Label>경도</Label>
                 <Input
-                  id="edit-lng"
                   value={editForm.longitude}
-                  onChange={(e) => setEditForm((p) => ({ ...p, longitude: e.target.value }))}
+                  disabled
+                  className="bg-gray-100 disabled:opacity-100 disabled:cursor-not-allowed text-foreground"
+                  placeholder="지도 버튼을 사용하세요"
                 />
               </div>
             </div>
+
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  if (!navigator.geolocation) {
-                    alert("이 브라우저에서는 위치를 사용할 수 없습니다.")
-                    return
-                  }
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      setEditForm((p) => ({
-                        ...p,
-                        latitude: String(pos.coords.latitude),
-                        longitude: String(pos.coords.longitude),
-                      }))
-                    },
-                    () => alert("위를 가져오지 못했습니다."),
-                    { enableHighAccuracy: true, timeout: 5000 }
-                  )
-                }}
-              >
-                현재 위치 가져오기
+              <Button type="button" variant="outline" onClick={getCurrent}>
+                현재 위치 갱신
               </Button>
               <Button type="button" variant="outline" onClick={() => setOpenEditMap(true)}>
-                지도에서 선택
+                지도에서 변경
               </Button>
             </div>
+            
+            <div className="space-y-2">
+               <Label>근무지 허용 반경(m)</Label>
+               <Input 
+                 type="number"
+                 value={editForm.gpsRadiusM}
+                 onChange={(e) => setEditForm(p => ({ ...p, gpsRadiusM: e.target.value }))}
+                 placeholder="기본 80m"
+               />
+            </div>
+
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenEdit(false)}>
-              취소
-            </Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>취소</Button>
             <Button onClick={handleUpdate} disabled={savingEdit}>
-              {savingEdit ? "저장 중..." : "저장"}
+              {savingEdit ? "저장 중..." : "수정 저장"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* 위치 선택 다이얼로그 */}
+      
+      {/* 지도 선택 모달 (수정용) */}
       <Dialog open={openEditMap} onOpenChange={setOpenEditMap}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>지도에서 위치 선택</DialogTitle>
-            <DialogDescription>지도를 클릭하면 위도/경도가 수정 폼에 들어갑니다.</DialogDescription>
+            <DialogTitle>사업장 위치 변경</DialogTitle>
+            <DialogDescription>지도를 클릭하여 위치를 변경하세요.</DialogDescription>
           </DialogHeader>
           <NaverMapPicker
             mapId="naver-map-picker-edit"
-            onSelect={(lat, lng) =>
-              setEditForm((p) => ({
-                ...p,
-                latitude: String(lat),
-                longitude: String(lng),
-              }))
+            defaultLat={Number(editForm.latitude) || 37.5665}
+            defaultLng={Number(editForm.longitude) || 126.978}
+            onSelect={(lat, lng) => 
+               setEditForm(p => ({
+                 ...p,
+                 latitude: String(lat),
+                 longitude: String(lng)
+               }))
             }
-            defaultLat={editForm.latitude ? Number(editForm.latitude) : 37.5665}
-            defaultLng={editForm.longitude ? Number(editForm.longitude) : 126.978}
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenEditMap(false)}>
-              닫기
+              선택 완료
             </Button>
           </DialogFooter>
         </DialogContent>
