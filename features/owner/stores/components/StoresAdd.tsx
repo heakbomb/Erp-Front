@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Store as StoreIcon } from "lucide-react"
 
-// ✅ Select 컴포넌트 추가
 import {
   Select,
   SelectContent,
@@ -24,7 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-// ✅ hooks/services로 분리
 import useNaverLoader from "@/features/owner/stores/hooks/useNaverLoader"
 import {
   createStore,
@@ -32,7 +30,6 @@ import {
   type BusinessNumber,
 } from "@/features/owner/stores/services/storesService"
 
-// 지도 컴포넌트 (로더는 훅으로 교체)
 function NaverMapPicker({
   onSelect,
   mapId = "naver-map-picker-add",
@@ -103,14 +100,11 @@ export default function StoresAdd({
   const [saving, setSaving] = useState(false)
   const [openMap, setOpenMap] = useState(false)
 
-  // ✅ 사업자번호 목록 상태
   const [bizList, setBizList] = useState<BusinessNumber[]>([])
   const [bizLoading, setBizLoading] = useState(false)
 
-  // ⚠️ 로그인 붙기 전까지 임시 Owner ID
   const OWNER_ID = 1
 
-  // ✅ 모달이 열릴 때 해당 Owner 의 사업자번호 목록 로드
   useEffect(() => {
     if (!open) return
     if (bizList.length > 0) return
@@ -128,10 +122,8 @@ export default function StoresAdd({
     }
 
     loadBizNumbers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // ✅ 인증이 새로 되면 bizId를 자동으로 채워줌
   useEffect(() => {
     if (verifiedInfo?.bizId) {
       setForm((p) => ({ ...p, bizId: String(verifiedInfo.bizId) }))
@@ -158,19 +150,25 @@ export default function StoresAdd({
 
   const handleCreate = async () => {
     if (!form.bizId.trim() || !form.storeName.trim() || !form.industry.trim()) {
-      alert("사업자 ID, 사업장명, 업종은 필수입니다.")
+      alert("사업자 번호, 사업장명, 업종은 필수입니다.")
       return
     }
+    
+    if (!form.latitude || !form.longitude) {
+      alert("사업장 위치(위도/경도)는 필수입니다. 지도 버튼을 눌러 위치를 선택해주세요.")
+      setOpenMap(true) 
+      return
+    }
+
     try {
       setSaving(true)
-      // ✅ services 사용 (UI/UX 변화 없음)
       await createStore({
         bizId: Number(form.bizId),
         storeName: form.storeName,
         industry: form.industry,
         posVendor: form.posVendor || null,
-        latitude: form.latitude ? Number(form.latitude) : null,
-        longitude: form.longitude ? Number(form.longitude) : null,
+        latitude: Number(form.latitude),
+        longitude: Number(form.longitude),
       })
       alert("사업장이 추가되었습니다.")
       setOpen(false)
@@ -208,7 +206,7 @@ export default function StoresAdd({
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="add-bizId">사업자번호</Label>
+              <Label htmlFor="add-bizId">사업자번호 <span className="text-red-500">*</span></Label>
               {bizLoading ? (
                 <p className="text-xs text-muted-foreground px-1">
                   사업자번호 목록을 불러오는 중…
@@ -243,7 +241,7 @@ export default function StoresAdd({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="add-storeName">사업장명</Label>
+              <Label htmlFor="add-storeName">사업장명 <span className="text-red-500">*</span></Label>
               <Input
                 id="add-storeName"
                 value={form.storeName}
@@ -252,7 +250,7 @@ export default function StoresAdd({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="add-industry">업종</Label>
+              <Label htmlFor="add-industry">업종 <span className="text-red-500">*</span></Label>
               <Input
                 id="add-industry"
                 value={form.industry}
@@ -270,23 +268,26 @@ export default function StoresAdd({
               />
             </div>
 
+            {/* ⭐️ [수정] 위도/경도 직접 입력 차단 (disabled & onChange 제거) */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="add-lat">위도</Label>
+                <Label htmlFor="add-lat">위도 <span className="text-red-500">*</span></Label>
                 <Input
                   id="add-lat"
                   value={form.latitude}
-                  onChange={(e) => setForm((p) => ({ ...p, latitude: e.target.value }))}
-                  placeholder="예) 37.5665"
+                  disabled
+                  className="bg-gray-100 disabled:opacity-100 disabled:cursor-not-allowed text-foreground"
+                  placeholder="지도 버튼을 사용하세요"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="add-lng">경도</Label>
+                <Label htmlFor="add-lng">경도 <span className="text-red-500">*</span></Label>
                 <Input
                   id="add-lng"
                   value={form.longitude}
-                  onChange={(e) => setForm((p) => ({ ...p, longitude: e.target.value }))}
-                  placeholder="예) 126.9780" 
+                  disabled
+                  className="bg-gray-100 disabled:opacity-100 disabled:cursor-not-allowed text-foreground"
+                  placeholder="지도 버튼을 사용하세요"
                 />
               </div>
             </div>
@@ -299,6 +300,12 @@ export default function StoresAdd({
                 지도에서 선택
               </Button>
             </div>
+            
+            {(!form.latitude || !form.longitude) && (
+                <p className="text-xs text-red-500 mt-1 font-medium">
+                    * 지도 버튼을 눌러 매장 위치를 선택해주세요.
+                </p>
+            )}
           </div>
 
           <DialogFooter>
@@ -317,7 +324,7 @@ export default function StoresAdd({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>지도에서 위치 선택</DialogTitle>
-            <DialogDescription>지도를 클릭하면 위도/경도가 폼에 들어갑니다.</DialogDescription>
+            <DialogDescription>지도를 클릭하면 위도/경도가 폼에 자동으로 입력됩니다.</DialogDescription>
           </DialogHeader>
           <NaverMapPicker
             onSelect={(lat, lng) =>
@@ -333,7 +340,7 @@ export default function StoresAdd({
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenMap(false)}>
-              닫기
+              선택 완료
             </Button>
           </DialogFooter>
         </DialogContent>

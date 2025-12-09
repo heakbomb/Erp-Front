@@ -69,8 +69,16 @@ export default function SignUpView() {
                 <Input
                   id="owner-phone"
                   type="tel"
+                  placeholder="01012345678 (하이픈 없이 입력)"
+                  maxLength={11}
                   value={form.phone}
-                  onChange={(e) => updateField("phone", e.target.value)}
+                  onChange={(e) => {
+                    // ⭐️ [수정] 숫자가 아닌 문자 제거 및 11자리 제한
+                    const value = e.target.value.replace(/[^0-9]/g, "");
+                    if (value.length <= 11) {
+                      updateField("phone", value);
+                    }
+                  }}
                   required
                 />
               </div>

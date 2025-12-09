@@ -1,29 +1,28 @@
-// features/subscription/management/hooks/useSubscriptionManagement.ts
 "use client"
 
-import { useQuery } from "@tanstack/react-query"; // ⭐️ [FIX]
-import { useRouter } from "next/navigation"; // ⭐️ [FIX]
-import { Zap, Crown, Sparkles } from "lucide-react"; // ⭐️ [FIX]
-import { getCurrentSubscription } from "../subscriptionManagementService"; // ⭐️ [FIX]
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { Zap, Crown, Sparkles } from "lucide-react";
+import { getCurrentSubscription } from "../subscriptionManagementService";
 
-// ⭐️ 'subId'가 포함된 'plans' 상수를 정의합니다.
+// ⭐️ DB의 Subscription ID와 일치시켜야 함 (1: 베이직, 2: 프로, 3: 엔터프라이즈 가정)
 export const plans = [
   {
     id: "basic",
-    subId: 1, // ⭐️ DB ID
+    subId: 1, 
     name: "베이직",
     price: 29000,
-    icon: Zap, // ⭐️
+    icon: Zap,
     description: "소규모 사업장에 적합한 기본 플랜",
     features: ["사업장 1개 등록", "직원 5명까지", "기본 재고 관리", "매출/매입 관리", "월간 리포트", "이메일 지원"],
     popular: false,
   },
   {
     id: "pro",
-    subId: 2, // ⭐️ DB ID
+    subId: 2,
     name: "프로",
     price: 59000,
-    icon: Crown, // ⭐️
+    icon: Crown,
     description: "성장하는 사업장을 위한 프로 플랜",
     features: [
       "사업장 3개 등록",
@@ -39,10 +38,10 @@ export const plans = [
   },
   {
     id: "enterprise",
-    subId: 3, // ⭐️ DB ID
+    subId: 3,
     name: "엔터프라이즈",
     price: 99000,
-    icon: Sparkles, // ⭐️
+    icon: Sparkles,
     description: "대규모 사업장을 위한 프리미엄 플랜",
     features: [
       "사업장 무제한",
@@ -59,18 +58,19 @@ export const plans = [
 ]
 
 export function useSubscriptionManagement() {
-  const router = useRouter() // ⭐️ [FIX]
+  const router = useRouter()
 
+  // ⭐️ 백엔드에서 현재 구독 정보 가져오기
   const { 
     data: currentPlanData, 
     isLoading: isCurrentPlanLoading, 
     error: currentPlanError 
-  } = useQuery({ // ⭐️ [FIX]
+  } = useQuery({
     queryKey: ["currentSubscription"],
-    queryFn: getCurrentSubscription, // ⭐️ [FIX]
+    queryFn: getCurrentSubscription,
+    retry: false, // 404(구독 없음)일 때 계속 재시도하지 않도록 설정
   })
 
-  // 플랜 선택 핸들러는 'plan.id' (string)를 사용합니다.
   const handleSelectPlan = (planId: string) => {
     router.push(`/owner/subscription/checkout?plan=${planId}`)
   }
