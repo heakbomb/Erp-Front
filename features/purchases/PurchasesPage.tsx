@@ -118,11 +118,43 @@ export default function PurchasesPageFeature() {
         <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div className="space-y-1">
             <Label>시작일</Label>
-            <Input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); handlePageChange(0); }} />
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                const newStart = e.target.value;
+
+                // 시작일 변경
+                setStartDate(newStart);
+
+                if (endDate && newStart && endDate < newStart) {
+                  setEndDate(newStart);        // or 시작일과 같게 맞추기
+                }
+
+                handlePageChange(0);
+              }}
+            />
           </div>
           <div className="space-y-1">
             <Label>종료일</Label>
-            <Input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); handlePageChange(0); }} />
+            <Input
+              type="date"
+              value={endDate}
+              min={startDate || undefined}      // 🔥 시작일 이전 날짜는 캘린더에서 선택 불가
+              onChange={(e) => {
+                const newEnd = e.target.value;
+
+                // 사용자가 직접 타이핑했을 때 대비
+                if (startDate && newEnd && newEnd < startDate) {
+                  // 필요하면 alert/toast 넣어도 됨
+                  // toast.error("종료일은 시작일보다 빠를 수 없습니다.");
+                  return;
+                }
+
+                setEndDate(newEnd);
+                handlePageChange(0);
+              }}
+            />
           </div>
           <div className="space-y-1">
             <Label>품목</Label>
@@ -224,7 +256,7 @@ export default function PurchasesPageFeature() {
                   <TableHead className="text-right">관리</TableHead>
                 </TableRow>
               </TableHeader>
-               <TableBody>
+              <TableBody>
                 {filteredRows.map((r) => {
                   const inv = inventoryOpts.find((i) => i.itemId === r.itemId);
                   const unit = inv?.stockType ? ` ${inv.stockType}` : "";
@@ -263,7 +295,7 @@ export default function PurchasesPageFeature() {
       {mounted && (
         <PurchaseModal
           open={isAddOpen}
-           onOpenChange={handleModalClose} 
+          onOpenChange={handleModalClose}
           onSubmit={handleSubmit}
           isPending={isSubmitting}
           inventoryOpts={inventoryOpts}

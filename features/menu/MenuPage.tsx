@@ -16,6 +16,7 @@ import { Plus, Search, Edit } from "lucide-react";
 import { useMenu } from "./hooks/useMenu";
 import { MenuModal } from "./components/MenuModal";
 import { RecipeModal } from "./components/RecipeModal";
+import { PAGE_WINDOW } from "@/lib/constants";
 
 const formatKR = new Intl.NumberFormat("ko-KR");
 
@@ -37,9 +38,6 @@ export default function MenuPage() {
     setSearchQuery,
     showInactiveOnly,
     setShowInactiveOnly,
-    costingMethod,
-    setCostingMethod,
-
     invOptions,
     recipeMap,
     onRecipeUpdated,
@@ -59,7 +57,16 @@ export default function MenuPage() {
     setIsRecipeModalOpen,
     selectedMenuForRecipe,
     openRecipeModal,
+
+    page,
+    pageSize,
+    setPageSize,
+    totalPages,
+    goToPage,
   } = useMenu();
+
+  const start = Math.floor(page / PAGE_WINDOW) * PAGE_WINDOW;
+  const end = Math.min(start + PAGE_WINDOW - 1, Math.max(totalPages - 1, 0));
 
   return (
     <div className="space-y-6">
@@ -158,190 +165,232 @@ export default function MenuPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>메뉴 목록</CardTitle>
-              <CardDescription>
-                등록된 메뉴를 관리하세요
-              </CardDescription>
+              <CardDescription>등록된 메뉴를 관리하세요</CardDescription>
             </div>
           </div>
         </CardHeader>
+
         <CardContent>
           {loading && (
-            <div className="text-sm text-muted-foreground">
-              불러오는 중…
-            </div>
+            <div className="text-sm text-muted-foreground">불러오는 중…</div>
           )}
+
           {error && (
-            <div className="text-sm text-red-500">
-              {error}
-            </div>
+            <div className="text-sm text-red-500">{error}</div>
           )}
+
           {!loading && !error && (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {items.map((item) => {
-                const cost = Number(item.calculatedCost ?? 0);
-                const price = Number(item.price || 0);
+            <>
+              {/* ✅ 메뉴 카드 리스트 */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {items.map((item) => {
+                  const cost = Number(item.calculatedCost ?? 0);
+                  const price = Number(item.price || 0);
+                  const margin = price > 0 ? ((price - cost) / price) * 100 : 0;
+                  const lowMargin = margin < 50;
+                  const isInactive = item.status === "INACTIVE";
 
-                const margin =
-                  price > 0 ? ((price - cost) / price) * 100 : 0;
-
-                const lowMargin = margin < 50;
-                const isInactive =
-                  item.status === "INACTIVE";
-
-                return (
-                  <Card
-                    key={item.menuId}
-                    className={
-                      isInactive ? "opacity-70" : ""
-                    }
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-lg">
-                            {item.menuName}
-                          </CardTitle>
-                          <Badge
-                            variant={
-                              isInactive
-                                ? "secondary"
-                                : "default"
-                            }
-                          >
-                            {item.status}
-                          </Badge>
+                  return (
+                    <Card
+                      key={item.menuId}
+                      className={isInactive ? "opacity-70" : ""}
+                    >
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-lg">
+                              {item.menuName}
+                            </CardTitle>
+                            <Badge
+                              variant={isInactive ? "secondary" : "default"}
+                            >
+                              {item.status}
+                            </Badge>
+                          </div>
                         </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="space-y-2 pt-2 border-t">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            판매가
-                          </span>
-                          <span className="font-medium">
-                            ₩
-                            {formatKR.format(price)}
-                          </span>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="space-y-2 pt-2 border-t">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">판매가</span>
+                            <span className="font-medium">
+                              ₩{formatKR.format(price)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">원가</span>
+                            <span className="font-medium">
+                              ₩{formatKR.format(cost)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">마진율</span>
+                            <span className="font-medium text-primary">
+                              {margin.toFixed(1)}%
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            원가
-                          </span>
-                          <span className="font-medium">
-                            ₩
-                            {formatKR.format(cost)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            마진율
-                          </span>
-                          <span className="font-medium text-primary">
-                            {margin.toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-                      {/* ✅ 마진 경고 배지/배너 */}
-                      {lowMargin && (
-                        <div className="mt-2 rounded-md border border-red-300 bg-red-50 dark:bg-red-950/20 p-2 text-xs text-red-600">
-                          이 메뉴는 마진율이 50% 미만입니다. 원가/판매가를 점검하세요.
-                        </div>
-                      )}
 
+                        {lowMargin && (
+                          <div className="mt-2 rounded-md border border-red-300 bg-red-50 dark:bg-red-950/20 p-2 text-xs text-red-600">
+                            이 메뉴는 마진율이 50% 미만입니다. 원가/판매가를 점검하세요.
+                          </div>
+                        )}
 
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 bg-transparent"
-                          onClick={() =>
-                            openEditModal(item)
-                          }
-                          disabled={isInactive}
-                        >
-                          <Edit className="mr-1 h-3 w-3" />
-                          수정
-                        </Button>
-                        <Button
-                          variant={
-                            isInactive
-                              ? "default"
-                              : "outline"
-                          }
-                          size="sm"
-                          className="flex-1"
-                          onClick={() =>
-                            toggleStatus(item)
-                          }
-                        >
-                          {isInactive
-                            ? "활성화"
-                            : "비활성화"}
-                        </Button>
-                      </div>
-
-                      {mounted && !isInactive && (
-                        <div className="pt-2">
+                        <div className="flex gap-2 pt-2">
                           <Button
-                            variant="secondary"
+                            variant="outline"
                             size="sm"
-                            className="w-full"
-                            onClick={() =>
-                              openRecipeModal(item)
-                            }
+                            className="flex-1 bg-transparent"
+                            onClick={() => openEditModal(item)}
+                            disabled={isInactive}
                           >
-                            레시피 관리
+                            <Edit className="mr-1 h-3 w-3" />
+                            수정
+                          </Button>
+                          <Button
+                            variant={isInactive ? "default" : "outline"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => toggleStatus(item)}
+                          >
+                            {isInactive ? "활성화" : "비활성화"}
                           </Button>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-              {!items.length && (
+
+                        {mounted && !isInactive && (
+                          <div className="pt-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => openRecipeModal(item)}
+                            >
+                              레시피 관리
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+
+                {!items.length && (
+                  <div className="text-sm text-muted-foreground">
+                    표시할 데이터가 없습니다.
+                  </div>
+                )}
+              </div>
+
+              {/* ✅ 페이지네이션 영역 */}
+              <div className="mt-4 flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
-                  표시할 데이터가 없습니다.
+                  페이지 {page + 1} / {Math.max(totalPages, 1)} · {pageSize}/페이지
                 </div>
-              )}
-            </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={page === 0}
+                    onClick={() => goToPage(0)}
+                  >
+                    « 처음
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={page <= 0}
+                    onClick={() => goToPage(page - 1)}
+                  >
+                    ‹ 이전
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: end - start + 1 }, (_, i) => start + i).map(
+                      (p) => (
+                        <Button
+                          key={p}
+                          variant={p === page ? "default" : "outline"}
+                          onClick={() => goToPage(p)}
+                        >
+                          {p + 1}
+                        </Button>
+                      )
+                    )}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => goToPage(page + 1)}
+                  >
+                    다음 ›
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => goToPage(Math.max(totalPages - 1, 0))}
+                  >
+                    마지막 »
+                  </Button>
+
+                  <select
+                    className="h-9 rounded-md border bg-background px-2 text-sm ml-2"
+                    value={pageSize}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      setPageSize(next);
+                      goToPage(0);
+                    }}
+                  >
+                    {[6, 12, 24, 48].map((n) => (
+                      <option key={n} value={n}>
+                        {n}/페이지
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
+
       {/* ⭐️ 2. 모달들은 별도 컴포넌트로 분리하여 렌더링합니다. */}
-      {mounted && (
-        <>
-          <MenuModal
-            mode="add"
-            open={isAddModalOpen}
-            onOpenChange={setIsAddModalOpen}
-            onSubmit={handleCreate}
-          />
-          <MenuModal
-            mode="edit"
-            open={isEditModalOpen}
-            onOpenChange={setIsEditModalOpen}
-            onSubmit={handleUpdate}
-            defaultValues={
-              editingMenu
-                ? {
-                  menuName: editingMenu.menuName,
-                  price: Number(
-                    editingMenu.price
-                  ),
-                }
-                : undefined
-            }
-          />
-          <RecipeModal
-            open={isRecipeModalOpen}
-            onOpenChange={setIsRecipeModalOpen}
-            menu={selectedMenuForRecipe}
-            invOptions={invOptions}
-          />
-        </>
-      )}
-    </div>
+      {
+        mounted && (
+          <>
+            <MenuModal
+              mode="add"
+              open={isAddModalOpen}
+              onOpenChange={setIsAddModalOpen}
+              onSubmit={handleCreate}
+            />
+            <MenuModal
+              mode="edit"
+              open={isEditModalOpen}
+              onOpenChange={setIsEditModalOpen}
+              onSubmit={handleUpdate}
+              defaultValues={
+                editingMenu
+                  ? {
+                    menuName: editingMenu.menuName,
+                    price: Number(
+                      editingMenu.price
+                    ),
+                  }
+                  : undefined
+              }
+            />
+            <RecipeModal
+              open={isRecipeModalOpen}
+              onOpenChange={setIsRecipeModalOpen}
+              menu={selectedMenuForRecipe}
+              invOptions={invOptions}
+            />
+          </>
+        )
+      }
+    </div >
   );
 }
