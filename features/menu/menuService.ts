@@ -6,7 +6,6 @@ import { apiClient } from "@/lib/api/client"; // ✅ apiClient 사용
 export const STORE_ID = 11; // ⭐️ (임시) StoreContext로 대체 필요
 
 export type ActiveStatus = "ACTIVE" | "INACTIVE";
-export type CostingMethod = "AVERAGE" | "LAST";
 
 export type PageResponse<T> = {
   content: T[];
