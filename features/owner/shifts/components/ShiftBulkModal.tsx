@@ -66,6 +66,29 @@ export default function ShiftBulkModal({
     );
   };
 
+  // 🔹 "HH:mm" → 분 단위 숫자로 변환
+  const parseTimeToMinutes = (time: string) => {
+    const [h, m] = time.split(":").map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  };
+
+  // 🔹 휴게 시간 0~120분으로 제한
+  const handleBreakMinutesChange = (value: string) => {
+    if (value === "") {
+      setBreakMinutes("");
+      return;
+    }
+
+    let num = Number(value);
+    if (Number.isNaN(num)) return;
+
+    if (num < 0) num = 0;
+    if (num > 120) num = 120;
+
+    setBreakMinutes(String(num));
+  };
+
   const handleSubmit = async () => {
     if (!employeeId) {
       alert("직원을 선택해주세요.");
@@ -81,6 +104,18 @@ export default function ShiftBulkModal({
     }
     if (!startTime || !endTime) {
       alert("근무 시작/종료 시간을 입력해주세요.");
+      return;
+    }
+
+    // 🔹 시작/종료 시간 역순 방지 (하루를 넘기지 못하게)
+    const startMinutes = parseTimeToMinutes(startTime);
+    const endMinutes = parseTimeToMinutes(endTime);
+    if (startMinutes == null || endMinutes == null) {
+      alert("근무 시작/종료 시간을 다시 확인해주세요.");
+      return;
+    }
+    if (endMinutes <= startMinutes) {
+      alert("종료 시간은 시작 시간보다 늦어야 합니다. 하루를 넘길 수 없습니다.");
       return;
     }
 
@@ -206,9 +241,10 @@ export default function ShiftBulkModal({
               <Input
                 type="number"
                 min={0}
+                max={120}
                 value={breakMinutes}
-                onChange={(e) => setBreakMinutes(e.target.value)}
-                placeholder="예: 60"
+                onChange={(e) => handleBreakMinutesChange(e.target.value)}
+                placeholder="예:  (최대 120분)"
               />
             </div>
             <div className="space-y-1 flex items-center gap-2 mt-5">

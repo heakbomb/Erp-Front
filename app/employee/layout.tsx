@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { usePathname } from "next/navigation"; // ✅ usePathname 추가
 import { AppLayout } from "@/components/common/AppLayout";
 import { EMPLOYEE_NAV_ITEMS } from "@/lib/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { StoreProvider, useStore } from "@/contexts/StoreContext"; // ✅ StoreContext 추가
-import { ChevronDown, Clock, Store as StoreIcon } from "lucide-react";
+import { StoreProvider, useStore } from "@/contexts/StoreContext";
+import { ChevronDown, Clock } from "lucide-react";
 
 /**
  * 직원 레이아웃 전용 사용자 정보 UI
@@ -13,7 +14,7 @@ import { ChevronDown, Clock, Store as StoreIcon } from "lucide-react";
  */
 function EmployeeInfo() {
   const { user } = useAuth();
-  const { stores, currentStoreId, setCurrentStoreId, isLoading } = useStore(); // ✅ 사업장 상태 연동
+  const { stores, currentStoreId, setCurrentStoreId, isLoading } = useStore();
   const [open, setOpen] = useState(false);
 
   // 안전한 이름 처리
@@ -86,19 +87,32 @@ export default function EmployeeLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname(); // ✅ 현재 경로 확인용
   const [mounted, setMounted] = useState(false);
 
+  // ✅ Hydration Mismatch 방지 (main 브랜치 내용)
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) return null;
 
+  // ✅ 직원 모바일 출퇴근 페이지에서는 사이드바/상단바 제거 (HEAD 브랜치 내용)
+  if (pathname === "/employee/attendance/mobile") {
+    return <div className="min-h-screen bg-background">{children}</div>;
+  }
+
+  // ✅ '설정' 메뉴 필터링 (HEAD 브랜치 내용)
+  // 이름이 '설정'이거나 href에 'settings'가 포함된 경우 제외
+  const filteredNavigation = EMPLOYEE_NAV_ITEMS.filter(
+    (item) => item.name !== "설정" && !item.href.includes("/settings")
+  );
+
   return (
     // ✅ StoreProvider로 감싸서 내부에서 useStore 사용 가능하게 함
     <StoreProvider>
       <AppLayout
-        navigation={EMPLOYEE_NAV_ITEMS}
+        navigation={filteredNavigation} // ✅ 필터링된 네비게이션 적용
         userInfo={<EmployeeInfo />}
         logoIcon={Clock}
         logoText="직원 서비스"

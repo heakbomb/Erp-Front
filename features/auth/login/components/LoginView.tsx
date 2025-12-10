@@ -1,3 +1,4 @@
+// features/auth/login/components/LoginView.tsx
 "use client"
 
 import Link from "next/link"
@@ -13,8 +14,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Store, Users, Shield, Cookie as Google } from "lucide-react"
+import { Store, Users, Shield, Cookie as Google, QrCode } from "lucide-react" // 🔹 QrCode 추가
 import { useLogin } from "../hooks/useLogin"
+
+// 🔹 기존 EmployeesQr 재사용 (백오피스와 같은 동작)
+import EmployeesQr from "@/features/owner/employees/components/EmployeesQr"
 
 export function LoginView() {
   const {
@@ -22,8 +26,8 @@ export function LoginView() {
     ownerPassword,
     adminUsername,
     adminPassword,
-    isLoading,    // ✅ 로딩 상태 추가
-    fieldErrors,  // ✅ 필드 에러 추가
+    isLoading,    // ✅ 로딩 상태
+    fieldErrors,  // ✅ 필드 에러
     setOwnerEmail,
     setOwnerPassword,
     setAdminUsername,
@@ -42,8 +46,8 @@ export function LoginView() {
         </div>
 
         <Tabs defaultValue="owner" className="w-full">
-          {/* 탭 리스트 (변경 없음) */}
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          {/* 🔹 탭 개수가 4개가 되므로 grid-cols-4 로 변경 */}
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="owner" className="flex items-center gap-2">
               <Store className="h-4 w-4" />
               사장님
@@ -56,9 +60,14 @@ export function LoginView() {
               <Shield className="h-4 w-4" />
               관리자
             </TabsTrigger>
+            {/* 🔹 새로 추가되는 출결 QR 탭 */}
+            <TabsTrigger value="attendanceQr" className="flex items-center gap-2">
+              <QrCode className="h-4 w-4" />
+              출결 QR
+            </TabsTrigger>
           </TabsList>
 
-          {/* ================= 사장님 탭 (수정됨) ================= */}
+          {/* ================= 사장님 탭 ================= */}
           <TabsContent value="owner">
             <Card>
               <CardHeader>
@@ -67,8 +76,7 @@ export function LoginView() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleOwnerLogin} className="space-y-4">
-                  
-                  {/* 이메일 입력 */}
+                  {/* 이메일 */}
                   <div className="space-y-2">
                     <Label htmlFor="owner-email">이메일</Label>
                     <Input
@@ -77,17 +85,21 @@ export function LoginView() {
                       placeholder="example@email.com"
                       value={ownerEmail}
                       onChange={(e) => setOwnerEmail(e.target.value)}
-                      disabled={isLoading} // 로딩 중 입력 방지
-                      // ✅ 에러 발생 시 빨간 테두리 (className 조건부 적용)
-                      className={fieldErrors.ownerEmail ? "border-red-500 focus-visible:ring-red-500" : ""}
+                      disabled={isLoading}
+                      className={
+                        fieldErrors.ownerEmail
+                          ? "border-red-500 focus-visible:ring-red-500"
+                          : ""
+                      }
                     />
-                    {/* ✅ 에러 메시지 표시 */}
                     {fieldErrors.ownerEmail && (
-                      <p className="text-sm text-red-500">{fieldErrors.ownerEmail}</p>
+                      <p className="text-sm text-red-500">
+                        {fieldErrors.ownerEmail}
+                      </p>
                     )}
                   </div>
 
-                  {/* 비밀번호 입력 */}
+                  {/* 비밀번호 */}
                   <div className="space-y-2">
                     <Label htmlFor="owner-password">비밀번호</Label>
                     <Input
@@ -97,11 +109,16 @@ export function LoginView() {
                       value={ownerPassword}
                       onChange={(e) => setOwnerPassword(e.target.value)}
                       disabled={isLoading}
-                      className={fieldErrors.ownerPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
+                      className={
+                        fieldErrors.ownerPassword
+                          ? "border-red-500 focus-visible:ring-red-500"
+                          : ""
+                      }
                     />
-                    {/* ✅ 에러 메시지 표시 */}
                     {fieldErrors.ownerPassword && (
-                      <p className="text-sm text-red-500">{fieldErrors.ownerPassword}</p>
+                      <p className="text-sm text-red-500">
+                        {fieldErrors.ownerPassword}
+                      </p>
                     )}
                   </div>
 
@@ -127,7 +144,7 @@ export function LoginView() {
             </Card>
           </TabsContent>
 
-          {/* 직원 탭 (소셜 로그인 연결 - 변경 없음, 타입 에러만 수정) */}
+          {/* ================= 직원 탭 ================= */}
           <TabsContent value="employee">
             <Card>
               <CardHeader>
@@ -135,14 +152,25 @@ export function LoginView() {
                 <CardDescription>소셜 계정으로 간편하게 로그인하세요</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full bg-transparent" onClick={() => handleSocialLogin("google")}>
+                <Button
+                  variant="outline"
+                  className="w-full bg-transparent"
+                  onClick={() => handleSocialLogin("google")}
+                >
                   <Google className="mr-2 h-5 w-5" /> Google로 로그인
                 </Button>
-                <Button variant="outline" className="w-full bg-[#FEE500] hover:bg-[#FEE500]/90 text-[#000000] border-[#FEE500]" onClick={() => handleSocialLogin("kakao")}>
-                   {/* 카카오 아이콘 SVG 생략 (기존 유지) */}
+                <Button
+                  variant="outline"
+                  className="w-full bg-[#FEE500] hover:bg-[#FEE500]/90 text-[#000000] border-[#FEE500]"
+                  onClick={() => handleSocialLogin("kakao")}
+                >
                   카카오로 로그인
                 </Button>
-                <Button variant="outline" className="w-full bg-[#03C75A] hover:bg-[#03C75A]/90 text-white border-[#03C75A]" onClick={() => handleSocialLogin("naver")}>
+                <Button
+                  variant="outline"
+                  className="w-full bg-[#03C75A] hover:bg-[#03C75A]/90 text-white border-[#03C75A]"
+                  onClick={() => handleSocialLogin("naver")}
+                >
                   <span className="mr-2 font-bold text-lg">N</span> 네이버로 로그인
                 </Button>
               </CardContent>
@@ -154,10 +182,9 @@ export function LoginView() {
             </Card>
           </TabsContent>
 
-          {/* 관리자 탭 (변경 없음) */}
+          {/* ================= 관리자 탭 ================= */}
           <TabsContent value="admin">
-             {/* ... 기존 관리자 탭 내용 유지 ... */}
-             <Card>
+            <Card>
               <CardHeader>
                 <CardTitle>관리자 로그인</CardTitle>
                 <CardDescription>시스템 관리자 전용</CardDescription>
@@ -196,6 +223,22 @@ export function LoginView() {
                   관리자 계정은 시스템 관리자에게 문의하세요
                 </p>
               </CardFooter>
+            </Card>
+          </TabsContent>
+
+          {/* ================= 출결 QR 탭 (신규) ================= */}
+          <TabsContent value="attendanceQr">
+            <Card>
+              <CardHeader>
+                <CardTitle>출결 QR</CardTitle>
+                <CardDescription>
+                  직원 출퇴근용 사업장 QR 값을 발급·조회합니다.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* 기존 EmployeesQr 컴포넌트를 그대로 사용 */}
+                <EmployeesQr />
+              </CardContent>
             </Card>
           </TabsContent>
         </Tabs>

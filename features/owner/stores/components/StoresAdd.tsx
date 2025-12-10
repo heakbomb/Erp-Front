@@ -1,3 +1,4 @@
+// features/owner/stores/components/StoresAdd.tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -104,6 +105,7 @@ export default function StoresAdd({
   const [bizLoading, setBizLoading] = useState(false)
 
   const OWNER_ID = 1
+  const maxLen = 20
 
   useEffect(() => {
     if (!open) return
@@ -122,6 +124,7 @@ export default function StoresAdd({
     }
 
     loadBizNumbers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   useEffect(() => {
@@ -149,14 +152,18 @@ export default function StoresAdd({
   }
 
   const handleCreate = async () => {
-    if (!form.bizId.trim() || !form.storeName.trim() || !form.industry.trim()) {
-      alert("사업자 번호, 사업장명, 업종은 필수입니다.")
-      return
-    }
-    
-    if (!form.latitude || !form.longitude) {
-      alert("사업장 위치(위도/경도)는 필수입니다. 지도 버튼을 눌러 위치를 선택해주세요.")
-      setOpenMap(true) 
+    const missing: string[] = []
+
+    if (!form.bizId.trim()) missing.push("사업자번호")
+    if (!form.storeName.trim()) missing.push("사업장명")
+    if (!form.industry.trim()) missing.push("업종")
+    if (!form.latitude.trim()) missing.push("위도")
+    if (!form.longitude.trim()) missing.push("경도")
+
+    if (missing.length > 0) {
+      alert(
+        `다음 항목을 입력해 주세요:\n\n- ${missing.join("\n- ")}`
+      )
       return
     }
 
@@ -205,8 +212,9 @@ export default function StoresAdd({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* 사업자번호 */}
             <div className="space-y-2">
-              <Label htmlFor="add-bizId">사업자번호 <span className="text-red-500">*</span></Label>
+              <Label htmlFor="add-bizId">사업자번호</Label>
               {bizLoading ? (
                 <p className="text-xs text-muted-foreground px-1">
                   사업자번호 목록을 불러오는 중…
@@ -233,61 +241,115 @@ export default function StoresAdd({
                   </SelectContent>
                 </Select>
               )}
-              {(!bizLoading && bizList.length === 0) && (
+              {!bizLoading && bizList.length === 0 && (
                 <p className="text-xs text-muted-foreground px-1">
                   등록된 사업자번호가 없습니다. 먼저 사업자번호를 인증해 주세요.
                 </p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="add-storeName">사업장명 <span className="text-red-500">*</span></Label>
+            {/* 사업장명 */}
+            <div className="space-y-1">
+              <Label htmlFor="add-storeName">사업장명</Label>
               <Input
                 id="add-storeName"
                 value={form.storeName}
-                onChange={(e) => setForm((p) => ({ ...p, storeName: e.target.value }))}
-                placeholder="예) 홍대카페" 
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    storeName: e.target.value.slice(0, maxLen),
+                  }))
+                }
+                placeholder="예) 홍대카페"
+                maxLength={maxLen}
+                className={form.storeName.length >= maxLen ? "border-red-500" : ""}
               />
+              <p className="text-xs text-muted-foreground px-1">
+                최대 {maxLen}자까지 입력 가능합니다. ({form.storeName.length}/{maxLen})
+              </p>
+              {form.storeName.length >= maxLen && (
+                <p className="text-xs text-red-500 px-1">
+                  글자 수 한도(최대 {maxLen}자)에 도달했습니다.
+                </p>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="add-industry">업종 <span className="text-red-500">*</span></Label>
+
+            {/* 업종 */}
+            <div className="space-y-1">
+              <Label htmlFor="add-industry">업종</Label>
               <Input
                 id="add-industry"
                 value={form.industry}
-                onChange={(e) => setForm((p) => ({ ...p, industry: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    industry: e.target.value.slice(0, maxLen),
+                  }))
+                }
                 placeholder="예) 카페 / 한식 / 분식"
+                maxLength={maxLen}
+                className={form.industry.length >= maxLen ? "border-red-500" : ""}
               />
+              <p className="text-xs text-muted-foreground px-1">
+                최대 {maxLen}자까지 입력 가능합니다. ({form.industry.length}/{maxLen})
+              </p>
+              {form.industry.length >= maxLen && (
+                <p className="text-xs text-red-500 px-1">
+                  글자 수 한도(최대 {maxLen}자)에 도달했습니다.
+                </p>
+              )}
             </div>
-            <div className="space-y-2">
+
+            {/* POS 시스템(선택) */}
+            <div className="space-y-1">
               <Label htmlFor="add-posVendor">POS 시스템(선택)</Label>
               <Input
                 id="add-posVendor"
                 value={form.posVendor}
-                onChange={(e) => setForm((p) => ({ ...p, posVendor: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    posVendor: e.target.value.slice(0, maxLen),
+                  }))
+                }
                 placeholder="예) 포스시스템A"
+                maxLength={maxLen}
+                className={form.posVendor.length >= maxLen ? "border-red-500" : ""}
               />
+              <p className="text-xs text-muted-foreground px-1">
+                최대 {maxLen}자까지 입력 가능합니다. ({form.posVendor.length}/{maxLen})
+              </p>
+              {form.posVendor.length >= maxLen && (
+                <p className="text-xs text-red-500 px-1">
+                  글자 수 한도(최대 {maxLen}자)에 도달했습니다.
+                </p>
+              )}
             </div>
 
-            {/* ⭐️ [수정] 위도/경도 직접 입력 차단 (disabled & onChange 제거) */}
+            {/* 위도/경도 (직접 입력 불가, 읽기 전용) */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="add-lat">위도 <span className="text-red-500">*</span></Label>
+                <Label htmlFor="add-lat">위도</Label>
                 <Input
                   id="add-lat"
                   value={form.latitude}
-                  disabled
-                  className="bg-gray-100 disabled:opacity-100 disabled:cursor-not-allowed text-foreground"
-                  placeholder="지도 버튼을 사용하세요"
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, latitude: e.target.value }))
+                  }
+                  placeholder="예) 37.5665"
+                  readOnly
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="add-lng">경도 <span className="text-red-500">*</span></Label>
+                <Label htmlFor="add-lng">경도</Label>
                 <Input
                   id="add-lng"
                   value={form.longitude}
-                  disabled
-                  className="bg-gray-100 disabled:opacity-100 disabled:cursor-not-allowed text-foreground"
-                  placeholder="지도 버튼을 사용하세요"
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, longitude: e.target.value }))
+                  }
+                  placeholder="예) 126.9780"
+                  readOnly
                 />
               </div>
             </div>
@@ -300,12 +362,6 @@ export default function StoresAdd({
                 지도에서 선택
               </Button>
             </div>
-            
-            {(!form.latitude || !form.longitude) && (
-                <p className="text-xs text-red-500 mt-1 font-medium">
-                    * 지도 버튼을 눌러 매장 위치를 선택해주세요.
-                </p>
-            )}
           </div>
 
           <DialogFooter>
@@ -319,12 +375,12 @@ export default function StoresAdd({
         </DialogContent>
       </Dialog>
 
-      {/* 지도 다이얼로그 */}
+      {/* 지도 선택 다이얼로그 */}
       <Dialog open={openMap} onOpenChange={setOpenMap}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>지도에서 위치 선택</DialogTitle>
-            <DialogDescription>지도를 클릭하면 위도/경도가 폼에 자동으로 입력됩니다.</DialogDescription>
+            <DialogDescription>지도를 클릭하면 위도/경도가 폼에 들어갑니다.</DialogDescription>
           </DialogHeader>
           <NaverMapPicker
             onSelect={(lat, lng) =>
@@ -340,7 +396,7 @@ export default function StoresAdd({
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenMap(false)}>
-              선택 완료
+              닫기
             </Button>
           </DialogFooter>
         </DialogContent>

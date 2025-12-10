@@ -35,6 +35,7 @@ export interface Store {
   status: "PENDING" | "APPROVED" | "REJECTED" | "ACTIVE" | "OPERATING"| "INACTIVE"; // VARCHAR(20)
   approvedAt: string | null; // DATETIME
   bizNum?: string | null;
+  active: boolean
   // ✅✅✅ 
   // THESE LINES FIX THE 'latitude' and 'longitude' ERRORS
   latitude?: number | null;

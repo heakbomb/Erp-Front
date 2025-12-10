@@ -23,6 +23,7 @@ export interface StoreResponse {
   latitude?: number | null;
   longitude?: number | null;
   gpsRadiusM?: number | null;
+  active:boolean;
 }
 
 export type StoreType = StoreResponse;

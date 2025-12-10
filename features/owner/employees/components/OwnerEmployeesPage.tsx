@@ -32,7 +32,7 @@ export default function OwnerEmployeesPage() {
 
       <Card>
         <CardContent className="pt-4 sm:pt-6">
-          <Tabs defaultValue="employees" className="space-y-4">
+          <Tabs defaultValue="employees" className="space-y-3">
             {/* 탭 리스트 - 모바일에서 가로 스크롤 */}
             <div className="flex justify-between items-center">
               <TabsList className="w-full justify-start gap-2 overflow-x-auto">
@@ -44,9 +44,6 @@ export default function OwnerEmployeesPage() {
                 </TabsTrigger>
                 <TabsTrigger value="pending" className="whitespace-nowrap">
                   신청 대기
-                </TabsTrigger>
-                <TabsTrigger value="qr" className="whitespace-nowrap">
-                  출결 QR
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -85,16 +82,6 @@ export default function OwnerEmployeesPage() {
               <EmployeesPending />
             </TabsContent>
 
-            {/* 출결 QR */}
-            <TabsContent value="qr" className="space-y-3">
-              <div>
-                <h2 className="text-lg font-semibold sm:text-xl">출결 QR</h2>
-                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                  직원이 모바일로 스캔해 출근/퇴근을 체크할 수 있는 QR 코드를 생성하고 관리합니다.
-                </p>
-              </div>
-              <EmployeesQr />
-            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>

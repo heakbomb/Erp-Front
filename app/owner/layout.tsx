@@ -21,7 +21,9 @@ function OwnerInfo() {
     "홍길동";
 
   const currentStore =
-    stores.find((s) => s.storeId === currentStoreId) ?? stores[0];
+    currentStoreId != null
+      ? stores.find((s) => s.storeId === currentStoreId) ?? null
+      : null;
 
   const handleSelectStore = (id: number) => {
     setCurrentStoreId(id);
@@ -47,7 +49,11 @@ function OwnerInfo() {
           <p className="text-xs text-muted-foreground truncate">
             {isLoading
               ? "사업장 불러오는 중..."
-              : currentStore?.storeName ?? "등록된 사업장이 없습니다"}
+              : currentStore
+              ? currentStore.storeName
+              : stores.length > 0
+              ? "사업장을 선택해 주세요"
+              : "등록된 사업장이 없습니다"}
           </p>
         </div>
         <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -62,9 +68,7 @@ function OwnerInfo() {
                 type="button"
                 onClick={() => handleSelectStore(store.storeId)}
                 className={`block w-full px-3 py-2 text-sm text-left hover:bg-muted ${
-                  store.storeId === currentStore?.storeId
-                    ? "bg-muted font-semibold"
-                    : ""
+                  store.storeId === currentStoreId ? "bg-muted font-semibold" : ""
                 }`}
               >
                 {store.storeName}
@@ -94,6 +98,6 @@ export default function OwnerLayout({
           {children}
         </AppLayout>
       </OwnerStoreGuard>
-    </StoreProvider> 
+    </StoreProvider>
   );
 }
