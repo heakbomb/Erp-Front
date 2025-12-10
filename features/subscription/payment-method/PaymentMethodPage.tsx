@@ -77,6 +77,7 @@ export default function PaymentMethodPage() {
                     value={editName} 
                     onChange={(e) => setEditName(e.target.value)} 
                     className="h-8 text-sm"
+                    maxLength={20} // [수정] 글자수 제한 추가
                   />
                   <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => saveEdit(card.paymentId)}>
                     <Check className="h-4 w-4" />
@@ -140,13 +141,19 @@ export default function PaymentMethodPage() {
               <Label htmlFor="name" className="text-right">
                 이름
               </Label>
-              <Input
-                id="name"
-                value={newCardName}
-                onChange={(e) => setNewCardName(e.target.value)}
-                placeholder="내 카드"
-                className="col-span-3"
-              />
+              <div className="col-span-3">
+                <Input
+                  id="name"
+                  value={newCardName}
+                  onChange={(e) => setNewCardName(e.target.value)}
+                  placeholder="내 카드"
+                  maxLength={20} // [수정] 글자수 제한 추가
+                />
+                {/* [추가] 글자수 카운터 */}
+                <p className="text-xs text-muted-foreground mt-1 text-right">
+                  {newCardName.length} / 20
+                </p>
+              </div>
             </div>
           </div>
           <DialogFooter>

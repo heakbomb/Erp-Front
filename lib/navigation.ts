@@ -29,7 +29,7 @@ export const OWNER_NAV_ITEMS = [
   { name: "매입 관리", href: "/owner/purchases", icon: FileSpreadsheet },
   { name: "AI 인사이트", href: "/owner/ai-insights", icon: Bot },
   { name: "문서 관리", href: "/owner/documents", icon: FileText },
-  { name: "1:1 문의", href: "/owner/inquiries", icon: MessageCircleQuestion }, // ⭐️ 여기 추가됨
+  { name: "1:1 문의", href: "/owner/inquiries", icon: MessageCircleQuestion }, 
   { name: "설정", href: "/owner/settings", icon: Settings },
 ];
 
@@ -47,6 +47,5 @@ export const ADMIN_NAV_ITEMS = [
   { name: "사용자 관리", href: "/admin/users", icon: Users },
   { name: "사업장 승인", href: "/admin/stores", icon: Store },
   { name: "구독 관리", href: "/admin/subscriptions", icon: CreditCard },
-  { name: "로그 감사", href: "/admin/logs", icon: FileText },
   { name: "문의 관리", href: "/admin/inquiries", icon: MessageCircleQuestion },
 ];
