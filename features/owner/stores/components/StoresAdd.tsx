@@ -1,3 +1,4 @@
+// features/owner/stores/components/StoresAdd.tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -15,7 +16,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Store as StoreIcon } from "lucide-react"
 
-// ✅ Select 컴포넌트 추가
 import {
   Select,
   SelectContent,
@@ -24,7 +24,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-// ✅ hooks/services로 분리
 import useNaverLoader from "@/features/owner/stores/hooks/useNaverLoader"
 import {
   createStore,
@@ -32,7 +31,6 @@ import {
   type BusinessNumber,
 } from "@/features/owner/stores/services/storesService"
 
-// 지도 컴포넌트 (로더는 훅으로 교체)
 function NaverMapPicker({
   onSelect,
   mapId = "naver-map-picker-add",
@@ -103,14 +101,12 @@ export default function StoresAdd({
   const [saving, setSaving] = useState(false)
   const [openMap, setOpenMap] = useState(false)
 
-  // ✅ 사업자번호 목록 상태
   const [bizList, setBizList] = useState<BusinessNumber[]>([])
   const [bizLoading, setBizLoading] = useState(false)
 
-  // ⚠️ 로그인 붙기 전까지 임시 Owner ID
   const OWNER_ID = 1
+  const maxLen = 20
 
-  // ✅ 모달이 열릴 때 해당 Owner 의 사업자번호 목록 로드
   useEffect(() => {
     if (!open) return
     if (bizList.length > 0) return
@@ -131,7 +127,6 @@ export default function StoresAdd({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // ✅ 인증이 새로 되면 bizId를 자동으로 채워줌
   useEffect(() => {
     if (verifiedInfo?.bizId) {
       setForm((p) => ({ ...p, bizId: String(verifiedInfo.bizId) }))
@@ -157,20 +152,30 @@ export default function StoresAdd({
   }
 
   const handleCreate = async () => {
-    if (!form.bizId.trim() || !form.storeName.trim() || !form.industry.trim()) {
-      alert("사업자 ID, 사업장명, 업종은 필수입니다.")
+    const missing: string[] = []
+
+    if (!form.bizId.trim()) missing.push("사업자번호")
+    if (!form.storeName.trim()) missing.push("사업장명")
+    if (!form.industry.trim()) missing.push("업종")
+    if (!form.latitude.trim()) missing.push("위도")
+    if (!form.longitude.trim()) missing.push("경도")
+
+    if (missing.length > 0) {
+      alert(
+        `다음 항목을 입력해 주세요:\n\n- ${missing.join("\n- ")}`
+      )
       return
     }
+
     try {
       setSaving(true)
-      // ✅ services 사용 (UI/UX 변화 없음)
       await createStore({
         bizId: Number(form.bizId),
         storeName: form.storeName,
         industry: form.industry,
         posVendor: form.posVendor || null,
-        latitude: form.latitude ? Number(form.latitude) : null,
-        longitude: form.longitude ? Number(form.longitude) : null,
+        latitude: Number(form.latitude),
+        longitude: Number(form.longitude),
       })
       alert("사업장이 추가되었습니다.")
       setOpen(false)
@@ -207,6 +212,7 @@ export default function StoresAdd({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* 사업자번호 */}
             <div className="space-y-2">
               <Label htmlFor="add-bizId">사업자번호</Label>
               {bizLoading ? (
@@ -235,49 +241,103 @@ export default function StoresAdd({
                   </SelectContent>
                 </Select>
               )}
-              {(!bizLoading && bizList.length === 0) && (
+              {!bizLoading && bizList.length === 0 && (
                 <p className="text-xs text-muted-foreground px-1">
                   등록된 사업자번호가 없습니다. 먼저 사업자번호를 인증해 주세요.
                 </p>
               )}
             </div>
 
-            <div className="space-y-2">
+            {/* 사업장명 */}
+            <div className="space-y-1">
               <Label htmlFor="add-storeName">사업장명</Label>
               <Input
                 id="add-storeName"
                 value={form.storeName}
-                onChange={(e) => setForm((p) => ({ ...p, storeName: e.target.value }))}
-                placeholder="예) 홍대카페" 
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    storeName: e.target.value.slice(0, maxLen),
+                  }))
+                }
+                placeholder="예) 홍대카페"
+                maxLength={maxLen}
+                className={form.storeName.length >= maxLen ? "border-red-500" : ""}
               />
+              <p className="text-xs text-muted-foreground px-1">
+                최대 {maxLen}자까지 입력 가능합니다. ({form.storeName.length}/{maxLen})
+              </p>
+              {form.storeName.length >= maxLen && (
+                <p className="text-xs text-red-500 px-1">
+                  글자 수 한도(최대 {maxLen}자)에 도달했습니다.
+                </p>
+              )}
             </div>
-            <div className="space-y-2">
+
+            {/* 업종 */}
+            <div className="space-y-1">
               <Label htmlFor="add-industry">업종</Label>
               <Input
                 id="add-industry"
                 value={form.industry}
-                onChange={(e) => setForm((p) => ({ ...p, industry: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    industry: e.target.value.slice(0, maxLen),
+                  }))
+                }
                 placeholder="예) 카페 / 한식 / 분식"
+                maxLength={maxLen}
+                className={form.industry.length >= maxLen ? "border-red-500" : ""}
               />
+              <p className="text-xs text-muted-foreground px-1">
+                최대 {maxLen}자까지 입력 가능합니다. ({form.industry.length}/{maxLen})
+              </p>
+              {form.industry.length >= maxLen && (
+                <p className="text-xs text-red-500 px-1">
+                  글자 수 한도(최대 {maxLen}자)에 도달했습니다.
+                </p>
+              )}
             </div>
-            <div className="space-y-2">
+
+            {/* POS 시스템(선택) */}
+            <div className="space-y-1">
               <Label htmlFor="add-posVendor">POS 시스템(선택)</Label>
               <Input
                 id="add-posVendor"
                 value={form.posVendor}
-                onChange={(e) => setForm((p) => ({ ...p, posVendor: e.target.value }))}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    posVendor: e.target.value.slice(0, maxLen),
+                  }))
+                }
                 placeholder="예) 포스시스템A"
+                maxLength={maxLen}
+                className={form.posVendor.length >= maxLen ? "border-red-500" : ""}
               />
+              <p className="text-xs text-muted-foreground px-1">
+                최대 {maxLen}자까지 입력 가능합니다. ({form.posVendor.length}/{maxLen})
+              </p>
+              {form.posVendor.length >= maxLen && (
+                <p className="text-xs text-red-500 px-1">
+                  글자 수 한도(최대 {maxLen}자)에 도달했습니다.
+                </p>
+              )}
             </div>
 
+            {/* 위도/경도 (직접 입력 불가, 읽기 전용) */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="add-lat">위도</Label>
                 <Input
                   id="add-lat"
                   value={form.latitude}
-                  onChange={(e) => setForm((p) => ({ ...p, latitude: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, latitude: e.target.value }))
+                  }
                   placeholder="예) 37.5665"
+                  readOnly
                 />
               </div>
               <div className="space-y-2">
@@ -285,8 +345,11 @@ export default function StoresAdd({
                 <Input
                   id="add-lng"
                   value={form.longitude}
-                  onChange={(e) => setForm((p) => ({ ...p, longitude: e.target.value }))}
-                  placeholder="예) 126.9780" 
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, longitude: e.target.value }))
+                  }
+                  placeholder="예) 126.9780"
+                  readOnly
                 />
               </div>
             </div>
@@ -312,7 +375,7 @@ export default function StoresAdd({
         </DialogContent>
       </Dialog>
 
-      {/* 지도 다이얼로그 */}
+      {/* 지도 선택 다이얼로그 */}
       <Dialog open={openMap} onOpenChange={setOpenMap}>
         <DialogContent>
           <DialogHeader>

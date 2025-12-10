@@ -30,7 +30,7 @@ type ShiftCreateModalProps = {
   initialShift?: EmployeeShift | null;
   onSubmit: (payload: FormValues, shiftId?: number) => Promise<void>;
   onDelete?: (shiftId: number) => Promise<void>;
-  onDeleteMonthAll?: (employeeId: number) => Promise<void> | void; // ✅ 일괄삭제 콜백
+  onDeleteMonthAll?: (employeeId: number) => Promise<void> | void; // 월 전체 삭제
 };
 
 export default function ShiftCreateModal({
@@ -41,7 +41,7 @@ export default function ShiftCreateModal({
   initialShift,
   onSubmit,
   onDelete,
-  onDeleteMonthAll, // ✅ props에 추가
+  onDeleteMonthAll,
 }: ShiftCreateModalProps) {
   const isEditMode = !!initialShift;
 
@@ -77,24 +77,44 @@ export default function ShiftCreateModal({
     }
   }, [initialShift, date]);
 
-  // 폼 변경 처리
+  // 🔹 "HH:mm" → 분 단위 숫자로 변환
+  const parseTimeToMinutes = (time: string) => {
+    const [h, m] = time.split(":").map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  };
+
+  // 🔹 입력값 변경 처리
   const handleChange = (field: keyof FormValues, value: string) => {
     if (field === "employeeId") {
       setForm((prev) => ({
         ...prev,
         employeeId: value === "" ? "" : Number(value),
       }));
-    } else if (field === "breakMinutes") {
-      setForm((prev) => ({
-        ...prev,
-        breakMinutes: value === "" ? null : Number(value),
-      }));
-    } else {
-      setForm((prev) => ({ ...prev, [field]: value }));
+      return;
     }
+
+    if (field === "breakMinutes") {
+      if (value === "") {
+        setForm((prev) => ({ ...prev, breakMinutes: null }));
+        return;
+      }
+
+      let num = Number(value);
+      if (Number.isNaN(num)) return;
+
+      // 🔥 휴게시간 0~120 제한
+      if (num < 0) num = 0;
+      if (num > 120) num = 120;
+
+      setForm((prev) => ({ ...prev, breakMinutes: num }));
+      return;
+    }
+
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // 단건 삭제
+  // 🔹 단건 삭제
   const handleDelete = async () => {
     if (!initialShift || !onDelete) return;
     const ok = confirm("정말 이 근무 스케줄을 삭제하시겠습니까?");
@@ -102,19 +122,17 @@ export default function ShiftCreateModal({
     await onDelete(initialShift.shiftId);
   };
 
-  // ✅ 월 전체 삭제
-  const handleDeleteMonthAll = async () => {
+  // 🔹 월 전체 삭제
+  const handleDeleteMonthAllClick = async () => {
     if (!onDeleteMonthAll || !form.employeeId) return;
 
-    const ok = confirm(
-      "이 직원의 이번 달 근무 스케줄을 모두 삭제하시겠습니까?"
-    );
+    const ok = confirm("이 직원의 이번 달 근무 스케줄을 모두 삭제하시겠습니까?");
     if (!ok) return;
 
     await onDeleteMonthAll(Number(form.employeeId));
   };
 
-  // 등록/수정 처리
+  // 🔹 제출 처리 (추가 / 수정)
   const handleSubmit = async () => {
     if (!form.employeeId) {
       alert("직원을 선택해주세요.");
@@ -122,6 +140,20 @@ export default function ShiftCreateModal({
     }
     if (!form.startTime || !form.endTime) {
       alert("시작/종료 시간을 입력해주세요.");
+      return;
+    }
+
+    // 🔥 역순 시간 방지 (하루를 넘어가면 안 됨)
+    const startMin = parseTimeToMinutes(form.startTime);
+    const endMin = parseTimeToMinutes(form.endTime);
+
+    if (startMin == null || endMin == null) {
+      alert("시작/종료 시간을 다시 확인해주세요.");
+      return;
+    }
+
+    if (endMin <= startMin) {
+      alert("종료 시간은 시작 시간보다 늦어야 합니다. 하루를 넘길 수 없습니다.");
       return;
     }
 
@@ -167,7 +199,7 @@ export default function ShiftCreateModal({
             />
           </div>
 
-          {/* 시간 */}
+          {/* 시간 입력 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="startTime">시작 시간</Label>
@@ -189,20 +221,21 @@ export default function ShiftCreateModal({
             </div>
           </div>
 
-          {/* 휴게시간 */}
+          {/* 휴게 시간 */}
           <div className="space-y-2">
             <Label htmlFor="breakMinutes">휴게 시간 (분)</Label>
             <Input
               id="breakMinutes"
               type="number"
               min={0}
+              max={120}
               value={form.breakMinutes ?? ""}
               onChange={(e) => handleChange("breakMinutes", e.target.value)}
-              placeholder="예) 60"
+              placeholder="예:  (최대 120분)"
             />
           </div>
 
-          {/* 고정 스케줄 표시 */}
+          {/* 고정 스케줄 안내 */}
           {initialShift?.isFixed && (
             <p className="text-xs text-muted-foreground">
               이 근무는{" "}
@@ -212,23 +245,24 @@ export default function ShiftCreateModal({
           )}
         </div>
 
-        {/* Footer */}
         <DialogFooter className="flex justify-between gap-2">
           <div className="flex gap-2">
+            {/* 단건 삭제 */}
             {isEditMode && onDelete && (
               <Button variant="destructive" onClick={handleDelete}>
                 단건 삭제
               </Button>
             )}
 
-            {/* ✅ 이번 달 전체 삭제 버튼 */}
+            {/* 월 전체 삭제 */}
             {onDeleteMonthAll && form.employeeId && (
-              <Button variant="outline" onClick={handleDeleteMonthAll}>
+              <Button variant="outline" onClick={handleDeleteMonthAllClick}>
                 이번 달 전체 삭제
               </Button>
             )}
           </div>
 
+          {/* 제출 */}
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>
               취소

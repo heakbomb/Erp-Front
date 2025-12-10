@@ -2,10 +2,10 @@
 
 import { AppLayout } from "@/components/common/AppLayout"; // 👈 공용 레이아웃
 import { employeeNavigation } from "@/lib/navigation"; // 👈 공용 네비게이션
-import { ChevronDown, Clock } from "lucide-react"; //
-import React, { useState, useEffect } from "react" // 👈 1. useEffect 임포트
-// (DropdownMenu 등 필요한 shadcn 컴포넌트 임포트)
-//
+import { ChevronDown, Clock } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";          // ✅ 추가
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,9 +20,10 @@ import {
  * (app/employee/layout.tsx의 DropdownMenu 로직 포함)
  */
 function EmployeeInfo() {
-  // 👈 2. "mounted" 상태 추가
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true) }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // const { user } = useAuth();
   // 임시 유저/사업장 정보
@@ -31,9 +32,11 @@ function EmployeeInfo() {
     { id: 1, name: "홍길동 식당", role: "주방보조" },
     { id: 2, name: "카페 모카", role: "바리스타" },
   ];
-  const [currentWorkplace, setCurrentWorkplace] = React.useState(mockWorkplaces[0]);
+  const [currentWorkplace, setCurrentWorkplace] = React.useState(
+    mockWorkplaces[0],
+  );
 
-  // 👈 3. mounted가 true일 때만 DropdownMenu 렌더링
+  // 👈 mounted가 true일 때만 DropdownMenu 렌더링
   if (!mounted) {
     // 서버 렌더링 시 또는 하이드레이션 전에는 ID가 없는 플레이스홀더를 보여줌
     return (
@@ -43,7 +46,9 @@ function EmployeeInfo() {
         </div>
         <div className="flex-1 min-w-0 text-left">
           <p className="text-sm font-medium truncate">{user.name}</p>
-          <p className="text-xs text-muted-foreground truncate">{currentWorkplace.name}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {currentWorkplace.name}
+          </p>
         </div>
         <ChevronDown className="h-4 w-4 text-muted-foreground" />
       </div>
@@ -59,7 +64,9 @@ function EmployeeInfo() {
           </div>
           <div className="flex-1 min-w-0 text-left">
             <p className="text-sm font-medium truncate">{user.name}</p>
-            <p className="text-xs text-muted-foreground truncate">{currentWorkplace.name}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {currentWorkplace.name}
+            </p>
           </div>
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </button>
@@ -80,10 +87,21 @@ function EmployeeInfo() {
   );
 }
 
-export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
+export default function EmployeeLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname(); // ✅ 현재 경로
+
+  // ✅ 직원 모바일 출퇴근 페이지에서는 사이드바/상단바 제거
+  if (pathname === "/employee/attendance/mobile") {
+    return <div className="min-h-screen bg-background">{children}</div>;
+  }
+
   // ⭐️ '설정' 메뉴 필터링 (이름이 '설정'이거나 href에 'settings'가 포함된 경우 제외)
   const filteredNavigation = employeeNavigation.filter(
-    (item) => item.name !== "설정" && !item.href.includes("/settings")
+    (item) => item.name !== "설정" && !item.href.includes("/settings"),
   );
 
   return (

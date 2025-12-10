@@ -50,10 +50,16 @@ export function EmployeePayrollView({
     } as any // 타입은 v2 정의라서 v3 옵션(contentRef)을 위해 한 번 무시
   )
 
-  // 버튼 클릭 시: 어떤 기록을 인쇄할지만 선택
-  const handleDownloadPayslip = (record: PayrollRecord) => {
-    setSelectedRecord(record)
-  }
+    // 버튼 클릭 시: 어떤 기록을 인쇄할지만 선택
+    const handleDownloadPayslip = (record: PayrollRecord) => {
+    // 🔥 같은 기록을 여러 번 눌러도 인쇄되도록 먼저 null로 리셋
+    setSelectedRecord(null);
+
+    // 다음 렌더 사이클에서 다시 설정
+    setTimeout(() => {
+      setSelectedRecord(record);
+    }, 0);
+  };
 
   // selectedRecord가 설정되고, 숨겨진 DOM이 렌더된 뒤에 프린트 실행
   useEffect(() => {

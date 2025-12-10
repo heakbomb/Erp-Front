@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Input } from "@/components/ui/input" 
 import {
   Dialog,
   DialogContent,
@@ -30,17 +30,14 @@ export default function PayrollHistoryTab() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // 🔹 달력(월) 필터 상태
-  const [filterMonth, setFilterMonth] = useState<string>("") // "2025-12" 형태
+  const [filterMonth, setFilterMonth] = useState<string>("") // "2025-12"
 
-  // 상세 다이얼로그 상태
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
   const [details, setDetails] = useState<PayrollHistoryDetail[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
 
-  // 🔹 최초 / store 변경 시 월별 요약 로드
   useEffect(() => {
     if (!currentStoreId) return
 
@@ -62,10 +59,8 @@ export default function PayrollHistoryTab() {
     run()
   }, [currentStoreId])
 
-  // 🔹 필터링된 요약 목록 (달력에서 월 선택 시 해당 월만 보이게)
   const filteredSummary = useMemo(() => {
     if (!filterMonth) return summary
-    // summary.month 가 "2025-12" 형태라고 가정
     return summary.filter((s) => s.month.startsWith(filterMonth))
   }, [summary, filterMonth])
 
@@ -85,7 +80,7 @@ export default function PayrollHistoryTab() {
     try {
       const data = await fetchMonthlyPayrollHistory({
         storeId: currentStoreId,
-        yearMonth: month, // "2025-12"
+        yearMonth: month,
       })
       setDetails(data ?? [])
     } catch (e: any) {
@@ -115,7 +110,6 @@ export default function PayrollHistoryTab() {
               </CardDescription>
             </div>
 
-            {/* 🔥 달력 + 조회/전체보기 컨트롤 */}
             <div className="flex items-end gap-2">
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">조회 월</span>
@@ -186,7 +180,8 @@ export default function PayrollHistoryTab() {
 
       {/* 직원별 상세 다이얼로그 */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-5xl">
+        {/* 🔹 화면 가로 90%까지 / 최대 1200px, 세로 85vh */}
+        <DialogContent className="w-[90vw] max-w-[1200px] max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>{selectedMonth ?? "-"} 급여 지급 상세 내역</DialogTitle>
             <DialogDescription>
@@ -205,7 +200,8 @@ export default function PayrollHistoryTab() {
               해당 월의 지급 내역이 없습니다.
             </p>
           ) : (
-            <div className="mt-4 max-h-[420px] overflow-auto rounded-md border">
+            // 🔹 세로는 화면 65%까지 쓰도록 키움
+            <div className="mt-4 max-h-[65vh] overflow-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
