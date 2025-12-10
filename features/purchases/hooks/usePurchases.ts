@@ -18,8 +18,46 @@ import type {
   PurchaseHistoryResponse,
 } from "../purchasesService";
 
+const getErrorMessage = (error: any, fallback: string) => {
+  const resp = error?.response;
+  const data = resp?.data;
+  const code = data?.code as string | undefined;
+  const backendMessage =
+    data?.message ??
+    data?.error; // 혹시 error 필드를 쓰고 있다면 대비
+
+  if (code === "PURCHASE_QTY_LESS_THAN_SOLD") {
+    return (
+      backendMessage ??
+      "이미 판매된 수량 때문에 이 매입 수량으로 줄이면 재고가 음수가 되어 수정할 수 없습니다."
+    );
+  }
+
+  if (code === "PURCHASE_DELETE_BELOW_CONSUMED") {
+    return (
+      backendMessage ??
+      "이미 판매된 수량 때문에 이 매입 내역을 삭제할 수 없습니다."
+    );
+  }
+  
+  // 백엔드가 준 메시지가 있으면 그걸 우선 사용
+  if (backendMessage) return backendMessage;
+
+  // axios Error 객체의 기본 message
+  if (error?.message) return error.message;
+
+  // 그래도 없으면 fallback
+  return fallback;
+};
+
 // 1. 폼 검증 및 타입을 위한 상수
-export const TODAY = new Date().toISOString().slice(0, 10);
+export const TODAY = (() => {
+  const now = new Date(); // 로컬 시간 (KST)
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`; // "YYYY-MM-DD"
+})();
 
 // 2. react-hook-form에서 사용할 폼 타입
 export type PurchaseFormValues = {
@@ -80,20 +118,25 @@ export function usePurchases() {
 
   // 5. (Mutation) 재고 생성 (새 품목용)
   const createInventoryMutation = useMutation<
-    InventoryOption,      // ✅ 성공 타입
-    Error,                // ✅ 에러 타입
-    CreateInventoryBody   // ✅ variables 타입
+    InventoryOption,
+    any,
+    CreateInventoryBody
   >({
     mutationFn: (vars) => createInventory(vars),
     onSuccess: (newItem) => {
-      // 재고 옵션 캐시에 새 품목 추가
       queryClient.setQueryData(
         ["inventoryOptions", currentStoreId],
         (oldData: InventoryOption[] | undefined) =>
           oldData ? [...oldData, newItem] : [newItem]
       );
     },
-    onError: (error) => alert(`새 품목 생성 실패: ${error.message}`),
+    onError: (error: any) => {
+      const msg = getErrorMessage(
+        error,
+        "새 품목 생성 실패: 알 수 없는 오류가 발생했습니다."
+      );
+      alert(msg);
+    },
   });
 
   // 6. (Mutation) 매입 기록 생성
@@ -105,7 +148,13 @@ export function usePurchases() {
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
-    onError: (error) => alert(`매입 등록 실패: ${error.message}`),
+    onError: (error: any) => {
+      const msg = getErrorMessage(
+        error,
+        "매입 등록 실패: 알 수 없는 오류가 발생했습니다."
+      );
+      alert(msg);
+    },
   });
 
   // ✅ (Mutation) 매입 기록 수정
@@ -114,11 +163,17 @@ export function usePurchases() {
       updatePurchase(id, body),
     onSuccess: () => {
       setIsAddOpen(false);
-      setEditingPurchase(null); // 수정 모드 종료
+      setEditingPurchase(null);
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
-    onError: (error) => alert(`매입 수정 실패: ${error.message}`),
+    onError: (error: any) => {
+      const msg = getErrorMessage(
+        error,
+        "매입 수정 실패: 알 수 없는 오류가 발생했습니다."
+      );
+      alert(msg);
+    },
   });
 
   // ✅ (Mutation) 매입 기록 삭제
@@ -128,7 +183,13 @@ export function usePurchases() {
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
-    onError: (error) => alert(`삭제 실패: ${error.message}`),
+    onError: (error: any) => {
+      const msg = getErrorMessage(
+        error,
+        "삭제 실패: 알 수 없는 오류가 발생했습니다."
+      );
+      alert(msg);
+    },
   });
 
   // ✅ 수정 버튼 클릭 시 핸들러
