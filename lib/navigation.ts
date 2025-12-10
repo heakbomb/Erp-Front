@@ -22,7 +22,6 @@ export const OWNER_NAV_ITEMS = [
   { name: "대시보드", href: "/owner/dashboard", icon: LayoutDashboard },
   { name: "매장 관리", href: "/owner/stores", icon: Store },
   { name: "직원 관리", href: "/owner/employees", icon: Users },
-  { name: "근태 관리", href: "/owner/attendance", icon: Clock },
   { name: "급여 관리", href: "/owner/payroll", icon: FileText },
   { name: "매출 관리", href: "/owner/sales", icon: Receipt },
   { name: "메뉴 관리", href: "/owner/menu", icon: Utensils },
