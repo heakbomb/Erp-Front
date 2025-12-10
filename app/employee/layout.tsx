@@ -1,99 +1,110 @@
 "use client";
 
-import { AppLayout } from "@/components/common/AppLayout"; // 👈 공용 레이아웃
-import { employeeNavigation } from "@/lib/navigation"; // 👈 공용 네비게이션
-import { ChevronDown, Clock } from "lucide-react"; //
-import React, { useState, useEffect } from "react" // 👈 1. useEffect 임포트
-// (DropdownMenu 등 필요한 shadcn 컴포넌트 임포트)
-//
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import React, { useState, useEffect } from "react";
+import { AppLayout } from "@/components/common/AppLayout";
+import { EMPLOYEE_NAV_ITEMS } from "@/lib/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { StoreProvider, useStore } from "@/contexts/StoreContext"; // ✅ StoreContext 추가
+import { ChevronDown, Clock, Store as StoreIcon } from "lucide-react";
 
 /**
  * 직원 레이아웃 전용 사용자 정보 UI
- * (app/employee/layout.tsx의 DropdownMenu 로직 포함)
+ * - 사장님 레이아웃과 동일하게 사업장 선택 드롭다운 기능 포함
  */
 function EmployeeInfo() {
-  // 👈 2. "mounted" 상태 추가
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true) }, []);
+  const { user } = useAuth();
+  const { stores, currentStoreId, setCurrentStoreId, isLoading } = useStore(); // ✅ 사업장 상태 연동
+  const [open, setOpen] = useState(false);
 
-  // const { user } = useAuth();
-  // 임시 유저/사업장 정보
-  const user = { name: "김직원" };
-  const mockWorkplaces = [
-    { id: 1, name: "홍길동 식당", role: "주방보조" },
-    { id: 2, name: "카페 모카", role: "바리스타" },
-  ];
-  const [currentWorkplace, setCurrentWorkplace] = React.useState(mockWorkplaces[0]);
+  // 안전한 이름 처리
+  const displayName =
+    (user as any)?.name ??
+    (user as any)?.username ??
+    (user as any)?.email ??
+    "직원";
 
-  // 👈 3. mounted가 true일 때만 DropdownMenu 렌더링
-  if (!mounted) {
-    // 서버 렌더링 시 또는 하이드레이션 전에는 ID가 없는 플레이스홀더를 보여줌
-    return (
-      <div className="w-full flex items-center gap-3 rounded-lg p-2">
-        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-          <span className="text-sm font-medium">{user.name.charAt(0)}</span>
-        </div>
-        <div className="flex-1 min-w-0 text-left">
-          <p className="text-sm font-medium truncate">{user.name}</p>
-          <p className="text-xs text-muted-foreground truncate">{currentWorkplace.name}</p>
-        </div>
-        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-      </div>
-    );
-  }
+  // 현재 선택된 사업장 (없으면 첫 번째)
+  const currentStore =
+    stores.find((s) => s.storeId === currentStoreId) ?? stores[0];
+
+  const handleSelectStore = (id: number) => {
+    setCurrentStoreId(id);
+    setOpen(false);
+  };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="w-full flex items-center gap-3 hover:bg-accent rounded-lg p-2 transition-colors">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <span className="text-sm font-medium">{user.name.charAt(0)}</span>
+    <div className="relative">
+      {/* 프로필 영역: 클릭하면 드롭다운 토글 */}
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-muted focus:outline-none"
+      >
+        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium">
+          {displayName.charAt(0)}
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-sm font-medium truncate">
+            {displayName}
+          </p>
+          <p className="text-xs text-muted-foreground truncate">
+            {isLoading
+              ? "불러오는 중..."
+              : currentStore?.storeName ?? "배정된 사업장 없음"}
+          </p>
+        </div>
+        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      </button>
+
+      {/* 사업장 선택 드롭다운 */}
+      {open && !isLoading && stores.length > 0 && (
+        <div className="absolute left-0 mt-2 w-56 rounded-lg border bg-popover shadow-md z-20">
+          <div className="max-h-64 overflow-y-auto py-1 bg-white rounded-lg">
+            {stores.map((store) => (
+              <button
+                key={store.storeId}
+                type="button"
+                onClick={() => handleSelectStore(store.storeId)}
+                className={`block w-full px-3 py-2 text-sm text-left hover:bg-muted ${
+                  store.storeId === currentStore?.storeId
+                    ? "bg-muted font-semibold"
+                    : ""
+                }`}
+              >
+                {store.storeName}
+              </button>
+            ))}
           </div>
-          <div className="flex-1 min-w-0 text-left">
-            <p className="text-sm font-medium truncate">{user.name}</p>
-            <p className="text-xs text-muted-foreground truncate">{currentWorkplace.name}</p>
-          </div>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel>근무 중인 사업장</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {mockWorkplaces.map((workplace) => (
-          <DropdownMenuItem
-            key={workplace.id}
-            onClick={() => setCurrentWorkplace(workplace)}
-          >
-            {workplace.name}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </div>
+      )}
+    </div>
   );
 }
 
-export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
-  // ⭐️ '설정' 메뉴 필터링 (이름이 '설정'이거나 href에 'settings'가 포함된 경우 제외)
-  const filteredNavigation = employeeNavigation.filter(
-    (item) => item.name !== "설정" && !item.href.includes("/settings")
-  );
+export default function EmployeeLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   return (
-    <AppLayout
-      navigation={filteredNavigation} // ⭐️ 필터링된 네비게이션 전달
-      userInfo={<EmployeeInfo />}
-      logoIcon={Clock}
-      logoText="요식업 ERP"
-    >
-      {children}
-    </AppLayout>
+    // ✅ StoreProvider로 감싸서 내부에서 useStore 사용 가능하게 함
+    <StoreProvider>
+      <AppLayout
+        navigation={EMPLOYEE_NAV_ITEMS}
+        userInfo={<EmployeeInfo />}
+        logoIcon={Clock}
+        logoText="직원 서비스"
+      >
+        {children}
+      </AppLayout>
+    </StoreProvider>
   );
 }
