@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner"; // 또는 사용 중인 Toast 라이브러리
 import { getStores, updateStoreStatus } from "../adminStoresService";
 
 export function useAdminStores() {
@@ -11,7 +12,7 @@ export function useAdminStores() {
   // 1. 목록 필터링 상태 (탭, 검색, 페이지)
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
-  const [tab, setTab] = useState("PENDING"); // ⭐️ 기본 탭: 승인 대기
+  const [tab, setTab] = useState("PENDING"); // 기본 탭: 승인 대기
   const [searchQuery, setSearchQuery] = useState("");
   const [submittedSearch, setSubmittedSearch] = useState("");
 
@@ -38,21 +39,27 @@ export function useAdminStores() {
     mutationFn: ({ storeId, status }: { storeId: number; status: "APPROVED" | "REJECTED" }) =>
       updateStoreStatus(storeId, { status }),
     onSuccess: () => {
-      // ⭐️ 목록 갱신
+      // ⭐️ 목록 갱신 (승인 일시 등이 즉시 반영됨)
       queryClient.invalidateQueries({ queryKey: ["adminStores"] });
+      // ⭐️ 상세 보기 쿼리도 갱신 (선택 사항)
+      queryClient.invalidateQueries({ queryKey: ["adminStoreDetail"] });
+      toast.success("사업장 상태가 변경되었습니다.");
     },
-    onError: (error) => alert(error.message),
+    onError: (error) => {
+      console.error(error);
+      toast.error(`상태 변경 실패: ${error.message}`);
+    },
   });
 
   // 5. 이벤트 핸들러: 승인/반려
   const handleApprove = (storeId: number) => {
-    if (confirm(`Store ID ${storeId}를 승인하시겠습니까?`)) {
+    if (confirm("해당 사업장을 승인(운영중) 처리하시겠습니까?")) {
       updateStatusMutation.mutate({ storeId, status: "APPROVED" });
     }
   };
 
   const handleReject = (storeId: number) => {
-    if (confirm(`Store ID ${storeId}를 반려하시겠습니까?`)) {
+    if (confirm("해당 사업장을 반려(영업중지) 처리하시겠습니까?")) {
       updateStatusMutation.mutate({ storeId, status: "REJECTED" });
     }
   };
@@ -60,36 +67,40 @@ export function useAdminStores() {
   // 6. 이벤트 핸들러: 탭, 검색, 페이지
   const handleTabChange = (value: string) => {
     setTab(value);
-    setPage(0);
+    setPage(0); // 탭 변경 시 1페이지로 초기화
   };
 
   const handleSearch = () => {
     setSubmittedSearch(searchQuery);
-    setPage(0);
+    setPage(0); // 검색 시 1페이지로 초기화
   };
   
   const handlePageChange = (p: number) => {
-    if (p >= 0 && p < (storesData?.totalPages ?? 0)) {
+    // 페이지 범위 체크
+    if (p >= 0 && p < (storesData?.totalPages ?? 1)) {
         setPage(p);
     }
   };
 
   return {
+    // Data
     storesData,
     isStoresLoading,
     storesError,
     
+    // Pagination
     page,
     totalPages: storesData?.totalPages ?? 0,
     handlePageChange,
     
+    // Filter
     tab,
     handleTabChange,
-    
     searchQuery,
     setSearchQuery,
     handleSearch,
     
+    // Actions
     handleApprove,
     handleReject,
     isUpdatingStatus: updateStatusMutation.isPending,

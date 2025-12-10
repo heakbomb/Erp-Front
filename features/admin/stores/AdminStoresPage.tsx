@@ -27,13 +27,15 @@ import {
 import { useAdminStores } from "./hooks/useAdminStores";
 import type { Store } from "@/lib/types/database";
 
-// ⭐️ 상세 보기용 타입 확장 (백엔드 StoreResponse DTO 구조 반영)
+// ⭐️ [수정] StoreDetail 인터페이스 수정
+// Store에 이미 approvedAt이 존재하므로 여기서 중복 정의를 제거하여 충돌 방지
 interface StoreDetail extends Store {
-  bizNum?: string;
-  phone?: string;
+  bizNum?: string | null;
+  phone?: string | null;
   ownerName?: string;
   ownerEmail?: string;
   ownerPhone?: string;
+  // approvedAt 제거 (Store에서 상속받음)
   employees?: {
     name: string;
     role: string;
@@ -45,6 +47,14 @@ const formatDate = (dateStr?: string | null) => {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString("ko-KR", {
     year: "numeric", month: "2-digit", day: "2-digit",
+  });
+};
+
+const formatDateTime = (dateStr?: string | null) => {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleString("ko-KR", {
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit"
   });
 };
 
@@ -109,7 +119,6 @@ export default function AdminStoresPageFeature() {
           <CardTitle>사업장 목록</CardTitle>
           <div className="flex gap-2">
             <Input
-              // ⭐️ [수정] 검색어 placeholder 변경
               placeholder="사업장명, 사업자번호 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -130,7 +139,6 @@ export default function AdminStoresPageFeature() {
                 <TableRow>
                   <TableHead className="w-[60px]">ID</TableHead>
                   <TableHead>사업장명</TableHead>
-                  {/* ⭐️ [추가] 사업자 번호 컬럼 */}
                   <TableHead>사업자번호</TableHead>
                   <TableHead>업종</TableHead>
                   <TableHead>POS 공급사</TableHead>
@@ -142,23 +150,28 @@ export default function AdminStoresPageFeature() {
                 {items.length === 0 && (
                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">데이터가 없습니다.</TableCell></TableRow>
                 )}
-                {/* ⭐️ [수정] items 타입에 bizNum이 포함되어 있다고 명시 */}
-                {items.map((store: Store & { bizNum?: string }) => (
+                {/* ⭐️ [수정] approvedAt 제거 (Store에 이미 포함됨), bizNum 타입 명시 */}
+                {items.map((store: Store & { bizNum?: string | null }) => (
                   <TableRow key={store.storeId}>
                     <TableCell>{store.storeId}</TableCell>
                     <TableCell className="font-medium">{store.storeName}</TableCell>
-                    
-                    {/* ⭐️ [추가] 사업자 번호 데이터 표시 */}
                     <TableCell className="font-mono text-muted-foreground text-xs">
                       {store.bizNum || "-"}
                     </TableCell>
-
                     <TableCell>{store.industry}</TableCell>
                     <TableCell>{store.posVendor ?? "-"}</TableCell>
                     <TableCell>
-                      <Badge variant={getStatusBadgeVariant(store.status)}>
-                        {getStatusLabel(store.status)}
-                      </Badge>
+                      <div className="flex flex-col gap-1 items-start">
+                        <Badge variant={getStatusBadgeVariant(store.status)}>
+                          {getStatusLabel(store.status)}
+                        </Badge>
+                        {/* Store 타입에 approvedAt이 있으므로 바로 접근 가능 */}
+                        {store.status === "APPROVED" && store.approvedAt && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {formatDate(store.approvedAt)}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -175,22 +188,24 @@ export default function AdminStoresPageFeature() {
                             <Eye className="mr-2 h-4 w-4" /> 상세 보기
                           </DropdownMenuItem>
 
-                          {store.status === "PENDING" && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={() => handleApprove(store.storeId)} 
-                                className="text-green-600 focus:text-green-700"
-                              >
-                                <Check className="mr-2 h-4 w-4" /> 승인 처리
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleReject(store.storeId)} 
-                                className="text-red-600 focus:text-red-700"
-                              >
-                                <X className="mr-2 h-4 w-4" /> 반려 처리
-                              </DropdownMenuItem>
-                            </>
+                          <DropdownMenuSeparator />
+                          
+                          {store.status !== "APPROVED" && (
+                            <DropdownMenuItem 
+                              onClick={() => handleApprove(store.storeId)} 
+                              className="text-green-600 focus:text-green-700"
+                            >
+                              <Check className="mr-2 h-4 w-4" /> 승인 처리
+                            </DropdownMenuItem>
+                          )}
+
+                          {store.status !== "REJECTED" && (
+                            <DropdownMenuItem 
+                              onClick={() => handleReject(store.storeId)} 
+                              className="text-red-600 focus:text-red-700"
+                            >
+                              <X className="mr-2 h-4 w-4" /> 반려 처리
+                            </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -241,7 +256,7 @@ export default function AdminStoresPageFeature() {
         <TabsContent value="ALL">{StoresTableContent}</TabsContent>
       </Tabs>
 
-      {/* 상세 보기 모달 (이전과 동일) */}
+      {/* 상세 보기 모달 */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="sm:max-w-5xl w-full h-[85vh] p-0 overflow-hidden flex flex-col bg-background border-0 sm:rounded-xl">
           {isDetailLoading || !detailData ? (
@@ -324,10 +339,10 @@ export default function AdminStoresPageFeature() {
                     <h3 className="text-sm font-semibold text-foreground mb-4">등록 정보</h3>
                     <div className="flex gap-6 text-sm">
                       <div>
-                        <span className="block text-xs text-muted-foreground mb-1">승인일</span>
+                        <span className="block text-xs text-muted-foreground mb-1">최근 승인일</span>
                         <div className="flex items-center gap-1.5">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span>{formatDate(detailData.approvedAt)}</span>
+                            <span>{formatDateTime(detailData.approvedAt)}</span>
                         </div>
                       </div>
                     </div>
@@ -369,14 +384,12 @@ export default function AdminStoresPageFeature() {
 
                     <ScrollArea className="flex-1 -mx-2 px-2">
                       <div className="space-y-2">
-                        {/* 직원이 없으면 안내 문구 */}
                         {(!detailData.employees || detailData.employees.length === 0) ? (
                           <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
                             <Users className="h-8 w-8 mb-2 opacity-20" />
                             <p className="text-xs">등록된 직원이 없습니다.</p>
                           </div>
                         ) : (
-                          // 직원이 있으면 실제 데이터(emp) 매핑
                           detailData.employees.map((emp, i) => (
                             <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-transparent hover:border-muted transition-colors">
                               <div className="flex flex-col">
@@ -396,26 +409,29 @@ export default function AdminStoresPageFeature() {
 
                 {/* 하단 버튼 */}
                 <div className="p-6 border-t bg-background/50 flex gap-3 mt-auto">
-                  {detailData.status === "PENDING" ? (
-                    <>
-                      <Button 
-                        variant="outline" 
-                        className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-11"
-                        onClick={() => { handleReject(detailData.storeId); setIsDetailOpen(false); }}
-                      >
-                        반려
-                      </Button>
-                      <Button 
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-11"
-                        onClick={() => { handleApprove(detailData.storeId); setIsDetailOpen(false); }}
-                      >
-                        승인
-                      </Button>
-                    </>
-                  ) : (
-                    <Button className="w-full h-11" variant="outline" onClick={() => setIsDetailOpen(false)}>
-                      닫기
+                  {detailData.status !== "REJECTED" && (
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 h-11"
+                      onClick={() => { handleReject(detailData.storeId); setIsDetailOpen(false); }}
+                    >
+                      반려
                     </Button>
+                  )}
+
+                  {detailData.status !== "APPROVED" && (
+                    <Button 
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-11"
+                      onClick={() => { handleApprove(detailData.storeId); setIsDetailOpen(false); }}
+                    >
+                      승인
+                    </Button>
+                  )}
+
+                  { (detailData.status === "APPROVED" || detailData.status === "REJECTED") && (
+                     <Button className="w-full h-11" variant="outline" onClick={() => setIsDetailOpen(false)}>
+                          닫기
+                     </Button>
                   )}
                 </div>
               </div>

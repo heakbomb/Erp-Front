@@ -1,4 +1,3 @@
-// features/owner/inquiries/components/InquiryCreateDialog.tsx
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,23 +6,30 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@/components/ui/textarea"; // Input 대신 Textarea 사용
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage
 } from "@/components/ui/form";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { useStores } from "@/features/owner/stores/hooks/useStores"; // 기존 훅 재사용
+import { useStores } from "@/features/owner/stores/hooks/useStores";
 import { InquiryCreateRequest } from "@/lib/types/inquiry";
+
+// 최대 글자수 상수 정의
+const MAX_TITLE_LENGTH = 50;   // 제목 제한
+const MAX_CONTENT_LENGTH = 1000; // 본문 제한
 
 // 유효성 검사 스키마
 const formSchema = z.object({
   category: z.enum(["REPORT", "SUGGESTION", "INQUIRY"]),
-  title: z.string().min(1, "제목을 입력해주세요."),
-  content: z.string().min(1, "내용을 입력해주세요."),
-  storeId: z.string().optional(), // Select value는 string으로 처리됨
+  title: z.string()
+    .min(1, "제목을 입력해주세요.")
+    .max(MAX_TITLE_LENGTH, `제목은 ${MAX_TITLE_LENGTH}자 이내로 작성해주세요.`),
+  content: z.string()
+    .min(1, "내용을 입력해주세요.")
+    .max(MAX_CONTENT_LENGTH, `내용은 ${MAX_CONTENT_LENGTH}자 이내로 작성해주세요.`),
+  storeId: z.string().optional(),
 });
 
 interface Props {
@@ -35,7 +41,6 @@ interface Props {
 export function InquiryCreateDialog({ ownerId, onCreate, isCreating }: Props) {
   const [open, setOpen] = useState(false);
   
-  // 내 사업장 목록 불러오기 (사업장 선택용)
   const { stores } = useStores(ownerId);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -44,10 +49,18 @@ export function InquiryCreateDialog({ ownerId, onCreate, isCreating }: Props) {
       category: "INQUIRY",
       title: "",
       content: "",
-      storeId: "none", // 'none'일 경우 사업장 선택 안함
+      storeId: "none",
     },
   });
-const onSubmit = async (values: z.infer<typeof formSchema>) => {
+
+  // 실시간 글자수 감지
+  const titleValue = form.watch("title");
+  const contentValue = form.watch("content");
+  
+  const currentTitleLength = titleValue ? titleValue.length : 0;
+  const currentContentLength = contentValue ? contentValue.length : 0;
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     const payload: InquiryCreateRequest = {
       category: values.category,
       title: values.title,
@@ -64,7 +77,7 @@ const onSubmit = async (values: z.infer<typeof formSchema>) => {
       <DialogTrigger asChild>
         <Button>문의하기</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>새로운 문의 작성</DialogTitle>
         </DialogHeader>
@@ -127,8 +140,18 @@ const onSubmit = async (values: z.infer<typeof formSchema>) => {
                 <FormItem>
                   <FormLabel>제목</FormLabel>
                   <FormControl>
-                    <Input placeholder="문의 제목을 입력하세요" {...field} />
+                    {/* Input 대신 Textarea를 사용하여 줄바꿈 지원 */}
+                    <Textarea 
+                      placeholder="문의 제목을 입력하세요" 
+                      className="min-h-[40px] resize-none overflow-hidden py-2" // Input과 비슷한 높이감, 줄바꿈 시 자동 늘어남(기본동작)
+                      maxLength={MAX_TITLE_LENGTH}
+                      {...field} 
+                    />
                   </FormControl>
+                  {/* 제목 글자수 카운터 */}
+                  <div className="text-xs text-right text-muted-foreground mt-1">
+                    {currentTitleLength} / {MAX_TITLE_LENGTH}자
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -143,16 +166,21 @@ const onSubmit = async (values: z.infer<typeof formSchema>) => {
                   <FormControl>
                     <Textarea 
                       placeholder="문의하실 내용을 상세히 적어주세요." 
-                      className="min-h-[100px]"
+                      className="min-h-[150px] resize-none"
+                      maxLength={MAX_CONTENT_LENGTH}
                       {...field} 
                     />
                   </FormControl>
+                  {/* 본문 글자수 카운터 */}
+                  <div className="text-xs text-right text-muted-foreground mt-1">
+                    {currentContentLength.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}자
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className="pt-4">
               <Button type="submit" disabled={isCreating}>
                 {isCreating ? "등록 중..." : "등록하기"}
               </Button>

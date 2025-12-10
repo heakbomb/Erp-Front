@@ -9,7 +9,7 @@ import {
   useEffect,
   useMemo,
 } from "react";
-import { Store } from "../lib/types/database";
+import { StoreResponse as Store } from "@/features/owner/stores/services/storesService";
 import { useAuth } from "./AuthContext";
 import { fetchStores } from "@/features/owner/stores/services/storesService";
 

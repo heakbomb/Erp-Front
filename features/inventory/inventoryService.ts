@@ -8,6 +8,7 @@ type InventoryParams = {
   storeId: number;
   q: string;
   page: number;
+  itemType?: string
   size: number;
   sort?: string;
   status: "ACTIVE" | "INACTIVE"; // 'ACTIVE' 또는 'INACTIVE'

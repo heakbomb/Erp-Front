@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAdminInquiries } from "./hooks/useAdminInquiries";
 import { AdminReplyDialog } from "./components/AdminReplyDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { InquiryResponse } from "@/lib/types/inquiry";
 
 export default function AdminInquiryPageFeature() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const adminId = 1; // TODO: 실제 로그인된 관리자 ID로 교체 필요
   const { 
     inquiries, isLoading, 
@@ -21,6 +26,8 @@ export default function AdminInquiryPageFeature() {
   
   const [selectedInquiry, setSelectedInquiry] = useState<InquiryResponse | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  if (!mounted) return null;
 
   const handleReplyClick = (inquiry: InquiryResponse) => {
     setSelectedInquiry(inquiry);
@@ -37,7 +44,7 @@ export default function AdminInquiryPageFeature() {
         <h2 className="text-3xl font-bold tracking-tight">문의 관리</h2>
 
         <div className="flex gap-2">
-          {/* 1. 카테고리 필터 (추가됨) */}
+          {/* 1. 카테고리 필터 */}
           <Select 
             value={filterCategory} 
             onValueChange={(val: any) => setFilterCategory(val)}
@@ -104,12 +111,28 @@ export default function AdminInquiryPageFeature() {
                         {item.title}
                     </TableCell>
                     <TableCell>{item.ownerName} {item.storeName && `(${item.storeName})`}</TableCell>
-                    <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
+                    {/* [수정] 작성일시 포맷 변경: 날짜 + 시간(시:분) 표시 */}
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(item.createdAt).toLocaleString("ko-KR", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </TableCell>
                     <TableCell>
                       {item.status === 'PENDING' ? (
                         <Button size="sm" onClick={() => handleReplyClick(item)}>답변하기</Button>
                       ) : (
-                        <span className="text-xs text-gray-400">답변완료</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => handleReplyClick(item)}
+                        >
+                          답변확인
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>

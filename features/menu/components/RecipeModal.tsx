@@ -38,6 +38,10 @@ type RecipeModalProps = {
   invOptions: InventoryResponse[];
 };
 
+// DB 스펙: DECIMAL(10,3) → 정수부 7자리, 소수부 3자리
+const QTY_MAX_INTEGER_DIGITS = 7;
+const QTY_MAX_FRACTION_DIGITS = 3;
+
 export function RecipeModal({
   open,
   onOpenChange,
@@ -52,7 +56,11 @@ export function RecipeModal({
   const [recipeList, setRecipeList] = useState<RecipeIngredientResponse[]>([]);
 
   const [selectedItemId, setSelectedItemId] = useState<number | "">("");
-  const [consumptionQty, setConsumptionQty] = useState<number | "">("");
+  // 🔧 수량은 문자열로 관리 (소수점 포함 입력 처리)
+  const [consumptionQty, setConsumptionQty] = useState<string>("");
+  const [consumptionQtyError, setConsumptionQtyError] = useState<string | null>(
+    null
+  );
 
   // 공통: 메뉴 목록 다시 불러오도록 invalidation
   const invalidateMenus = () => {
@@ -69,7 +77,6 @@ export function RecipeModal({
     try {
       const list = await fetchRecipeIngredients(menuId);
       setRecipeList(list);
-      // ❌ 더 이상 onRecipeUpdated로 프론트에서 원가 계산 안 함
     } catch (e: any) {
       console.error(e);
       const msg =
@@ -88,6 +95,7 @@ export function RecipeModal({
       loadRecipeList(menu.menuId);
       setSelectedItemId("");
       setConsumptionQty("");
+      setConsumptionQtyError(null);
     }
   }, [open, menu]);
 
@@ -101,8 +109,7 @@ export function RecipeModal({
     () =>
       invOptions.filter(
         (opt) =>
-          opt.status !== "INACTIVE" &&
-          !existingItemIds.has(opt.itemId)
+          opt.status !== "INACTIVE" && !existingItemIds.has(opt.itemId)
       ),
     [invOptions, existingItemIds]
   );
@@ -110,9 +117,7 @@ export function RecipeModal({
   // 비활성 재고 포함 여부
   const hasInactiveInRecipe = useMemo(() => {
     const inactiveSet = new Set(
-      invOptions
-        .filter((o) => o.status === "INACTIVE")
-        .map((o) => o.itemId)
+      invOptions.filter((o) => o.status === "INACTIVE").map((o) => o.itemId)
     );
     return recipeList.some((ri) => inactiveSet.has(ri.itemId));
   }, [invOptions, recipeList]);
@@ -120,27 +125,93 @@ export function RecipeModal({
   // 재료 추가
   const [isAdding, setIsAdding] = useState(false);
 
-  const handleAddRecipe = async () => {
-    if (!menu) return;
-    if (
-      selectedItemId === "" ||
-      consumptionQty === "" ||
-      Number(consumptionQty) <= 0
-    ) {
-      alert("재료와 수량을 올바르게 입력하세요.");
+  // 🔧 수량 입력 핸들러: 숫자 + 소수점, 자리수 제한, 에러 메시지
+  const handleConsumptionQtyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+
+    // 빈 값 허용
+    if (value === "") {
+      setConsumptionQty("");
+      setConsumptionQtyError(null);
       return;
     }
+
+    // 숫자 + 소수점 1개만 허용
+    // 허용 예: "123", "123.", "123.4", "123.456", ".5", "0.5"
+    const decimalPattern = /^(?:\d+|\d+\.\d*|\.\d+)$/;
+    if (!decimalPattern.test(value)) {
+      // ❌ 문자, 여러개 점 등 → 입력 무시
+      return;
+    }
+
+    const [integerPart = "", fractionPart = ""] = value.split(".");
+
+    if (integerPart.length > QTY_MAX_INTEGER_DIGITS) {
+      setConsumptionQtyError(
+        `정수부는 최대 ${QTY_MAX_INTEGER_DIGITS}자리까지 입력할 수 있습니다.`
+      );
+      return;
+    }
+
+    if (fractionPart.length > QTY_MAX_FRACTION_DIGITS) {
+      setConsumptionQtyError(
+        `소수부는 최대 ${QTY_MAX_FRACTION_DIGITS}자리까지 입력할 수 있습니다.`
+      );
+      return;
+    }
+
+    setConsumptionQtyError(null);
+    setConsumptionQty(value);
+  };
+
+  const handleAddRecipe = async () => {
+    if (!menu) return;
+
+    if (selectedItemId === "") {
+      alert("재료를 선택해주세요.");
+      return;
+    }
+
+    if (!consumptionQty || Number(consumptionQty) <= 0) {
+      alert("소모 수량을 0보다 큰 값으로 입력해주세요.");
+      return;
+    }
+
+    // 자리수 검증 (서브미션 시 한 번 더)
+    const numericQty = Number(consumptionQty);
+    if (Number.isNaN(numericQty)) {
+      alert("소모 수량은 숫자만 입력할 수 있습니다.");
+      return;
+    }
+
+    const [integerPart = "", fractionPart = ""] = consumptionQty
+      .toString()
+      .split(".");
+    if (integerPart.length > QTY_MAX_INTEGER_DIGITS) {
+      alert(
+        `소모 수량은 정수부 최대 ${QTY_MAX_INTEGER_DIGITS}자리까지 입력할 수 있습니다.`
+      );
+      return;
+    }
+    if (fractionPart.length > QTY_MAX_FRACTION_DIGITS) {
+      alert(
+        `소모 수량은 소수부 최대 ${QTY_MAX_FRACTION_DIGITS}자리까지 입력할 수 있습니다.`
+      );
+      return;
+    }
+
     try {
       setIsAdding(true);
       await addRecipeIngredient(menu.menuId, {
         menuId: menu.menuId,
         itemId: Number(selectedItemId),
-        consumptionQty: Number(consumptionQty),
+        consumptionQty: numericQty,
       });
       setSelectedItemId("");
       setConsumptionQty("");
+      setConsumptionQtyError(null);
       await loadRecipeList(menu.menuId); // 모달 안 리스트 갱신
-      invalidateMenus();                 // ✅ 메뉴 목록/원가 갱신
+      invalidateMenus(); // ✅ 메뉴 목록/원가 갱신
     } catch (e: any) {
       console.error(e);
       const msg =
@@ -154,7 +225,7 @@ export function RecipeModal({
     }
   };
 
-  // 수량 수정
+  // 수량 수정 (기존 인풋은 그냥 숫자만, 자리수 초과는 서버/DB에서 한 번 더 검증)
   const handleUpdateRecipe = async (recipeId: number, newQty: number) => {
     if (!menu) return;
     if (newQty <= 0) return;
@@ -162,8 +233,8 @@ export function RecipeModal({
       await updateRecipeIngredient(recipeId, {
         consumptionQty: Number(newQty),
       });
-      await loadRecipeList(menu.menuId); // 모달 안 리스트 갱신
-      invalidateMenus();                 // ✅ 메뉴 목록/원가 갱신
+      await loadRecipeList(menu.menuId);
+      invalidateMenus();
     } catch (e: any) {
       console.error(e);
       const msg =
@@ -181,8 +252,8 @@ export function RecipeModal({
     if (!window.confirm("이 재료를 레시피에서 제거할까요?")) return;
     try {
       await deleteRecipeIngredient(recipeId);
-      await loadRecipeList(menu.menuId); // 모달 안 리스트 갱신
-      invalidateMenus();                 // ✅ 메뉴 목록/원가 갱신
+      await loadRecipeList(menu.menuId);
+      invalidateMenus();
     } catch (e: any) {
       console.error(e);
       const msg =
@@ -194,14 +265,15 @@ export function RecipeModal({
     }
   };
 
-  const handleClose = (open: boolean) => {
-    if (!open) {
+  const handleClose = (openFlag: boolean) => {
+    if (!openFlag) {
       setRecipeList([]);
       setRecipeError(null);
       setSelectedItemId("");
       setConsumptionQty("");
+      setConsumptionQtyError(null);
     }
-    onOpenChange(open);
+    onOpenChange(openFlag);
   };
 
   if (!menu) return null;
@@ -230,9 +302,7 @@ export function RecipeModal({
             </div>
           )}
           {recipeError && (
-            <div className="text-sm text-red-500">
-              {recipeError}
-            </div>
+            <div className="text-sm text-red-500">{recipeError}</div>
           )}
 
           {!recipeLoading && !recipeError && (
@@ -244,7 +314,9 @@ export function RecipeModal({
               ) : (
                 <div className="space-y-2">
                   {recipeList.map((ri) => {
-                    const inv = invOptions.find((o) => o.itemId === ri.itemId);
+                    const inv = invOptions.find(
+                      (o) => o.itemId === ri.itemId
+                    );
                     const invName = inv?.itemName ?? `#${ri.itemId}`;
                     const unit = inv?.stockType ?? "";
                     const invInactive = inv?.status === "INACTIVE";
@@ -273,7 +345,11 @@ export function RecipeModal({
                             defaultValue={ri.consumptionQty}
                             onBlur={(e) => {
                               const v = Number(e.currentTarget.value);
-                              if (!isNaN(v) && v > 0 && v !== ri.consumptionQty) {
+                              if (
+                                !isNaN(v) &&
+                                v > 0 &&
+                                v !== ri.consumptionQty
+                              ) {
                                 handleUpdateRecipe(ri.recipeId, v);
                               }
                             }}
@@ -323,15 +399,17 @@ export function RecipeModal({
             <div className="space-y-2">
               <Label>소모 수량</Label>
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 placeholder="예) 0.035"
                 value={consumptionQty}
-                onChange={(e) =>
-                  setConsumptionQty(
-                    e.target.value === "" ? "" : Number(e.target.value)
-                  )
-                }
+                onChange={handleConsumptionQtyChange}
               />
+              {consumptionQtyError && (
+                <p className="mt-1 text-xs text-red-500">
+                  {consumptionQtyError}
+                </p>
+              )}
             </div>
           </div>
 

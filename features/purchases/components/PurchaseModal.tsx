@@ -1,3 +1,5 @@
+// features/purchases/components/PurchaseModal.tsx (경로만 맞게 조정해서 사용)
+
 "use client";
 
 import { useEffect } from "react";
@@ -40,6 +42,43 @@ import {
 } from "@/components/ui/select";
 import { INGREDIENT_CATEGORIES } from "@/features/inventory/constants/itemCategory";
 
+// =======================
+// DB 스펙 기반 상수
+// =======================
+
+// Inventory와 동일
+const ITEM_NAME_MAX_LENGTH = 20;
+const STOCK_TYPE_MAX_LENGTH = 10;
+
+// purchase_qty DECIMAL(10,3) → 정수부 7자리, 소수부 3자리
+const QTY_MAX_INTEGER_DIGITS = 7;
+const QTY_MAX_FRACTION_DIGITS = 3;
+
+// unit_price DECIMAL(10,2) → 정수부 8자리, 소수부 2자리
+const PRICE_MAX_INTEGER_DIGITS = 8;
+const PRICE_MAX_FRACTION_DIGITS = 2;
+
+const validateQtyDigits = (val: number) => {
+  if (!Number.isFinite(val)) return false;
+  const [integerRaw, fraction = ""] = val.toString().split(".");
+  const integer = integerRaw.replace("-", "");
+  if (integer.length > QTY_MAX_INTEGER_DIGITS) return false;
+  if (fraction.length > QTY_MAX_FRACTION_DIGITS) return false;
+  return true;
+};
+
+const validateUnitPriceDigits = (val: number) => {
+  if (!Number.isFinite(val)) return false;
+  const [integerRaw, fraction = ""] = val.toString().split(".");
+  const integer = integerRaw.replace("-", "");
+  if (integer.length > PRICE_MAX_INTEGER_DIGITS) return false;
+  if (fraction.length > PRICE_MAX_FRACTION_DIGITS) return false;
+  return true;
+};
+
+// =======================
+// Zod 스키마
+// =======================
 const purchaseSchema = z
   .object({
     formQty: z.preprocess(
@@ -47,12 +86,18 @@ const purchaseSchema = z
       z
         .number({ invalid_type_error: "숫자를 입력하세요." })
         .gt(0, "수량은 0보다 커야 합니다.")
+        .refine(validateQtyDigits, {
+          message: `수량은 정수부 최대 ${QTY_MAX_INTEGER_DIGITS}자리, 소수부 최대 ${QTY_MAX_FRACTION_DIGITS}자리까지 입력할 수 있습니다.`,
+        })
     ),
     formUnitPrice: z.preprocess(
       (val) => (val === "" ? "" : Number(val)),
       z
         .number({ invalid_type_error: "숫자를 입력하세요." })
         .gt(0, "단가는 0보다 커야 합니다.")
+        .refine(validateUnitPriceDigits, {
+          message: `단가는 정수부 최대 ${PRICE_MAX_INTEGER_DIGITS}자리, 소수부 최대 ${PRICE_MAX_FRACTION_DIGITS}자리까지 입력할 수 있습니다.`,
+        })
     ),
     formDate: z
       .string()
@@ -62,10 +107,23 @@ const purchaseSchema = z
     newItemMode: z.boolean(),
 
     formItemId: z.string().optional(),
-    newItemName: z.string().optional(),
+    newItemName: z
+      .string()
+      .optional()
+      .refine(
+        (v) =>
+          !v || v.length <= ITEM_NAME_MAX_LENGTH,
+        `새 품목명은 최대 ${ITEM_NAME_MAX_LENGTH}자까지 입력할 수 있습니다.`
+      ),
     newItemType: z.string().optional(),
-
-    newStockType: z.string().optional(),
+    newStockType: z
+      .string()
+      .optional()
+      .refine(
+        (v) =>
+          !v || v.length <= STOCK_TYPE_MAX_LENGTH,
+        `수량 단위는 최대 ${STOCK_TYPE_MAX_LENGTH}자까지 입력할 수 있습니다.`
+      ),
   })
   .refine(
     (data) => {
@@ -110,6 +168,7 @@ export function PurchaseModal({
 }: PurchaseModalProps) {
   const form = useForm<PurchaseFormValues>({
     resolver: zodResolver(purchaseSchema),
+    mode: "onChange",
     defaultValues: {
       formItemId: "",
       formQty: "",
@@ -123,32 +182,32 @@ export function PurchaseModal({
   });
 
   useEffect(() => {
-    if (open) {
-      if (initialData) {
-        // 수정 모드
-        form.reset({
-          formItemId: String(initialData.itemId),
-          formQty: initialData.purchaseQty,
-          formUnitPrice: initialData.unitPrice,
-          formDate: initialData.purchaseDate,
-          newItemMode: false,
-          newItemName: "",
-          newItemType: "",
-          newStockType: "",
-        });
-      } else {
-        // 생성 모드
-        form.reset({
-          formItemId: "",
-          formQty: "",
-          formUnitPrice: "",
-          formDate: TODAY,
-          newItemMode: false,
-          newItemName: "",
-          newItemType: "",
-          newStockType: "",
-        });
-      }
+    if (!open) return;
+
+    if (initialData) {
+      // 수정 모드
+      form.reset({
+        formItemId: String(initialData.itemId),
+        formQty: initialData.purchaseQty.toString() as any,
+        formUnitPrice: initialData.unitPrice.toString() as any,
+        formDate: initialData.purchaseDate,
+        newItemMode: false,
+        newItemName: "",
+        newItemType: "",
+        newStockType: "",
+      });
+    } else {
+      // 생성 모드
+      form.reset({
+        formItemId: "",
+        formQty: "",
+        formUnitPrice: "",
+        formDate: TODAY,
+        newItemMode: false,
+        newItemName: "",
+        newItemType: "",
+        newStockType: "",
+      });
     }
   }, [open, initialData, form]);
 
@@ -230,7 +289,23 @@ export function PurchaseModal({
                     <FormItem>
                       <FormLabel>새 품목명</FormLabel>
                       <FormControl>
-                        <Input placeholder="예: Kenya AA" {...field} />
+                        <Input
+                          placeholder="예: Kenya AA"
+                          value={field.value ?? ""}
+                          // JS 쪽에서 길이 제한 + 에러
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value.length > ITEM_NAME_MAX_LENGTH) {
+                              form.setError("newItemName", {
+                                type: "manual",
+                                message: `새 품목명은 최대 ${ITEM_NAME_MAX_LENGTH}자까지 입력할 수 있습니다.`,
+                              });
+                              return;
+                            }
+                            form.clearErrors("newItemName");
+                            field.onChange(value);
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -238,7 +313,7 @@ export function PurchaseModal({
                 />
 
                 <div className="grid grid-cols-2 gap-4">
-                  {/* 🔽 여기: Input → Select로 변경 */}
+                  {/* 품목 타입 (Select) */}
                   <FormField
                     control={form.control}
                     name="newItemType"
@@ -270,6 +345,7 @@ export function PurchaseModal({
                     )}
                   />
 
+                  {/* 새 수량 단위 */}
                   <FormField
                     control={form.control}
                     name="newStockType"
@@ -277,7 +353,22 @@ export function PurchaseModal({
                       <FormItem>
                         <FormLabel>수량 단위</FormLabel>
                         <FormControl>
-                          <Input placeholder="예: kg" {...field} />
+                          <Input
+                            placeholder="예: kg"
+                            value={field.value ?? ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value.length > STOCK_TYPE_MAX_LENGTH) {
+                                form.setError("newStockType", {
+                                  type: "manual",
+                                  message: `수량 단위는 최대 ${STOCK_TYPE_MAX_LENGTH}자까지 입력할 수 있습니다.`,
+                                });
+                                return;
+                              }
+                              form.clearErrors("newStockType");
+                              field.onChange(value);
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -292,7 +383,9 @@ export function PurchaseModal({
               </>
             )}
 
+            {/* 수량 / 단가 */}
             <div className="grid grid-cols-2 gap-4">
+              {/* 수량 */}
               <FormField
                 control={form.control}
                 name="formQty"
@@ -301,16 +394,57 @@ export function PurchaseModal({
                     <FormLabel>수량</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="예: 20"
-                        {...field}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="예: 20 또는 1.234"
+                        value={field.value?.toString() ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          if (value === "") {
+                            form.clearErrors("formQty");
+                            field.onChange("");
+                            return;
+                          }
+
+                          // 숫자 + 소수점 1개만 허용
+                          const decimalPattern =
+                            /^(?:\d+|\d+\.\d*|\.\d+)$/;
+                          if (!decimalPattern.test(value)) {
+                            // 문자가 섞이면 입력 무시
+                            return;
+                          }
+
+                          const [integerPart = "", fractionPart = ""] =
+                            value.split(".");
+
+                          if (integerPart.length > QTY_MAX_INTEGER_DIGITS) {
+                            form.setError("formQty", {
+                              type: "manual",
+                              message: `수량은 정수부 최대 ${QTY_MAX_INTEGER_DIGITS}자리까지 입력할 수 있습니다.`,
+                            });
+                            return;
+                          }
+
+                          if (fractionPart.length > QTY_MAX_FRACTION_DIGITS) {
+                            form.setError("formQty", {
+                              type: "manual",
+                              message: `수량은 소수부 최대 ${QTY_MAX_FRACTION_DIGITS}자리까지 입력할 수 있습니다.`,
+                            });
+                            return;
+                          }
+
+                          form.clearErrors("formQty");
+                          field.onChange(value);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* 단가 */}
               <FormField
                 control={form.control}
                 name="formUnitPrice"
@@ -319,10 +453,51 @@ export function PurchaseModal({
                     <FormLabel>단가</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="예: 25000"
-                        {...field}
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="예: 25000 또는 1234.56"
+                        value={field.value?.toString() ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          if (value === "") {
+                            form.clearErrors("formUnitPrice");
+                            field.onChange("");
+                            return;
+                          }
+
+                          const decimalPattern =
+                            /^(?:\d+|\d+\.\d*|\.\d+)$/;
+                          if (!decimalPattern.test(value)) {
+                            return; // 문자 입력 무시
+                          }
+
+                          const [integerPart = "", fractionPart = ""] =
+                            value.split(".");
+
+                          if (
+                            integerPart.length > PRICE_MAX_INTEGER_DIGITS
+                          ) {
+                            form.setError("formUnitPrice", {
+                              type: "manual",
+                              message: `단가는 정수부 최대 ${PRICE_MAX_INTEGER_DIGITS}자리까지 입력할 수 있습니다.`,
+                            });
+                            return;
+                          }
+
+                          if (
+                            fractionPart.length > PRICE_MAX_FRACTION_DIGITS
+                          ) {
+                            form.setError("formUnitPrice", {
+                              type: "manual",
+                              message: `단가는 소수부 최대 ${PRICE_MAX_FRACTION_DIGITS}자리까지 입력할 수 있습니다.`,
+                            });
+                            return;
+                          }
+
+                          form.clearErrors("formUnitPrice");
+                          field.onChange(value);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -331,6 +506,7 @@ export function PurchaseModal({
               />
             </div>
 
+            {/* 매입일 */}
             <FormField
               control={form.control}
               name="formDate"

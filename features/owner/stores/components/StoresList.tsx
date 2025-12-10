@@ -1,4 +1,4 @@
-"use client"
+//storelist"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
