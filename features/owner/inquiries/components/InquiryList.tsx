@@ -43,8 +43,15 @@ export function InquiryList({ inquiries, onDelete }: Props) {
                 </div>
               </div>
               
+              {/* [수정] 작성일시 포맷 변경: 날짜 + 시간(시:분) 표시 */}
               <div className="text-xs text-gray-400 font-normal shrink-0">
-                {new Date(item.createdAt).toLocaleDateString()}
+                {new Date(item.createdAt).toLocaleString("ko-KR", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                })}
               </div>
             </div>
           </AccordionTrigger>
@@ -63,7 +70,14 @@ export function InquiryList({ inquiries, onDelete }: Props) {
                   <div className="flex justify-between items-center mb-2">
                     <p className="font-semibold text-sm text-blue-800">관리자 답변</p>
                     <span className="text-xs text-blue-600">
-                      {item.answeredAt && new Date(item.answeredAt).toLocaleString()}
+                      {/* [수정] 답변 일시 포맷 통일 */}
+                      {item.answeredAt && new Date(item.answeredAt).toLocaleString("ko-KR", {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                      })}
                     </span>
                   </div>
                   <p className="text-sm whitespace-pre-wrap text-gray-700">{item.answer}</p>
