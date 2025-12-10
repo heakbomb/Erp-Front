@@ -47,6 +47,5 @@ export const ADMIN_NAV_ITEMS = [
   { name: "사용자 관리", href: "/admin/users", icon: Users },
   { name: "사업장 승인", href: "/admin/stores", icon: Store },
   { name: "구독 관리", href: "/admin/subscriptions", icon: CreditCard },
-  { name: "로그 감사", href: "/admin/logs", icon: FileText },
   { name: "문의 관리", href: "/admin/inquiries", icon: MessageCircleQuestion },
 ];
