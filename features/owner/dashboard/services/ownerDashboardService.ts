@@ -14,6 +14,11 @@ export type OwnerDashboardStats = {
   totalEmployees: number
 }
 
+type EmployeeStatusSummary = {
+  workingCount: number
+  totalCount: number
+}
+
 export type OwnerAlertSeverity = "info" | "medium" | "high"
 
 export type OwnerAlert = {
@@ -92,27 +97,30 @@ const calcRate = (curr: number, prev: number) => {
 }
 
 // ───────────────── 실제 백엔드 연동용 함수 ─────────────────
-
 export async function fetchOwnerDashboard(storeId: number): Promise<OwnerDashboardData> {
-  // 1) 매출 요약 + 재고 부족 개수 병렬 호출
-  const [summary, lowStockRes] = await Promise.all([
-    fetchSalesSummary(storeId), // 이미 매출 관리에서 쓰고 있는 함수
+  // 1) 매출 요약 + 재고 부족 개수 + 직원 현황 병렬 호출
+  const [summary, lowStockRes, employeeStatusRes] = await Promise.all([
+    fetchSalesSummary(storeId),
     apiClient.get<number>("/owner/inventory/low-stock-count", {
+      params: { storeId },
+    }),
+    apiClient.get<EmployeeStatusSummary>("/owner/attendance/status", {
       params: { storeId },
     }),
   ])
 
   const lowStockCount = lowStockRes.data
+  const { workingCount, totalCount } = employeeStatusRes.data
 
-  // 2) stats 조합 (직원 수는 나중에 백엔드 연결)
+  // 2) stats 조합
   const stats: OwnerDashboardStats = {
     todaySales: summary.todaySales,
     todaySalesChange: calcRate(summary.todaySales, summary.yesterdaySales),
     monthSales: summary.thisMonthSales,
     monthSalesChange: calcRate(summary.thisMonthSales, summary.lastMonthSales),
     lowStockCount,
-    workingEmployees: 0, // TODO: 직원 쪽 붙일 때 교체
-    totalEmployees: 0,   // TODO: 직원 쪽 붙일 때 교체
+    workingEmployees: workingCount,
+    totalEmployees: totalCount,
   }
 
   return {
