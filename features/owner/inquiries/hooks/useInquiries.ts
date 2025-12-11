@@ -2,17 +2,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { inquiryService } from "../services/inquiryService";
 import { InquiryCreateRequest } from "@/lib/types/inquiry";
-import { toast } from "sonner"; // sonner 토스트 사용 (기존 코드 참고)
+import { toast } from "sonner"; 
 
-export const useInquiries = (ownerId: number | undefined, page: number = 0) => {
+// ✅ size 기본값을 6으로 설정 (한 페이지에 6개씩)
+export const useInquiries = (ownerId: number | undefined, page: number = 0, size: number = 6) => {
   const queryClient = useQueryClient();
-  const QUERY_KEY = ["owner-inquiries", ownerId, page];
+  
+  // ✅ queryKey에 size 추가 (페이지 사이즈 변경 시 재조회)
+  const QUERY_KEY = ["owner-inquiries", ownerId, page, size];
 
   // 목록 조회
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEY,
-    queryFn: () => inquiryService.getMyInquiries(ownerId!, page),
-    enabled: !!ownerId, // ownerId가 있을 때만 실행
+    // ✅ 서비스 함수에 size 전달
+    queryFn: () => inquiryService.getMyInquiries(ownerId!, page, size),
+    enabled: !!ownerId, 
   });
 
   // 등록 Mutation

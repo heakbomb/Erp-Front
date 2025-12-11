@@ -13,7 +13,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// ✅ [수정] Named Import로 변경 (default import 제거)
 import { useStoresVerify } from "@/features/owner/stores/hooks/useStoresVerify";
 
 type StoresVerifyProps = {
@@ -64,7 +63,6 @@ export default function StoresVerify({
                 onChange={(e) => {
                   const onlyNumbers = e.target.value.replace(/[^0-9]/g, "");
                   if (onlyNumbers.length <= 11) {
-                    // ✅ Hook에서 State 타입을 정의했으므로 'p' 타입 에러 해결됨
                     setForm((p) => ({ ...p, phone: onlyNumbers }));
                   }
                 }}
@@ -77,12 +75,23 @@ export default function StoresVerify({
               )}
             </div>
 
+            {/* ✅ [수정] 인증 코드 안내 문구 변경 */}
             {phoneStep === "CODE" && authCode && (
-              <div className="p-3 rounded bg-gray-100 text-sm">
-                <p className="mb-1">아래 인증 문자열을 지정된 메일로 전송하면 자동으로 인증됩니다.</p>
-                <p className="font-mono font-bold text-blue-600">{authCode}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  인증이 완료되면 다음 단계로 이동합니다.
+              <div className="p-4 rounded-md bg-slate-100 border border-slate-200 text-sm space-y-2">
+                <p className="text-slate-800 font-medium">
+                  아래 인증 코드를 확인하신 후,
+                </p>
+                <div className="bg-white p-3 rounded border text-center my-2">
+                  <span className="font-mono text-xl font-bold text-blue-600 tracking-wider">
+                    {authCode}
+                  </span>
+                </div>
+                <p className="text-slate-600 leading-relaxed">
+                  휴대폰에서 <strong>csmtask@gmail.com</strong> 으로 <br/>
+                  위 인증 코드를 문자로 전송해주세요.
+                </p>
+                <p className="text-xs text-slate-400 mt-2">
+                  * 전송 후 잠시 기다리시면 자동으로 인증이 완료됩니다.
                 </p>
               </div>
             )}

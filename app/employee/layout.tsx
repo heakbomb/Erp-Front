@@ -1,36 +1,47 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { usePathname } from "next/navigation"; // ✅ usePathname 추가
+import { usePathname } from "next/navigation";
 import { AppLayout } from "@/components/common/AppLayout";
 import { EMPLOYEE_NAV_ITEMS } from "@/lib/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-import { StoreProvider, useStore } from "@/contexts/StoreContext";
-import { ChevronDown, Clock } from "lucide-react";
+import { StoreProvider } from "@/contexts/StoreContext";
+import { ChevronDown, Clock, Check } from "lucide-react";
+import { useEmployeeProfile, useEmployeeStores } from "@/features/employee/profile/hooks/useEmployeeProfile";
 
 /**
  * 직원 레이아웃 전용 사용자 정보 UI
- * - 사장님 레이아웃과 동일하게 사업장 선택 드롭다운 기능 포함
+ * - 3번 직원을 고정으로 사용하여 프로필과 소속 사업장 목록을 드롭다운으로 보여줍니다.
  */
 function EmployeeInfo() {
-  const { user } = useAuth();
-  const { stores, currentStoreId, setCurrentStoreId, isLoading } = useStore();
+  const TARGET_EMPLOYEE_ID = 3;
+  
+  // 1. 직원 정보 및 사업장 목록 조회
+  const { profile, isLoading: isProfileLoading } = useEmployeeProfile(TARGET_EMPLOYEE_ID);
+  const { stores, isLoading: isStoresLoading } = useEmployeeStores(TARGET_EMPLOYEE_ID);
+
+  // 2. UI 상태 관리
   const [open, setOpen] = useState(false);
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
 
-  // 안전한 이름 처리
-  const displayName =
-    (user as any)?.name ??
-    (user as any)?.username ??
-    (user as any)?.email ??
-    "직원";
+  // 로딩 완료 후 첫 번째 사업장 자동 선택
+  useEffect(() => {
+    if (stores.length > 0 && selectedStoreId === null) {
+      setSelectedStoreId(stores[0].storeId);
+    }
+  }, [stores, selectedStoreId]);
 
-  // 현재 선택된 사업장 (없으면 첫 번째)
-  const currentStore =
-    stores.find((s) => s.storeId === currentStoreId) ?? stores[0];
+  const isLoading = isProfileLoading || isStoresLoading;
+  const displayName = profile?.name ?? "직원";
+  
+  // 현재 선택된 사업장 객체 찾기
+  const currentStore = stores.find((s) => s.storeId === selectedStoreId) ?? stores[0];
+  const currentStoreName = currentStore?.storeName ?? "소속 매장 없음";
 
-  const handleSelectStore = (id: number) => {
-    setCurrentStoreId(id);
+  const handleSelectStore = (storeId: number) => {
+    setSelectedStoreId(storeId);
     setOpen(false);
+    // 추후 전역 상태(StoreContext)나 쿠키에 저장하는 로직 추가 가능
+    console.log(`Selected Store ID: ${storeId}`);
   };
 
   return (
@@ -39,44 +50,56 @@ function EmployeeInfo() {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-muted focus:outline-none"
+        className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-muted focus:outline-none transition-colors"
       >
-        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium">
+        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium shrink-0">
           {displayName.charAt(0)}
         </div>
         <div className="flex-1 min-w-0 text-left">
           <p className="text-sm font-medium truncate">
-            {displayName}
+            {isLoading ? "로딩 중..." : displayName}
           </p>
           <p className="text-xs text-muted-foreground truncate">
-            {isLoading
-              ? "불러오는 중..."
-              : currentStore?.storeName ?? "배정된 사업장 없음"}
+            {isLoading ? "..." : currentStoreName}
           </p>
         </div>
-        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {/* 사업장 선택 드롭다운 */}
-      {open && !isLoading && stores.length > 0 && (
-        <div className="absolute left-0 mt-2 w-56 rounded-lg border bg-popover shadow-md z-20">
-          <div className="max-h-64 overflow-y-auto py-1 bg-white rounded-lg">
-            {stores.map((store) => (
-              <button
-                key={store.storeId}
-                type="button"
-                onClick={() => handleSelectStore(store.storeId)}
-                className={`block w-full px-3 py-2 text-sm text-left hover:bg-muted ${
-                  store.storeId === currentStore?.storeId
-                    ? "bg-muted font-semibold"
-                    : ""
-                }`}
-              >
-                {store.storeName}
-              </button>
-            ))}
+      {/* 사업장 선택 드롭다운 (사장님 레이아웃과 유사한 스타일) */}
+      {open && stores.length > 0 && (
+        <div className="absolute left-0 top-full mt-2 w-64 rounded-lg border bg-popover shadow-md z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+          <div className="py-1 bg-white">
+            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
+              사업장 전환
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+              {stores.map((store) => (
+                <button
+                  key={store.storeId}
+                  type="button"
+                  onClick={() => handleSelectStore(store.storeId)}
+                  className={`flex w-full items-center justify-between px-3 py-2.5 text-sm text-left hover:bg-muted/50 transition-colors ${
+                    store.storeId === selectedStoreId ? "bg-blue-50 text-blue-700 font-medium" : ""
+                  }`}
+                >
+                  <span className="truncate">{store.storeName}</span>
+                  {store.storeId === selectedStoreId && (
+                    <Check className="h-4 w-4 text-blue-600" />
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+      )}
+      
+      {/* 닫힘 배경 클릭 처리 (Optional UX) */}
+      {open && (
+        <div 
+          className="fixed inset-0 z-40 bg-transparent" 
+          onClick={() => setOpen(false)} 
+        />
       )}
     </div>
   );
@@ -87,33 +110,28 @@ export default function EmployeeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname(); // ✅ 현재 경로 확인용
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 
-  // ✅ Hydration Mismatch 방지 (main 브랜치 내용)
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) return null;
 
-  // ✅ 직원 모바일 출퇴근 페이지에서는 사이드바/상단바 제거 (HEAD 브랜치 내용)
   if (pathname === "/employee/attendance/mobile") {
     return <div className="min-h-screen bg-background">{children}</div>;
   }
 
-  // ✅ '설정' 메뉴 필터링 (HEAD 브랜치 내용)
-  // 이름이 '설정'이거나 href에 'settings'가 포함된 경우 제외
   const filteredNavigation = EMPLOYEE_NAV_ITEMS.filter(
     (item) => item.name !== "설정" && !item.href.includes("/settings")
   );
 
   return (
-    // ✅ StoreProvider로 감싸서 내부에서 useStore 사용 가능하게 함
     <StoreProvider>
       <AppLayout
-        navigation={filteredNavigation} // ✅ 필터링된 네비게이션 적용
-        userInfo={<EmployeeInfo />}
+        navigation={filteredNavigation}
+        userInfo={<EmployeeInfo />} // ✅ 드롭다운 기능이 포함된 컴포넌트
         logoIcon={Clock}
         logoText="직원 서비스"
       >

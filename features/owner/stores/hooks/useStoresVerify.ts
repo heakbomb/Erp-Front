@@ -10,11 +10,9 @@ import {
 
 export type PhoneStep = "IDLE" | "CODE" | "VERIFIED";
 
-// ✅ [수정] Named Export로 변경 (export default 제거)
 export function useStoresVerify(onVerifiedAction?: (info: any) => void) {
   const [open, setOpen] = useState(false);
   
-  // ✅ [수정] State 타입 명시 (이것이 StoresVerify.tsx의 'p' 타입 에러를 해결함)
   const [form, setForm] = useState<{ bizNo: string; phone: string }>({ 
     bizNo: "", 
     phone: "" 
@@ -30,7 +28,6 @@ export function useStoresVerify(onVerifiedAction?: (info: any) => void) {
   const [saving, setSaving] = useState(false);
   const [verifiedInfo, setVerifiedInfo] = useState<any | null>(null);
 
-  // 컴포넌트 언마운트 시 폴링 정리
   useEffect(() => {
     return () => {
       if (pollingId) clearInterval(pollingId);
@@ -38,10 +35,19 @@ export function useStoresVerify(onVerifiedAction?: (info: any) => void) {
   }, [pollingId]);
 
   const handlePhoneVerify = async () => {
+    // ✅ [수정] 전화번호 유효성 검사 강화 (010으로 시작하는 11자리 숫자)
+    const phoneRegex = /^010\d{8}$/;
+    
     if (!form.phone.trim()) {
-      alert("전화번호를 먼저 입력하세요.");
+      alert("전화번호를 입력하세요.");
       return;
     }
+
+    if (!phoneRegex.test(form.phone)) {
+      alert("올바른 휴대폰 번호 형식이 아닙니다.\n010으로 시작하는 11자리 숫자로 입력해주세요. (예: 01012345678)");
+      return;
+    }
+
     try {
       setPhoneLoading(true);
       setError("");
