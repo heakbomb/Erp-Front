@@ -165,7 +165,6 @@ export function MenuModal({
               id="menu-name"
               placeholder="아메리카노"
               value={menuName}
-              maxLength={MENU_NAME_MAX_LENGTH}
               onChange={handleMenuNameChange}
             />
             {menuNameError && (

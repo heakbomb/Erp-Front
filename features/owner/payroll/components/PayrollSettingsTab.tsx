@@ -25,6 +25,9 @@ const DEDUCTION_OPTIONS: Record<
   TAX_3_3: { label: "3.3% 공제", rate: 0.033 },
 }
 
+const BASE_WAGE_MAX_INTEGER_DIGITS = 8
+
+
 export default function PayrollSettingsTab() {
   const {
     settings,
@@ -37,8 +40,16 @@ export default function PayrollSettingsTab() {
   } = usePayrollSettings()
 
   const handleBaseWageChange = (employeeId: number, e: ChangeEvent<HTMLInputElement>) => {
-    const onlyNumber = e.target.value.replace(/[^0-9]/g, "")
-    const value = onlyNumber ? Number(onlyNumber) : 0
+    // 1) 숫자만 남기기
+    let onlyNumber = e.target.value.replace(/[^0-9]/g, "")
+
+    // 2) 정수부 8자리까지만 허용
+    if (onlyNumber.length > BASE_WAGE_MAX_INTEGER_DIGITS) {
+      onlyNumber = onlyNumber.slice(0, BASE_WAGE_MAX_INTEGER_DIGITS)
+    }
+
+    // 3) 상태 반영 (빈 문자열이면 undefined/빈값 처리)
+    const value = onlyNumber ? Number(onlyNumber) : undefined
 
     updateSettingField(employeeId, { baseWage: value as any })
   }
@@ -155,21 +166,39 @@ export default function PayrollSettingsTab() {
 
                       {/* 기본급 */}
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            className="w-[140px]"
-                            inputMode="numeric"
-                            value={s.baseWage ?? ""}
-                            onChange={(e) => handleBaseWageChange(s.employeeId, e)}
-                            placeholder="숫자만 입력"
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            원 / {s.wageType === "MONTHLY" ? "월" : "시간"}
-                          </span>
-                        </div>
+                        {(() => {
+                          const baseWageStr =
+                            s.baseWage !== null && s.baseWage !== undefined ? String(s.baseWage) : ""
+
+                          return (
+                            <div className="flex flex-col gap-1">
+                              {/* 입력 + 단위 */}
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  className="w-[140px]"
+                                  inputMode="numeric"
+                                  maxLength={BASE_WAGE_MAX_INTEGER_DIGITS} // 키보드에서도 길이 제한
+                                  value={baseWageStr}
+                                  onChange={(e) => handleBaseWageChange(s.employeeId, e)}
+                                  placeholder="숫자만 입력"
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                  원 / {s.wageType === "MONTHLY" ? "월" : "시간"}
+                                </span>
+                              </div>
+
+                              {/* ⚠️ 경고 메시지: 최대 자리수 도달 시 표시 */}
+                              {baseWageStr.length >= BASE_WAGE_MAX_INTEGER_DIGITS && (
+                                <p className="text-[11px] text-red-500">
+                                  기본급은 최대 {BASE_WAGE_MAX_INTEGER_DIGITS}자리까지만 입력 가능합니다.
+                                </p>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </TableCell>
 
-                       {/* ✅ 공제 항목 - 드롭다운과 비율 텍스트 폭/정렬 맞추기 */}
+                      {/* ✅ 공제 항목 - 드롭다운과 비율 텍스트 폭/정렬 맞추기 */}
                       <TableCell>
                         {/* 공제 영역 전체를 고정 폭으로 잡고, 안에서 세로 정렬 */}
                         <div className="flex flex-col gap-1 w-[180px]">

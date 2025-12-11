@@ -278,16 +278,18 @@ export function RecipeModal({
 
   if (!menu) return null;
 
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>레시피 관리</DialogTitle>
-          <DialogDescription>
-            {`${menu.menuName} (ID: ${menu.menuId})`}
-          </DialogDescription>
-        </DialogHeader>
+return (
+  <Dialog open={open} onOpenChange={handleClose}>
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>레시피 관리</DialogTitle>
+        <DialogDescription>
+          {`${menu.menuName} (ID: ${menu.menuId})`}
+        </DialogDescription>
+      </DialogHeader>
 
+      {/* 🔽 여기부터 스크롤 되는 영역으로 감싸기 */}
+      <div className="mt-4 space-y-4 max-h-[420px] overflow-y-auto pr-1">
         {/* 비활성 재고 경고 */}
         {hasInactiveInRecipe && (
           <div className="rounded-md border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 p-3 text-sm">
@@ -424,13 +426,15 @@ export function RecipeModal({
             </Button>
           </div>
         </div>
+      </div>
+      {/* 🔼 스크롤 영역 끝 */}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            닫기
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+      <DialogFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)}>
+          닫기
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
 }
