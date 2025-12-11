@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+// ❌ 기존 Pagination import 제거
 import { Search, Loader2, MoreVertical, Plus, Trash2, Edit } from "lucide-react"; 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
@@ -27,7 +27,9 @@ import { Switch } from "@/components/ui/switch";
 import { useAdminSubscriptions } from "./hooks/useAdminSubscriptions";
 import type { Subscription, SubscriptionRequest, SubscriptionStatus } from "./adminSubscriptionsService";
 
-// ⭐️ AdminSubscriptionsPage 'Feature' 컴포넌트
+// ✅ [추가] 한 번에 보여줄 페이지 번호 개수 (예: 1 2 3 4 5)
+const PAGE_WINDOW = 5;
+
 export default function AdminSubscriptionsPageFeature() {
   const [mounted, setMounted] = useState(false);
   React.useEffect(() => { setMounted(true) }, []);
@@ -57,7 +59,6 @@ export default function AdminSubscriptionsPageFeature() {
   if (!mounted) {
     return (
       <div className="p-8 space-y-6 animate-pulse">
-        {/* ... (스켈레톤 UI는 동일) ... */}
         <div>
           <div className="h-10 bg-gray-200 rounded w-64 dark:bg-gray-700"></div>
           <div className="h-4 bg-gray-200 rounded w-80 mt-2 dark:bg-gray-700"></div>
@@ -92,10 +93,14 @@ export default function AdminSubscriptionsPageFeature() {
     setIsModalOpen(true);
   };
 
-  // 5. ⭐️ 활성 탭에 맞는 데이터와 상태를 선택
+  // 5. 활성 탭 데이터 선택
   const activeQuery = tab === "PRODUCTS" ? productsQuery : statusQuery;
   const totalPages = activeQuery.data?.totalPages ?? 0;
   const isLoading = activeQuery.isLoading;
+
+  // ✅ [추가] 페이지네이션 구간 계산 (다른 페이지와 동일한 로직)
+  const start = Math.floor(page / PAGE_WINDOW) * PAGE_WINDOW;
+  const end = Math.min(start + PAGE_WINDOW - 1, Math.max(totalPages - 1, 0));
 
   // 6. 실제 UI
   return (
@@ -111,7 +116,6 @@ export default function AdminSubscriptionsPageFeature() {
             <CardTitle>
               {tab === "PRODUCTS" ? "구독 상품 목록" : "사용자 구독 현황"}
             </CardTitle>
-            {/* '상품 관리' 탭일 때만 '추가' 버튼 보이기 */}
             {tab === "PRODUCTS" && (
               <Button onClick={openNewModal}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -143,14 +147,12 @@ export default function AdminSubscriptionsPageFeature() {
               <TabsTrigger value="STATUS">구독 현황</TabsTrigger>
             </TabsList>
 
-            {/* --- 공통 로딩/에러 처리 --- */}
             <div className="mt-4">
               {isLoading && <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div>}
               {activeQuery.error && <div className="text-red-500 text-center p-4">{(activeQuery.error as Error).message}</div>}
               
               {!isLoading && !activeQuery.error && (
                 <>
-                  {/* --- 탭 1: 상품 관리 --- */}
                   <TabsContent value="PRODUCTS">
                     <ProductsTable
                       data={productsQuery.data?.content ?? []}
@@ -160,36 +162,71 @@ export default function AdminSubscriptionsPageFeature() {
                     />
                   </TabsContent>
 
-                  {/* --- 탭 2: 구독 현황 --- */}
                   <TabsContent value="STATUS">
                     <StatusTable data={statusQuery.data?.content ?? []} />
                   </TabsContent>
                   
-                  {/* --- 공통 페이지네이션 --- */}
-                  {totalPages > 1 && (
-                    <Pagination className="mt-4">
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious
-                            href="#"
-                            onClick={(e) => { e.preventDefault(); handlePageChange(page - 1); }}
-                            className={!isLoading && page > 0 ? "" : "pointer-events-none opacity-50"}
-                          />
-                        </PaginationItem>
-                        <PaginationItem>
-                          <span className="px-4 py-2 text-sm">
-                            Page {totalPages > 0 ? page + 1 : 0} of {totalPages}
-                          </span>
-                        </PaginationItem>
-                        <PaginationItem>
-                          <PaginationNext
-                            href="#"
-                            onClick={(e) => { e.preventDefault(); handlePageChange(page + 1); }}
-                            className={!isLoading && page < totalPages - 1 ? "" : "pointer-events-none opacity-50"}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
+                  {/* ✅ [수정] 다른 페이지와 동일한 스타일의 페이지네이션 적용 */}
+                  {totalPages > 0 && (
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        페이지 {page + 1} / {Math.max(totalPages, 1)}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* 처음으로 */}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={page === 0} 
+                          onClick={() => handlePageChange(0)}
+                        >
+                          « 처음
+                        </Button>
+                        {/* 이전 */}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={page <= 0} 
+                          onClick={() => handlePageChange(page - 1)}
+                        >
+                          ‹ 이전
+                        </Button>
+
+                        {/* 페이지 번호 (1 2 3 ...) */}
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: end - start + 1 }, (_, i) => start + i).map((p) => (
+                            <Button
+                              key={p}
+                              variant={p === page ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageChange(p)}
+                            >
+                              {p + 1}
+                            </Button>
+                          ))}
+                        </div>
+
+                        {/* 다음 */}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={page >= totalPages - 1} 
+                          onClick={() => handlePageChange(page + 1)}
+                        >
+                          다음 ›
+                        </Button>
+                        {/* 마지막으로 */}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={page >= totalPages - 1} 
+                          onClick={() => handlePageChange(totalPages - 1)}
+                        >
+                          마지막 »
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </>
               )}
@@ -198,7 +235,6 @@ export default function AdminSubscriptionsPageFeature() {
         </CardContent>
       </Card>
 
-      {/* 상품 생성/수정 모달 (기존과 동일) */}
       <SubscriptionModal
         key={editingSubscription?.subId ?? 'new'}
         isOpen={isModalOpen}
@@ -307,7 +343,7 @@ function StatusTable({ data }: { data: SubscriptionStatus[] }) {
 }
 
 
-// --- 3. 생성/수정 모달 컴포넌트 (기존과 동일) ---
+// --- 3. 생성/수정 모달 컴포넌트 ---
 function SubscriptionModal({
   isOpen,
   onOpenChange,
@@ -325,6 +361,15 @@ function SubscriptionModal({
   const [price, setPrice] = useState(subscription?.monthlyPrice ?? 0);
   const [isActive, setIsActive] = useState(subscription?.isActive ?? true);
 
+  // 모달 열릴 때 초기화
+  React.useEffect(() => {
+    if (isOpen) {
+      setName(subscription?.subName ?? "");
+      setPrice(subscription?.monthlyPrice ?? 0);
+      setIsActive(subscription?.isActive ?? true);
+    }
+  }, [isOpen, subscription]);
+
   const handleSubmit = () => {
     const data: SubscriptionRequest = {
       subName: name,
@@ -333,9 +378,9 @@ function SubscriptionModal({
     };
     
     if (subscription) {
-      onSubmit(subscription.subId, data); // Update
+      onSubmit(subscription.subId, data); 
     } else {
-      onSubmit(data); // Create
+      onSubmit(data); 
     }
     onOpenChange(false);
   };
@@ -359,7 +404,11 @@ function SubscriptionModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: 프리미엄 플랜"
+              maxLength={20} 
             />
+            <div className="text-xs text-right text-muted-foreground mt-1">
+              {name.length} / 20
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="price">월 가격 (원)</Label>
@@ -367,9 +416,16 @@ function SubscriptionModal({
               id="price"
               type="number"
               value={price}
-              onChange={(e) => setPrice(Number(e.target.value))}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.length > 8) return; 
+                setPrice(Number(val));
+              }}
               placeholder="예: 29900"
             />
+            <div className="text-xs text-right text-muted-foreground mt-1">
+              최대 8자리
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <Switch

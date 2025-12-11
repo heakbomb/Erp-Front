@@ -1,3 +1,4 @@
+// features/owner/inquiries/components/InquiryCreateDialog.tsx
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,7 +7,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea"; // Input 대신 Textarea 사용
+import { Textarea } from "@/components/ui/textarea"; 
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage
 } from "@/components/ui/form";
@@ -16,11 +17,9 @@ import {
 import { useStores } from "@/features/owner/stores/hooks/useStores";
 import { InquiryCreateRequest } from "@/lib/types/inquiry";
 
-// 최대 글자수 상수 정의
-const MAX_TITLE_LENGTH = 50;   // 제목 제한
-const MAX_CONTENT_LENGTH = 1000; // 본문 제한
+const MAX_TITLE_LENGTH = 50;   
+const MAX_CONTENT_LENGTH = 1000; 
 
-// 유효성 검사 스키마
 const formSchema = z.object({
   category: z.enum(["REPORT", "SUGGESTION", "INQUIRY"]),
   title: z.string()
@@ -53,7 +52,6 @@ export function InquiryCreateDialog({ ownerId, onCreate, isCreating }: Props) {
     },
   });
 
-  // 실시간 글자수 감지
   const titleValue = form.watch("title");
   const contentValue = form.watch("content");
   
@@ -61,12 +59,16 @@ export function InquiryCreateDialog({ ownerId, onCreate, isCreating }: Props) {
   const currentContentLength = contentValue ? contentValue.length : 0;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const payload: InquiryCreateRequest = {
+    // ⭐️ [수정] createdAt 필드(현재 시간) 추가
+    // 백엔드 DTO가 createdAt을 받을 수 있다면 이 값이 저장됩니다.
+    const payload = {
       category: values.category,
       title: values.title,
       content: values.content,
       storeId: values.storeId && values.storeId !== "none" ? Number(values.storeId) : null,
-    };
+      createdAt: new Date().toISOString(), 
+    } as unknown as InquiryCreateRequest; // 타입 호환성을 위해 캐스팅
+
     await onCreate(payload);
     setOpen(false);
     form.reset();
@@ -140,15 +142,13 @@ export function InquiryCreateDialog({ ownerId, onCreate, isCreating }: Props) {
                 <FormItem>
                   <FormLabel>제목</FormLabel>
                   <FormControl>
-                    {/* Input 대신 Textarea를 사용하여 줄바꿈 지원 */}
                     <Textarea 
                       placeholder="문의 제목을 입력하세요" 
-                      className="min-h-[40px] resize-none overflow-hidden py-2" // Input과 비슷한 높이감, 줄바꿈 시 자동 늘어남(기본동작)
+                      className="min-h-[40px] resize-none overflow-hidden py-2" 
                       maxLength={MAX_TITLE_LENGTH}
                       {...field} 
                     />
                   </FormControl>
-                  {/* 제목 글자수 카운터 */}
                   <div className="text-xs text-right text-muted-foreground mt-1">
                     {currentTitleLength} / {MAX_TITLE_LENGTH}자
                   </div>
@@ -171,7 +171,6 @@ export function InquiryCreateDialog({ ownerId, onCreate, isCreating }: Props) {
                       {...field} 
                     />
                   </FormControl>
-                  {/* 본문 글자수 카운터 */}
                   <div className="text-xs text-right text-muted-foreground mt-1">
                     {currentContentLength.toLocaleString()} / {MAX_CONTENT_LENGTH.toLocaleString()}자
                   </div>

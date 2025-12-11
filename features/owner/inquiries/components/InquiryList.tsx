@@ -12,6 +12,36 @@ interface Props {
   onDelete: (id: number) => void;
 }
 
+// ✅ 날짜 포맷팅 헬퍼 함수 추가
+function formatDate(dateValue: string | number[] | null | undefined) {
+  if (!dateValue) return "-";
+
+  // 1. 배열 형태인 경우 ([2024, 12, 11, 15, 30])
+  if (Array.isArray(dateValue)) {
+    const [year, month, day, hour = 0, minute = 0] = dateValue;
+    // 월(month)은 0부터 시작하지 않고 1부터 시작하는 배열이므로 그대로 사용 (Date 객체 생성 시에는 -1 필요하지만 문자열 조합이 더 안전함)
+    return `${year}.${String(month).padStart(2, '0')}.${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  }
+
+  // 2. 문자열 형태인 경우 (ISO String)
+  try {
+    const date = new Date(dateValue);
+    // 날짜가 유효하지 않으면 원본 반환
+    if (isNaN(date.getTime())) return String(dateValue);
+
+    return date.toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false, // 24시간제
+    }).replace(/\. /g, ".").replace(":", ":"); // 포맷 다듬기 (선택 사항)
+  } catch (e) {
+    return String(dateValue);
+  }
+}
+
 export function InquiryList({ inquiries, onDelete }: Props) {
   
   if (inquiries.length === 0) {
@@ -43,15 +73,9 @@ export function InquiryList({ inquiries, onDelete }: Props) {
                 </div>
               </div>
               
-              {/* [수정] 작성일시 포맷 변경: 날짜 + 시간(시:분) 표시 */}
+              {/* ✅ 작성일시 (헬퍼 함수 사용) */}
               <div className="text-xs text-gray-400 font-normal shrink-0">
-                {new Date(item.createdAt).toLocaleString("ko-KR", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                })}
+                {formatDate(item.createdAt)}
               </div>
             </div>
           </AccordionTrigger>
@@ -70,14 +94,8 @@ export function InquiryList({ inquiries, onDelete }: Props) {
                   <div className="flex justify-between items-center mb-2">
                     <p className="font-semibold text-sm text-blue-800">관리자 답변</p>
                     <span className="text-xs text-blue-600">
-                      {/* [수정] 답변 일시 포맷 통일 */}
-                      {item.answeredAt && new Date(item.answeredAt).toLocaleString("ko-KR", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                      })}
+                      {/* ✅ 답변 일시 (헬퍼 함수 사용) */}
+                      {formatDate(item.answeredAt)}
                     </span>
                   </div>
                   <p className="text-sm whitespace-pre-wrap text-gray-700">{item.answer}</p>
