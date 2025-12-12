@@ -1,3 +1,4 @@
+// features/admin/inquiries/AdminInquiryPageFeature.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -10,24 +11,41 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InquiryResponse } from "@/lib/types/inquiry";
 
+// 페이지네이션 상수
+const PAGE_WINDOW = 5;
+
 export default function AdminInquiryPageFeature() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const adminId = 1; // TODO: 실제 로그인된 관리자 ID로 교체 필요
+  const adminId = 1; 
+  
+  // [추가] 페이지 상태
+  const [page, setPage] = useState(0);
+
+  // [수정] 훅에 page 전달
   const { 
-    inquiries, isLoading, 
+    inquiries, isLoading, totalPages, totalElements, 
     filterStatus, setFilterStatus, 
     filterCategory, setFilterCategory,
     replyInquiry 
-  } = useAdminInquiries();
+  } = useAdminInquiries(page); // size는 훅 기본값(6) 사용
   
   const [selectedInquiry, setSelectedInquiry] = useState<InquiryResponse | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  if (!mounted) return null;
+  // [추가] 필터 변경 시 페이지 초기화 핸들러
+  const handleFilterStatusChange = (val: any) => {
+    setFilterStatus(val);
+    setPage(0);
+  };
+
+  const handleFilterCategoryChange = (val: any) => {
+    setFilterCategory(val);
+    setPage(0);
+  };
 
   const handleReplyClick = (inquiry: InquiryResponse) => {
     setSelectedInquiry(inquiry);
@@ -38,6 +56,19 @@ export default function AdminInquiryPageFeature() {
     await replyInquiry({ adminId, inquiryId, answer });
   };
 
+  // [추가] 페이지 이동 핸들러
+  const handlePageChange = (p: number) => {
+    if (p >= 0 && p < totalPages) {
+      setPage(p);
+    }
+  };
+
+  // [추가] 페이지네이션 계산
+  const start = Math.floor(page / PAGE_WINDOW) * PAGE_WINDOW;
+  const end = Math.min(start + PAGE_WINDOW - 1, Math.max(totalPages - 1, 0));
+
+  if (!mounted) return null;
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -47,7 +78,7 @@ export default function AdminInquiryPageFeature() {
           {/* 1. 카테고리 필터 */}
           <Select 
             value={filterCategory} 
-            onValueChange={(val: any) => setFilterCategory(val)}
+            onValueChange={handleFilterCategoryChange} 
           >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="카테고리" />
@@ -63,7 +94,7 @@ export default function AdminInquiryPageFeature() {
           {/* 2. 상태 필터 */}
           <Select 
             value={filterStatus} 
-            onValueChange={(val: any) => setFilterStatus(val)}
+            onValueChange={handleFilterStatusChange} 
           >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="처리 상태" />
@@ -78,7 +109,11 @@ export default function AdminInquiryPageFeature() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>문의 목록</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>문의 목록</CardTitle>
+          {/* 총 건수 표시 */}
+          <p className="text-sm text-muted-foreground">총 {totalElements}건의 문의가 있습니다.</p>
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -111,7 +146,6 @@ export default function AdminInquiryPageFeature() {
                         {item.title}
                     </TableCell>
                     <TableCell>{item.ownerName} {item.storeName && `(${item.storeName})`}</TableCell>
-                    {/* [수정] 작성일시 포맷 변경: 날짜 + 시간(시:분) 표시 */}
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(item.createdAt).toLocaleString("ko-KR", {
                         year: "numeric",
@@ -140,6 +174,65 @@ export default function AdminInquiryPageFeature() {
               )}
             </TableBody>
           </Table>
+
+          {/* [추가] 페이지네이션 UI */}
+          {totalPages > 0 && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                페이지 {page + 1} / {Math.max(totalPages, 1)}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page === 0} 
+                  onClick={() => handlePageChange(0)}
+                >
+                  « 처음
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page <= 0} 
+                  onClick={() => handlePageChange(page - 1)}
+                >
+                  ‹ 이전
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: end - start + 1 }, (_, i) => start + i).map((p) => (
+                    <Button
+                      key={p}
+                      variant={p === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePageChange(p)}
+                    >
+                      {p + 1}
+                    </Button>
+                  ))}
+                </div>
+
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page >= totalPages - 1} 
+                  onClick={() => handlePageChange(page + 1)}
+                >
+                  다음 ›
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page >= totalPages - 1} 
+                  onClick={() => handlePageChange(totalPages - 1)}
+                >
+                  마지막 »
+                </Button>
+              </div>
+            </div>
+          )}
+
         </CardContent>
       </Card>
 

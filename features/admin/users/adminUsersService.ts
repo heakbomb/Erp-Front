@@ -1,69 +1,60 @@
-import { apiClient } from "../../../lib/api/client";
-import type { PageResponse } from "../../../lib/types/api";
+import { apiClient } from "@/lib/api/client";
+import { PageResponse } from "@/lib/types/api";
 
-// 1. Owner DTO (OwnerResponse.java 참고)
-export type AdminOwner = {
+// 목록 조회용 타입 (기존 OwnerResponse의 필드도 username일 가능성이 높음)
+export interface OwnerResponse {
   ownerId: number;
-  username: string;
+  username: string; // ✅ name -> username (혹시 모를 불일치 방지)
+  name?: string;    // 호환성 유지
   email: string;
-  createdAt: string; // (LocalDateTime -> string)
-};
+  phone?: string;
+  status?: string;
+  createdAt: string;
+}
 
-// 2. Employee DTO (EmployeeResponse.java 참고)
-export type AdminEmployee = {
+export interface EmployeeResponse {
   employeeId: number;
   name: string;
   email: string;
-  phone: string;
-  provider: string;
-  createdAt: string; // (LocalDateTime -> string)
+  phone?: string;
+  createdAt: string;
+}
+
+// 상세 조회용 타입
+export interface OwnerDetailResponse {
+  ownerId: number;
+  username: string; // ✅ name -> username 변경
+  email: string;
+  createdAt: string;
+  
+  stores: {
+    storeId: number;
+    storeName: string;
+    industry: string;
+    status: string;
+    active: boolean;
+  }[];
+  
+  subscription: {
+    subName: string;
+    monthlyPrice: number;
+    startDate: string;
+    expiryDate: string;
+    isActive: boolean;
+  } | null;
+}
+
+export const getOwners = async (params: any) => {
+  const response = await apiClient.get<PageResponse<OwnerResponse>>("/admin/users/owners", { params });
+  return response.data;
 };
 
-// 3. API 요청 파라미터 타입 (공용)
-type AdminGetUsersParams = {
-  page: number;
-  size: number;
-  q: string; // 검색어
+export const getEmployees = async (params: any) => {
+  const response = await apiClient.get<PageResponse<EmployeeResponse>>("/admin/users/employees", { params });
+  return response.data;
 };
 
-/**
- * (Admin) 사장님 목록 조회 (페이징, 검색)
- * GET /admin/users/owners
- */
-export const getOwners = async (params: AdminGetUsersParams) => {
-  const res = await apiClient.get<PageResponse<AdminOwner>>(
-    "/admin/users/owners",
-    { params }
-  );
-  return res.data;
-};
-
-/**
- * (Admin) 직원 목록 조회 (페이징, 검색)
- * GET /admin/users/employees
- */
-export const getEmployees = async (params: AdminGetUsersParams) => {
-  const res = await apiClient.get<PageResponse<AdminEmployee>>(
-    "/admin/users/employees",
-    { params }
-  );
-  return res.data;
-};
-
-/**
- * (Admin) 사장님 계정 삭제
- * DELETE /admin/users/owners/{id}
- */
-export const deleteOwner = async (ownerId: number) => {
-  const res = await apiClient.delete(`/admin/users/owners/${ownerId}`);
-  return res.data;
-};
-
-/**
- * (Admin) 직원 계정 삭제
- * DELETE /admin/users/employees/{id}
- */
-export const deleteEmployee = async (employeeId: number) => {
-  const res = await apiClient.delete(`/admin/users/employees/${employeeId}`);
-  return res.data;
+export const getUserDetail = async (ownerId: number) => {
+  const response = await apiClient.get<OwnerDetailResponse>(`/admin/users/owners/${ownerId}`);
+  return response.data;
 };
