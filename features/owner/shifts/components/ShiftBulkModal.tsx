@@ -1,3 +1,4 @@
+// features/owner/shifts/components/ShiftBulkModal.tsx
 "use client";
 
 import { useState, useMemo } from "react";
@@ -89,7 +90,7 @@ export default function ShiftBulkModal({
     setBreakMinutes(String(num));
   };
 
-  const handleSubmit = async () => {
+   const handleSubmit = async () => {
     if (!employeeId) {
       alert("직원을 선택해주세요.");
       return;
@@ -131,8 +132,21 @@ export default function ShiftBulkModal({
         breakMinutes: breakMinutes ? Number(breakMinutes) : undefined,
         isFixed,
       });
-      // 성공 시 모달 닫기
+
+      // ✅ 성공 시 모달 닫기
       onClose();
+    } catch (e: any) {
+      // 🔥 여기서 409(중복 근무 스케줄) 처리
+      const status = e?.response?.status;
+      const msg = e?.response?.data ?? e?.message;
+
+      if (status === 409) {
+        // 백엔드에서 내려준 "이미 등록된 근무 스케줄이 포함되어 있습니다." 그대로 사용
+        alert(String(msg || "이미 등록된 근무 스케줄이 포함되어 있습니다."));
+      } else {
+        alert("월간 근무 일괄 등록 중 오류가 발생했습니다.");
+        console.error("Shift bulk create failed:", e);
+      }
     } finally {
       setLoading(false);
     }

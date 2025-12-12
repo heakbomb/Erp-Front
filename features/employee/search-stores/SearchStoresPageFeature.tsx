@@ -1,4 +1,3 @@
-// features/employee/search-stores/SearchStoresPageFeature.tsx
 "use client";
 
 import { useSearchStores } from "@/features/employee/search-stores/hooks/useSearchStores";
@@ -14,6 +13,7 @@ export default function SearchStoresPageFeature() {
       appliedStores={state.appliedStores}
       submitting={state.submitting}
       searching={state.searching}
+      assignmentStatus={state.assignmentStatus}
       // 함수 prop을 *Action으로 매핑해 전달 (실제 구현은 동일)
       setWorkplaceCodeAction={state.setWorkplaceCode}
       handleSearchAction={state.handleSearch}

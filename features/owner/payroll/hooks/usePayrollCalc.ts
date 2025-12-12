@@ -21,6 +21,10 @@ export default function usePayrollCalc() {
       alert("현재 선택된 사업장이 없습니다.")
       return
     }
+
+    // ✅ 중복 실행 방지
+    if (loading) return
+
     try {
       setLoading(true)
       setError(null)
@@ -31,9 +35,15 @@ export default function usePayrollCalc() {
       })
 
       setResult(data)
+      return data
     } catch (e) {
       console.error("급여 자동 계산 실패:", e)
-      setError(extractErrorMessage(e))
+
+      const msg = extractErrorMessage(e)
+      setError(msg)
+
+      // ✅ 중요: 실패를 호출자(PayrollCalcDialog)도 알 수 있게 throw
+      throw e
     } finally {
       setLoading(false)
     }
