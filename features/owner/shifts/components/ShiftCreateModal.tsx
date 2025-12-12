@@ -1,3 +1,4 @@
+// features/owner/shifts/components/ShiftCreateModal.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -157,7 +158,17 @@ export default function ShiftCreateModal({
       return;
     }
 
-    await onSubmit(form, initialShift?.shiftId);
+    try {
+      await onSubmit(form, initialShift?.shiftId);
+    } catch (e: any) {
+      // 🔥 중복 근무 등 에러를 alert로만 보여주고, 에러 화면은 막기
+      const msg =
+        e?.response?.data ??
+        e?.response?.data?.message ??
+        e?.message ??
+        "근무 스케줄 등록 중 오류가 발생했습니다.";
+      alert(String(msg));
+    }
   };
 
   return (

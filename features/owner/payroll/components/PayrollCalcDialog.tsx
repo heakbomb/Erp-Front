@@ -26,8 +26,8 @@ type Props = {
   totalWorkHours: number
   totalPayroll: number
   employeesCount: number
-  loading: boolean // 👉 리스트 조회 로딩
-  onCalcFinished?: () => void   // 🔥 계산 완료 콜백 (추가)
+  loading: boolean
+  onCalcFinished?: () => void
   storeId: number
 }
 
@@ -40,15 +40,12 @@ export default function PayrollCalcDialog({
   employeesCount,
   loading: listLoading,
   onCalcFinished,
-  storeId
+  storeId,
 }: Props) {
-  // 🔥 급여 계산용 훅
   const { loading: calcLoading, error, result, runCalc } = usePayrollCalc()
 
-  // ✅ UI 전용 로딩 상태 (스피너를 최소 3초 유지)
   const [uiLoading, setUiLoading] = useState(false)
 
-  // "2025년 12월" → "2025-12" 로 변환 (백엔드 yearMonth 용)
   const yearMonthKey = useMemo(() => {
     const match = monthLabel.match(/(\d{4})년\s*(\d{1,2})월/)
     if (!match) return ""
@@ -57,38 +54,61 @@ export default function PayrollCalcDialog({
     return `${year}-${month}`
   }, [monthLabel])
 
-  // ✅ 계산 시작 시: 스피너를 최소 3초 동안 돌리고, 그 사이에 runCalc도 같이 수행
+  // ✅ 현재 월(yyyy-MM)
+  const currentYearMonth = useMemo(() => {
+    const now = new Date()
+    const y = String(now.getFullYear())
+    const m = String(now.getMonth() + 1).padStart(2, "0")
+    return `${y}-${m}`
+  }, [])
+
+  // ✅ 지난달/과거월이면 계산 금지 (예: 2025-11 < 2025-12)
+  const isPastMonth = useMemo(() => {
+    if (!yearMonthKey) return false
+    return yearMonthKey < currentYearMonth
+  }, [yearMonthKey, currentYearMonth])
+
   const handleStartCalc = async () => {
-  if (!yearMonthKey) return
-  if (uiLoading || calcLoading) return
+    if (!yearMonthKey) return
+    if (isPastMonth) {
+      alert("지난달(과거 월)은 급여 자동 계산을 할 수 없습니다. 급여 내역만 조회 가능합니다.")
+      return
+    }
+    if (uiLoading || calcLoading) return
 
-  setUiLoading(true)
-  try {
-    const minDelay = new Promise((resolve) => setTimeout(resolve, 3000))
+    setUiLoading(true)
+    try {
+      const minDelay = new Promise((resolve) => setTimeout(resolve, 3000))
 
-    // 1) 급여 자동 계산
-    await Promise.all([
-      runCalc(yearMonthKey), // 실제 급여 계산 API
-      minDelay,              // 최소 3초 로딩 유지
-    ])
+      // ✅ 1) 계산 (실패 시 runCalc가 throw 함)
+      await Promise.all([
+        runCalc(yearMonthKey),
+        minDelay,
+      ])
 
-    // 2) 계산이 성공적으로 끝났다면 → 이번 달 급여 지급 내역을 history 테이블에 저장
-    await saveMonthlyPayrollHistory({
-      storeId,
-      yearMonth: yearMonthKey, // "2025-12"
-    })
+      // ✅ 2) 계산 성공했을 때만 history 저장
+      await saveMonthlyPayrollHistory({
+        storeId,
+        yearMonth: yearMonthKey,
+      })
 
-    // 3) 실수령액 노출 + 상위에 계산완료 알림
-    onCalcFinished?.()
-  } finally {
-    setUiLoading(false)
+      onCalcFinished?.()
+    } catch (e) {
+      // 에러 메시지는 usePayrollCalc가 이미 setError로 표시해줌
+      // 여기서는 추가 동작만 막음 (history 저장/완료 콜백 금지)
+    } finally {
+      setUiLoading(false)
+    }
   }
-}
 
   const isButtonDisabled =
-    listLoading || calcLoading || uiLoading || employeesCount === 0 || !yearMonthKey
+    listLoading ||
+    calcLoading ||
+    uiLoading ||
+    employeesCount === 0 ||
+    !yearMonthKey ||
+    isPastMonth // ✅ (추가) 지난달이면 버튼 비활성화
 
-  // 공제 유형 라벨 변환
   const renderDeductionLabel = (type?: string | null) => {
     switch (type) {
       case "FOUR_INSURANCE":
@@ -128,7 +148,6 @@ export default function PayrollCalcDialog({
         </DialogHeader>
 
         <div className="py-4 space-y-4">
-          {/* 상단 요약 */}
           <div>
             <p className="text-sm text-muted-foreground">
               {monthLabel} 근무 기록을 기반으로{" "}
@@ -146,6 +165,13 @@ export default function PayrollCalcDialog({
               </div>
             </div>
 
+            {/* ✅ (추가) 지난달 안내 */}
+            {isPastMonth && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                지난달(과거 월)은 급여 자동 계산이 비활성화됩니다. 급여 내역만 조회할 수 있습니다.
+              </p>
+            )}
+
             {error && (
               <p className="mt-2 text-xs text-red-600">
                 {error}
@@ -153,7 +179,6 @@ export default function PayrollCalcDialog({
             )}
           </div>
 
-          {/* 계산 중 로딩 UI (3초 동안 유지) */}
           {showLoading && (
             <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-md border bg-muted/60 py-8">
               <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -166,7 +191,6 @@ export default function PayrollCalcDialog({
             </div>
           )}
 
-          {/* 계산 결과 표 (3초 로딩 끝난 후에 노출) */}
           {showResult && result && (
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between">
@@ -229,7 +253,6 @@ export default function PayrollCalcDialog({
             닫기
           </Button>
 
-          {/* 계산 결과가 없을 때만 "계산 시작" 버튼 표시 */}
           {!hasResult && (
             <Button
               onClick={handleStartCalc}

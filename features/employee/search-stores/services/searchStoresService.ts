@@ -11,6 +11,9 @@ export type PreviewStore = {
   employees?: number;
 };
 
+// ✅ 신규: 신청 상태 타입
+export type AssignmentStatus = "PENDING" | "APPROVED" | "REJECTED";
+
 // 단건 사업장 조회 (storeId)
 export async function fetchStoreById(storeId: number): Promise<PreviewStore> {
   // ✅ apiClient로 직접 호출
@@ -36,4 +39,34 @@ export type ApplyPayload = {
 export async function applyToStore(payload: ApplyPayload): Promise<void> {
   // ✅ apiClient로 직접 호출
   await apiClient.post<void>(`/assignments/apply`, payload);
+}
+
+// ✅ 신규: 특정 직원-사업장 신청 상태 조회
+export async function fetchAssignmentStatus(
+  employeeId: number,
+  storeId: number,
+): Promise<AssignmentStatus | "NONE"> {
+  try {
+    const { data } = await apiClient.get<{
+      assignmentId: number;
+      employeeId: number;
+      storeId: number;
+      role: string;
+      status: AssignmentStatus;
+    }>("/assignments/status", {
+      params: { employeeId, storeId },
+    });
+
+    return data.status;
+  } catch (e: any) {
+    const status = e?.response?.status;
+
+    // 백엔드에서 404 던지면: 아직 신청 이력 없음
+    if (status === 404) {
+      return "NONE";
+    }
+
+    // 그 외는 상위에서 처리
+    throw e;
+  }
 }

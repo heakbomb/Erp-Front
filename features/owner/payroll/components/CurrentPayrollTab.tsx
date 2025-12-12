@@ -30,6 +30,8 @@ import {
   type PayrollHistoryDetail,
 } from "@/features/owner/payroll/services/payrollHistoryService"
 
+import { apiClient } from "@/lib/api/client" // ✅ (추가) run 상태 조회 API 호출용
+
 // 🔥 payrollId는 history에서 가져올 거라 선택적(optional)로 둠
 type EmployeePayrollRow = {
   id: number
@@ -56,6 +58,14 @@ type Props = {
   showNetPay: boolean
   onCalcFinished: () => void
   storeId: number
+}
+
+type PayrollRunStatusRes = {
+  exists: boolean
+  status: string // "DRAFT" | "FINALIZED" | "FAILED" | "NONE"
+  finalizedAt?: string | null
+  source?: string | null
+  version?: number
 }
 
 export default function CurrentPayrollTab({
@@ -85,6 +95,9 @@ export default function CurrentPayrollTab({
   // 🔥 급여 자동 계산 끝난 뒤 history 다시 불러오기 위한 키
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
 
+  // ✅ (추가) payroll_run 상태
+  const [runStatus, setRunStatus] = useState<PayrollRunStatusRes | null>(null)
+
   // "2025년 12월" → "2025-12"
   const yearMonthKey = useMemo(() => {
     const match = monthLabel.match(/(\d{4})년\s*(\d{1,2})월/)
@@ -93,6 +106,65 @@ export default function CurrentPayrollTab({
     const month = match[2].padStart(2, "0")
     return `${year}-${month}`
   }, [monthLabel])
+
+  // ✅ (추가) 현재 월 "yyyy-MM"
+  const currentYm = useMemo(() => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, "0")
+    return `${y}-${m}`
+  }, [])
+
+  // ✅ (추가) 지난달이면 true (문자열 yyyy-MM 비교는 정상 동작)
+  const isPastMonth = useMemo(() => {
+    if (!yearMonthKey) return false
+    return yearMonthKey < currentYm
+  }, [yearMonthKey, currentYm])
+
+  // ✅ (추가) run.status FINALIZED 여부
+  const isFinalized = useMemo(() => {
+    return runStatus?.status === "FINALIZED"
+  }, [runStatus])
+
+  // ✅ (추가) 자동계산 버튼/다이얼로그 진입 금지 조건
+  const calcDisabled = useMemo(() => {
+    return isPastMonth || isFinalized
+  }, [isPastMonth, isFinalized])
+
+  // ✅ (추가) 왜 막히는지 안내 문구
+  const calcDisabledReason = useMemo(() => {
+    if (isFinalized) return "이미 마감(FINALIZED)된 월이라 자동 계산이 불가합니다."
+    if (isPastMonth) return "지난달 급여는 마감 처리되어 자동 계산이 불가합니다."
+    return ""
+  }, [isFinalized, isPastMonth])
+
+  // ✅ (추가) payroll_run 상태 조회
+  useEffect(() => {
+    if (!storeId || !yearMonthKey) return
+
+    let mounted = true
+
+    const fetchRun = async () => {
+      try {
+        const res = await apiClient.get<PayrollRunStatusRes>("/owner/payroll/history/run", {
+          params: { storeId, yearMonth: yearMonthKey },
+        })
+        if (!mounted) return
+        setRunStatus(res.data ?? null)
+      } catch (e) {
+        // run 조회 실패해도 화면은 동작해야 함 (상태는 null 유지)
+        if (!mounted) return
+        setRunStatus(null)
+        console.error("payroll_run 상태 조회 실패:", e)
+      }
+    }
+
+    fetchRun()
+
+    return () => {
+      mounted = false
+    }
+  }, [storeId, yearMonthKey, historyRefreshKey]) // historyRefreshKey로 재계산 후에도 run 재조회
 
   // 🔥 history detail 조회
   useEffect(() => {
@@ -132,10 +204,19 @@ export default function CurrentPayrollTab({
     }
   }, [storeId, yearMonthKey, historyRefreshKey])
 
-  // 🔥 급여 자동 계산 완료 시: 부모 콜백 + history 재조회 트리거
+  // 🔥 급여 자동 계산 완료 시: 부모 콜백 + history 다시 불러오기 트리거
   const handleCalcFinished = () => {
     onCalcFinished()
     setHistoryRefreshKey((v) => v + 1)
+  }
+
+  // ✅ (추가) 다이얼로그 open 제어를 안전하게(막힘 조건이면 열지 않음)
+  const setIsCalcOpenSafe = (v: boolean) => {
+    if (v && calcDisabled) {
+      alert(calcDisabledReason || "자동 계산을 실행할 수 없습니다.")
+      return
+    }
+    setIsCalcOpen(v)
   }
 
   // 상태 라벨
@@ -195,8 +276,8 @@ export default function CurrentPayrollTab({
               totalWorkHours={totalWorkHours}
               totalPayroll={totalPayroll}
               isOpen={isCalcOpen}
-              setIsOpen={setIsCalcOpen}
-              loading={loading}
+              setIsOpen={setIsCalcOpenSafe} // ✅ (변경) 막힘 조건이면 열리지 않게
+              loading={loading} // 기존 그대로
               onCalcFinished={handleCalcFinished}
               storeId={storeId}
             />
@@ -270,32 +351,34 @@ export default function CurrentPayrollTab({
                     <TableCell>{employee.workDays}일</TableCell>
                     <TableCell>{employee.workHours}시간</TableCell>
                     <TableCell>₩{employee.basePay.toLocaleString()}</TableCell>
+
+                    {/* ✅ 자동 계산 전에는 공제액도 0으로 숨김 */}
                     <TableCell className="text-red-600">
-                      -₩{employee.deductions.toLocaleString()}
+                      {showNetPay
+                        ? `-₩${employee.deductions.toLocaleString()}`
+                        : "-₩0"}
                     </TableCell>
 
                     <TableCell className="font-medium text-muted-foreground">
                       {showNetPay ? `₩${employee.netPay.toLocaleString()}` : "₩0"}
                     </TableCell>
 
-                    {/* 🔥 토글 스위치 UI + 상태 텍스트 */}
                     <TableCell>
                       <div className="flex items-center gap-2">
-                          <Switch
-                            checked={paid}
-                            disabled={historyLoading}
-                            onCheckedChange={() => handleToggleStatus(employee.id)}
-                          />
-                          {/* 🔥 폭 고정해서 흔들리지 않게 */}
-                          <span
-                            className="
-                              text-xs font-medium text-muted-foreground
-                              inline-flex w-[64px]  /* ← 필요하면 56px, 72px 등으로 살짝 조절 가능 */
-                            "
-                          >
-                            {getStatusLabel(effectiveStatus)}
-                          </span>
-                        </div>
+                        <Switch
+                          checked={paid}
+                          disabled={historyLoading}
+                          onCheckedChange={() => handleToggleStatus(employee.id)}
+                        />
+                        <span
+                          className="
+                            text-xs font-medium text-muted-foreground
+                            inline-flex w-[64px]
+                          "
+                        >
+                          {getStatusLabel(effectiveStatus)}
+                        </span>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )

@@ -1,4 +1,3 @@
-// features/employee/search-stores/components/SearchStoresView.tsx
 "use client";
 
 import { Badge } from "@/components/ui/badge";
@@ -9,12 +8,15 @@ import { Label } from "@/components/ui/label";
 import { MapPin, Store, Send, CheckCircle, Key } from "lucide-react";
 import { PreviewStore } from "@/features/employee/search-stores/services/searchStoresService";
 
+type AssignmentStatusProp = "NONE" | "PENDING" | "APPROVED" | "REJECTED" | null;
+
 export default function SearchStoresView({
   workplaceCode,
   searchResult,
   appliedStores,
   submitting,
   searching,
+  assignmentStatus,
   // ✅ 함수 이름을 *Action 으로만 바꿈 (동작/UX 동일)
   setWorkplaceCodeAction,
   handleSearchAction,
@@ -25,6 +27,7 @@ export default function SearchStoresView({
   appliedStores: number[];
   submitting: boolean;
   searching: boolean;
+  assignmentStatus: AssignmentStatusProp;
   setWorkplaceCodeAction: (v: string) => void;
   handleSearchAction: () => Promise<void>;
   handleApplyAction: (storeId: number) => Promise<void>;
@@ -68,14 +71,16 @@ export default function SearchStoresView({
         </CardContent>
       </Card>
 
-      {searchResult && !appliedStores.includes(searchResult.id) && (
+      {/* ✅ 검색 결과 카드 */}
+      {searchResult && (
         <Card className="border-primary">
           <CardHeader>
             <CardTitle>검색 결과</CardTitle>
-            <CardDescription>아래 사업장이 맞다면 신청하세요</CardDescription>
+            <CardDescription>아래 사업장이 맞다면 신청 상태를 확인하세요</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between p-4 rounded-lg border">
+              {/* 왼쪽: 매장 정보 */}
               <div className="flex items-start gap-3 flex-1">
                 <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Store className="h-6 w-6 text-primary" />
@@ -89,60 +94,82 @@ export default function SearchStoresView({
                   <div className="flex items-center gap-2 mt-2">
                     <Badge variant="secondary">{searchResult.industry}</Badge>
                     {typeof searchResult.employees === "number" && (
-                      <span className="text-xs text-muted-foreground">직원 {searchResult.employees}명</span>
+                      <span className="text-xs text-muted-foreground">
+                        직원 {searchResult.employees}명
+                      </span>
                     )}
                   </div>
                   <div className="mt-2 p-2 rounded bg-muted">
                     <p className="text-xs text-muted-foreground">
-                      사업장 코드: <span className="font-mono font-medium">{searchResult.code}</span>
+                      사업장 코드:{" "}
+                      <span className="font-mono font-medium">{searchResult.code}</span>
                     </p>
                   </div>
                 </div>
               </div>
-              <Button onClick={() => handleApplyAction(searchResult.id)} disabled={submitting}>
-                <Send className="mr-2 h-4 w-4" />
-                {submitting ? "신청 중..." : "신청하기"}
-              </Button>
+
+              {/* 오른쪽: 상태/버튼 영역 */}
+              <div className="flex flex-col items-end gap-2 ml-4">
+                {/* 🔧 여기 조건만 수정: undefined / null / NONE / REJECTED 모두 버튼 표시 */}
+                {(!assignmentStatus ||
+                  assignmentStatus === "NONE" ||
+                  assignmentStatus === "REJECTED") && (
+                  <Button
+                    onClick={() => handleApplyAction(searchResult.id)}
+                    disabled={submitting}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    {submitting ? "신청 중..." : "신청하기"}
+                  </Button>
+                )}
+
+                {assignmentStatus === "PENDING" && (
+                  <Badge
+                    variant="outline"
+                    className="bg-amber-50 text-amber-700 border-amber-200 flex items-center"
+                  >
+                    <CheckCircle className="mr-1 h-3 w-3" />
+                    승인 대기 중
+                  </Badge>
+                )}
+
+                {assignmentStatus === "APPROVED" && (
+                  <Badge
+                    variant="outline"
+                    className="bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center"
+                  >
+                    <CheckCircle className="mr-1 h-3 w-3" />
+                    승인 완료
+                  </Badge>
+                )}
+
+                {assignmentStatus === "REJECTED" && (
+                  <p className="text-xs text-red-600 text-right max-w-[220px]">
+                    이전에 거절된 이력이 있습니다.
+                    <br />
+                    다시 신청할 수 있습니다.
+                  </p>
+                )}
+
+                {assignmentStatus === "APPROVED" && (
+                  <p className="text-xs text-muted-foreground text-right max-w-[220px]">
+                    이미 승인된 사업장입니다.
+                    <br />
+                    출퇴근 / 근무 메뉴에서 확인하세요.
+                  </p>
+                )}
+
+                {assignmentStatus === "PENDING" && (
+                  <p className="text-xs text-muted-foreground text-right max-w-[220px]">
+                    사장님이 승인하면 자동으로 연결됩니다.
+                  </p>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {appliedStores.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>신청한 사업장</CardTitle>
-            <CardDescription>승인 대기 중인 사업장입니다</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {appliedStores.map((id) => (
-                <div key={id} className="flex items-center justify-between p-4 rounded-lg border">
-                  <div className="flex items-start gap-3">
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Store className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">사업장 #{id}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <MapPin className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">주소 정보 없음</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary">업종 정보 없음</Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                    <CheckCircle className="mr-1 h-3 w-3" />
-                    승인 대기
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

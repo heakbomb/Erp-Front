@@ -50,7 +50,7 @@ function saveHistoryToStorage(approved: PendingRequest[], rejected: PendingReque
 export default function useEmployeesPending() {
   const [pending, setPending] = useState<PendingRequest[]>([])
   const [loadingPending, setLoadingPending] = useState(false)
-  const [storeIdForPending, setStoreIdForPending] = useState<string>("1")
+  const [storeIdForPending, setStoreIdForPending] = useState<string>("11")
 
   const [recentApproved, setRecentApproved] = useState<PendingRequest[]>([])
   const [recentRejected, setRecentRejected] = useState<PendingRequest[]>([])

@@ -16,19 +16,23 @@ export type PendingRequest = {
   requestedAt?: string;
 };
 
+// 🔹 이 모듈에서만 쓰는 확장 타입: assignmentId 포함
+export type StoreEmployee = Employee & { assignmentId?: number | null };
+
 /**
  * ✅ 현재 사업장(storeId)의 직원 목록 조회
+ *   - 백엔드 EmployeeResponse에 assignmentId가 포함된다고 가정
  */
-export async function fetchEmployees(storeId: number): Promise<Employee[]> {
+export async function fetchEmployees(storeId: number): Promise<StoreEmployee[]> {
   const res = await apiClient.get<any[]>(`/employees`, {
     params: { storeId },
   });
 
   const rows = res.data || [];
 
-  return rows.map((raw: any): Employee => {
+  return rows.map((raw: any): StoreEmployee => {
     // 🔹 만약 { employee: { ... } } 형태라면 안쪽 employee를 우선 사용
-    const src = raw.employee ?? raw
+    const src = raw.employee ?? raw;
 
     return {
       employeeId: src.employeeId ?? src.id ?? src.employee_id,
@@ -38,8 +42,10 @@ export async function fetchEmployees(storeId: number): Promise<Employee[]> {
       provider: src.provider ?? src.providerType ?? "",
       provider_id: src.provider_id ?? src.providerId ?? null,
       createdAt: src.createdAt ?? src.created_at ?? null,
-    }
-  })
+      // ✅ 배정 ID도 같이 실어둔다 (사장 화면에서 직원 제거 시 사용)
+      assignmentId: raw.assignmentId ?? raw.assignment_id ?? null,
+    };
+  });
 }
 
 export async function updateEmployee(payload: {
@@ -53,8 +59,13 @@ export async function updateEmployee(payload: {
   await apiClient.put(`/employees/${employeeId}`, body);
 }
 
-export async function deleteEmployee(employeeId: number) {
-  await apiClient.delete(`/employees/${employeeId}`);
+/**
+ * ✅ 직원 삭제 → 실제로는 "사업장 배정 해제"
+ *  - employee가 아니라 employee_assignment를 기준으로 삭제/해제
+ *  - 백엔드: DELETE /assignments/{assignmentId} 에 연결
+ */
+export async function deleteEmployee(assignmentId: number) {
+  await apiClient.delete(`/employees/${assignmentId}`);
 }
 
 /* ───────── Pending(신청/승인/거절) ───────── */

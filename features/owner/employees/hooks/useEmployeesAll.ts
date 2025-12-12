@@ -1,3 +1,4 @@
+// features/owner/employees/hooks/useEmployeesAll.ts
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
@@ -14,11 +15,14 @@ import {
 
 export type Banner = { type: "success" | "error"; message: string } | null
 
+// 🔹 이 화면에서만 쓰는 확장 타입: assignmentId 포함
+type StoreEmployee = Employee & { assignmentId?: number | null }
+
 export default function useEmployeesAll() {
   const { currentStoreId } = useStore()
 
   const [searchQuery, setSearchQuery] = useState("")
-  const [employees, setEmployees] = useState<Employee[]>([])
+  const [employees, setEmployees] = useState<StoreEmployee[]>([])
   const [loading, setLoading] = useState(false)
 
   const [banner, setBanner] = useState<Banner>(null)
@@ -29,7 +33,7 @@ export default function useEmployeesAll() {
   const [saving, setSaving] = useState(false)
 
   const [openDelete, setOpenDelete] = useState(false)
-  const [targetToDelete, setTargetToDelete] = useState<Employee | null>(null)
+  const [targetToDelete, setTargetToDelete] = useState<StoreEmployee | null>(null)
 
   const bannerShow = (b: Banner) => {
     setBanner(b)
@@ -71,7 +75,7 @@ export default function useEmployeesAll() {
     )
   }, [employees, searchQuery])
 
-  const openEditDialog = (emp: Employee) => {
+  const openEditDialog = (emp: StoreEmployee) => {
     setEditingId(emp.employeeId)
     setEditForm({
       name: emp.name ?? "",
@@ -117,13 +121,24 @@ export default function useEmployeesAll() {
 
   const confirmDelete = async () => {
     if (!targetToDelete) return
+
+    // ✅ 이제 employee가 아니라 assignment를 끊는다
+    if (!targetToDelete.assignmentId) {
+      console.error("assignmentId가 없어 직원 배정을 해제할 수 없습니다.", targetToDelete)
+      bannerShow({
+        type: "error",
+        message: "이 직원의 배정 정보를 찾을 수 없습니다. 새로고침 후 다시 시도해 주세요.",
+      })
+      return
+    }
+
     try {
-      await svcDeleteEmployee(targetToDelete.employeeId)
+      await svcDeleteEmployee(targetToDelete.assignmentId)
       setOpenDelete(false)
       if (currentStoreId) await loadEmployees(currentStoreId)
-      bannerShow({ type: "success", message: "직원이 삭제되었습니다." })
+      bannerShow({ type: "success", message: "직원이 이 사업장에서 제거되었습니다." })
     } catch (e) {
-      console.error("직원 삭제 실패:", e)
+      console.error("직원 삭제(배정 해제) 실패:", e)
       bannerShow({ type: "error", message: "삭제 중 오류가 발생했습니다." })
     }
   }
