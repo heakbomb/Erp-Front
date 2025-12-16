@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useStore } from "@/contexts/StoreContext"
-import { apiClient } from "@/lib/api/client"
+import { apiClient } from "@/shared/api/apiClient"
 
 export type MonthlySummary = {
     lastMonthTotal: number

@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api/client"
+import { apiClient } from "@/shared/api/apiClient"
 import { extractErrorMessage as utilExtractErrorMessage } from "@/lib/utils"
 
 // 백엔드 OwnerPayrollResponse.EmployeePayroll 과 맞춰서 타입 정의

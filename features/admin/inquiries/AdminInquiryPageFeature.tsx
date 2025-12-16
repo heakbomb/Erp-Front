@@ -4,12 +4,12 @@
 import { useState, useEffect } from "react";
 import { useAdminInquiries } from "./hooks/useAdminInquiries";
 import { AdminReplyDialog } from "./components/AdminReplyDialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { InquiryResponse } from "@/lib/types/inquiry";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
+import { InquiryResponse } from "@/shared/types/inquiry";
 
 // 페이지네이션 상수
 const PAGE_WINDOW = 5;

@@ -1,7 +1,7 @@
 // features/document/documentService.ts
-import { apiClient } from "../../lib/api/client";
-import type { EmployeeDocument } from "../../lib/types/database"; // ⭐️ database.ts에 타입 정의 필요
-import type { PageResponse } from "../../lib/types/api";
+import { apiClient } from "@/shared/api/apiClient";
+import type { EmployeeDocument } from "@/shared/types/database"; // ⭐️ database.ts에 타입 정의 필요
+import type { PageResponse } from "@/shared/types/api";
 
 // ⭐️ DocumentPage 타입을 API 스펙에 맞게 정의 (기존 코드 참고)
 interface DocumentPage extends PageResponse<EmployeeDocument> {

@@ -1,7 +1,7 @@
 // features/menu/menuService.ts
 "use client";
 
-import { apiClient } from "@/lib/api/client"; // ✅ apiClient 사용
+import { apiClient } from "@/shared/api/apiClient"; // ✅ apiClient 사용
 
 export const STORE_ID = 11; // ⭐️ (임시) StoreContext로 대체 필요
 

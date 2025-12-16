@@ -1,5 +1,5 @@
 // features/owner/dashboard/services/ownerDashboardService.ts
-import { apiClient } from "@/lib/api/client"
+import { apiClient } from "@/shared/api/apiClient"
 import { fetchSalesSummary } from "@/features/owner/sales/ownerSalesService"
 
 // ───────────────── 타입 정의 ─────────────────

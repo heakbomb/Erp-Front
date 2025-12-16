@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-import type { Employee, EmployeeShift } from "@/lib/types/database";
+import type { Employee, EmployeeShift } from "@/shared/types/database";
 
 export type WeekScheduleGridProps = {
   days: Date[];

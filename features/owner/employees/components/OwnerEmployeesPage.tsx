@@ -1,7 +1,7 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Card, CardContent } from "@/shared/ui/card"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/ui/tabs"
 import Link from "next/link" // ✅ 추가
 
 import EmployeesAll from "@/features/owner/employees/components/EmployeesAll"

@@ -1,18 +1,7 @@
 // features/inventory/components/InventoryModal.tsx
 "use client";
 
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Button } from "@/shared/ui/button";
 import {
   Form,
   FormControl,
@@ -20,12 +9,23 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "@/shared/ui/form";
+import { Input } from "@/shared/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/dialog";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import type { InventoryFormValues } from "../hooks/useInventory";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 import type { Inventory } from "../../../lib/types/database";
+import type { InventoryFormValues } from "../hooks/useInventory";
 
 import {
   Select,
@@ -33,7 +33,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/shared/ui/select";
 import { INGREDIENT_CATEGORIES } from "../constants/itemCategory";
 
 // =====================

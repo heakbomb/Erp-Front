@@ -1,7 +1,7 @@
 // features/owner/inquiries/services/inquiryService.ts
-import { apiClient } from "@/lib/api/client";
-import { InquiryCreateRequest, InquiryResponse } from "@/lib/types/inquiry";
-import { PageResponse } from "@/lib/types/api";
+import { apiClient } from "@/shared/api/apiClient";
+import { InquiryCreateRequest, InquiryResponse } from "@/shared/types/inquiry";
+import { PageResponse } from "@/shared/types/api";
 
 const BASE_URL = "/owner/inquiries";
 

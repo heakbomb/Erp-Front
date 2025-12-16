@@ -3,19 +3,19 @@
 
 import React, { useState } from "react";
 // ⭐️ shadcn/ui 컴포넌트 임포트 (경로 수정)
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Badge } from "../../components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Badge } from "@/shared/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
   Pagination,
   PaginationContent,
   PaginationItem,
   PaginationNext,
   PaginationPrevious,
-} from "../../components/ui/pagination";
+} from "@/shared/ui/pagination";
 import { Upload, Search, Download, FileText, Loader2 } from "lucide-react"; 
 
 // ⭐️ 훅 및 모달 컴포넌트 임포트

@@ -2,7 +2,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { apiClient } from "@/lib/api/client"
+import { apiClient } from "@/shared/api/apiClient"
 import { useStore } from "@/contexts/StoreContext"
 
 // 백엔드 PaymentMethod enum과 맞춤

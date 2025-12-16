@@ -2,18 +2,18 @@
 
 import { useEffect, useState, useMemo } from "react"
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input" 
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/shared/ui/card"
+import { Badge } from "@/shared/ui/badge"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input" 
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+} from "@/shared/ui/dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 
 import { useStore } from "@/contexts/StoreContext"
 import {

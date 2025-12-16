@@ -1,7 +1,7 @@
 // features/owner/employees/services/employeesService.ts
-import { apiClient } from "@/lib/api/client";
+import { apiClient } from "@/shared/api/apiClient";
 import { extractErrorMessage as utilExtractErrorMessage } from "@/lib/utils";
-import type { Employee } from "@/lib/types/database";
+import type { Employee } from "@/shared/types/database";
 
 /** 직원-사업장 배정 신청 응답(대기/승인/거절 공통) */
 export type PendingRequest = {

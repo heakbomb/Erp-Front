@@ -3,13 +3,13 @@
 
 import { ChangeEvent } from "react"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
+import { Button } from "@/shared/ui/button"
+import { Badge } from "@/shared/ui/badge"
+import { Input } from "@/shared/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select"
+import { Skeleton } from "@/shared/ui/skeleton"
 import { RefreshCw, Save } from "lucide-react"
 
 import usePayrollSettings from "@/features/owner/payroll/hooks/usePayrollSettings"

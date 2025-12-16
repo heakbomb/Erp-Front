@@ -5,11 +5,11 @@ import { useMemo, useState, useEffect, useRef } from "react"
 import { format, differenceInCalendarDays, addMonths } from "date-fns"
 import { useStore } from "@/contexts/StoreContext"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
+import { Label } from "@/shared/ui/label"
 import {
   FileText,
   DollarSign,

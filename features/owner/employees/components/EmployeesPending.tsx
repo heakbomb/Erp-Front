@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Badge } from "@/shared/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 
 import useEmployeesPending from "@/features/owner/employees/hooks/useEmployeesPending"
 

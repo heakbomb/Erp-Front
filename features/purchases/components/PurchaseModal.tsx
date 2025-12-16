@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/shared/ui/dialog";
 import {
   Form,
   FormControl,
@@ -21,10 +21,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+} from "@/shared/ui/form";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Checkbox } from "@/shared/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { TODAY, PurchaseFormValues } from "../hooks/usePurchases";
 import type {
@@ -39,7 +39,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@/components/ui/select";
+} from "@/shared/ui/select";
 import { INGREDIENT_CATEGORIES } from "@/features/inventory/constants/itemCategory";
 
 // =======================

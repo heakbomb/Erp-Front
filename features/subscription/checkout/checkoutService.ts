@@ -1,5 +1,5 @@
 // features/subscription/checkout/checkoutService.ts
-import { apiClient } from "@/lib/api/client";
+import { apiClient } from "@/shared/api/apiClient";
 
 // 백엔드 OwnerSubscriptionRequest DTO와 일치
 interface SubscribeRequest {

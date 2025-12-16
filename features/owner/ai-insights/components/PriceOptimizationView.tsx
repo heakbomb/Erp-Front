@@ -1,10 +1,10 @@
 // features/owner/ai-insights/components/PriceOptimizationView.tsx
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Button } from "@/shared/ui/button"
+import { Badge } from "@/shared/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 import { ArrowLeft, TrendingUp, Sparkles } from "lucide-react"
 import Link from "next/link"
 import {

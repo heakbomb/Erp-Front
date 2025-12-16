@@ -8,12 +8,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+} from "@/shared/ui/dialog";
+import { Button } from "@/shared/ui/button";
+import { Label } from "@/shared/ui/label";
+import { Input } from "@/shared/ui/input";
 
-import type { Employee, EmployeeShift } from "@/lib/types/database";
+import type { Employee, EmployeeShift } from "@/shared/types/database";
 
 type FormValues = {
   employeeId: number | "";

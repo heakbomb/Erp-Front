@@ -8,15 +8,15 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+} from "@/shared/ui/card";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Badge } from "@/shared/ui/badge";
 import { Plus, Search, Edit } from "lucide-react";
 import { useMenu } from "./hooks/useMenu";
 import { MenuModal } from "./components/MenuModal";
 import { RecipeModal } from "./components/RecipeModal";
-import { PAGE_WINDOW } from "@/lib/constants";
+import { PAGE_WINDOW } from "@/shared/utils/constants";
 
 const formatKR = new Intl.NumberFormat("ko-KR");
 

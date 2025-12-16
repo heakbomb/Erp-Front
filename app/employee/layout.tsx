@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { AppLayout } from "@/components/common/AppLayout";
-import { EMPLOYEE_NAV_ITEMS } from "@/lib/navigation";
+import { AppLayout } from "@/shared/layout/AppLayout";
+import { EMPLOYEE_NAV_ITEMS } from "@/shared/utils/navigation";
 import { StoreProvider } from "@/contexts/StoreContext";
 import { ChevronDown, Clock, Check } from "lucide-react";
 import { useEmployeeProfile, useEmployeeStores } from "@/features/employee/profile/hooks/useEmployeeProfile";
@@ -131,7 +131,7 @@ export default function EmployeeLayout({
     <StoreProvider>
       <AppLayout
         navigation={filteredNavigation}
-        userInfo={<EmployeeInfo />} // ✅ 드롭다운 기능이 포함된 컴포넌트
+        sidebarHeader={<EmployeeInfo />} // ✅ 드롭다운 기능이 포함된 컴포넌트
         logoIcon={Clock}
         logoText="직원 서비스"
       >

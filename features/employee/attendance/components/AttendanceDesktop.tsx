@@ -6,10 +6,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "@/shared/ui/card";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
 import {
   Loader2,
   RefreshCcw,
@@ -23,7 +23,7 @@ import { format } from "date-fns";
 import { AttendanceItem } from "@/features/employee/attendance/services/attendanceService";
 
 // 근무시간표 조회용 (사장페이지와 동일 API 사용)
-import type { Employee, EmployeeShift } from "@/lib/types/database";
+import type { Employee, EmployeeShift } from "@/shared/types/database";
 import { fetchShifts } from "@/features/owner/shifts/services/employeeShiftService";
 import WeekScheduleGrid from "@/features/owner/shifts/components/WeekScheduleGrid";
 import MonthScheduleGrid from "@/features/owner/shifts/components/MonthScheduleGrid";

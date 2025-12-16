@@ -1,11 +1,11 @@
 //storelist"use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/shared/ui/card"
+import { Button } from "@/shared/ui/button"
+import { Badge } from "@/shared/ui/badge"
+import { Input } from "@/shared/ui/input"
+import { Label } from "@/shared/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/shared/ui/dialog"
 import { Store, MapPin, Phone, Edit, Trash2, Copy, RefreshCcw } from "lucide-react"
 
 import { useStores } from "@/features/owner/stores/hooks/useStores"

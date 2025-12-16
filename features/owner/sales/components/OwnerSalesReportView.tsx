@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/shared/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card"
 import useOwnerSalesReport from "@/features/owner/sales/hooks/useOwnerSalesReport"
 import { YearMonthSelect } from "./report/YearMonthSelect"
 import { PieChartSection } from "./report/PieChartSection"

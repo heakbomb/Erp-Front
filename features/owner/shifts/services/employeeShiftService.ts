@@ -1,6 +1,6 @@
 // features/owner/shifts/services/employeeShiftService.ts
-import { apiClient } from "@/lib/api/client";
-import type { EmployeeShift } from "@/lib/types/database";
+import { apiClient } from "@/shared/api/apiClient";
+import type { EmployeeShift } from "@/shared/types/database";
 
 export type ShiftQueryParams = {
   storeId: number;

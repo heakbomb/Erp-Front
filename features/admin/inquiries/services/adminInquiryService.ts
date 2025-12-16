@@ -1,6 +1,6 @@
-import { apiClient } from "@/lib/api/client";
-import { InquiryResponse, InquiryStatus, InquiryCategory } from "@/lib/types/inquiry";
-import { PageResponse } from "@/lib/types/api";
+import { apiClient } from "@/shared/api/apiClient";
+import { InquiryResponse, InquiryStatus, InquiryCategory } from "@/shared/types/inquiry";
+import { PageResponse } from "@/shared/types/api";
 
 const BASE_URL = "/admin/inquiries";
 

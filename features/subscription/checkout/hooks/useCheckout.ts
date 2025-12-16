@@ -4,10 +4,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/shared/ui/use-toast';
 import { checkoutService } from '../checkoutService';
 import { paymentMethodService } from '../../payment-method/paymentMethodService';
-import { Owner } from '@/lib/types/database';
+import { Owner } from '@/shared/types/database';
 
 const plans = {
   basic: { subId: 1, name: "베이직", price: 29000 },

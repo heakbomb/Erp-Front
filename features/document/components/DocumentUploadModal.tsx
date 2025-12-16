@@ -7,12 +7,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "../../../components/ui/dialog";
+} from "@/shared/ui/dialog";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from "../../../components/ui/form";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
+} from "@/shared/ui/form";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
 import type { DocumentFormValues } from "../hooks/useDocuments";
 
 // ⭐️ Zod 스키마 (파일 입력 포함)

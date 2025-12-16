@@ -1,11 +1,11 @@
 // features/subscription/cancel/SubscriptionCancelPage.tsx
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card"
-import { Button } from "../../../components/ui/button"
-import { Label } from "../../../components/ui/label"
-import { Textarea } from "../../../components/ui/textarea"
-import { RadioGroup, RadioGroupItem } from "../../../components/ui/radio-group"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Button } from "@/shared/ui/button"
+import { Label } from "@/shared/ui/label"
+import { Textarea } from "@/shared/ui/textarea"
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group"
 import { AlertTriangle, ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useSubscriptionCancel } from "./hooks/useSubscriptionCancel"

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/components/ui/use-toast" // toast 경로 확인 필요
+import { useToast } from "@/shared/ui/use-toast" // toast 경로 확인 필요
 import { loginOwner, handleSocialLogin as socialLoginAction } from "@/lib/api/auth.service"
 
 export function useLogin() {

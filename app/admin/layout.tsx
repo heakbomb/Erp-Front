@@ -10,7 +10,7 @@ import {
   LogOut, 
   ChevronDown 
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,8 +18,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+} from "@/shared/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "@/shared/ui/sheet";
 import { cn } from "@/lib/utils";
 import { ADMIN_NAV_ITEMS } from "@/lib/navigation";
 import { useAuth } from "@/contexts/AuthContext";

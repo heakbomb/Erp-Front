@@ -9,9 +9,9 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+} from "@/shared/ui/card"
+import { Input } from "@/shared/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { Search } from "lucide-react"
 
 import {
@@ -19,9 +19,9 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/shared/ui/tooltip"
 
-import { Switch } from "@/components/ui/switch"
+import { Switch } from "@/shared/ui/switch"
 
 import PayrollCalcDialog from "@/features/owner/payroll/components/PayrollCalcDialog"
 import {
@@ -30,7 +30,7 @@ import {
   type PayrollHistoryDetail,
 } from "@/features/owner/payroll/services/payrollHistoryService"
 
-import { apiClient } from "@/lib/api/client" // ✅ (추가) run 상태 조회 API 호출용
+import { apiClient } from "@/shared/api/apiClient" // ✅ (추가) run 상태 조회 API 호출용
 
 // 🔥 payrollId는 history에서 가져올 거라 선택적(optional)로 둠
 type EmployeePayrollRow = {

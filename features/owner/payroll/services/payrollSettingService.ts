@@ -1,5 +1,5 @@
 // features/owner/payroll/services/payrollSettingService.ts
-import { apiClient } from "@/lib/api/client"
+import { apiClient } from "@/shared/api/apiClient"
 import { extractErrorMessage as utilExtractErrorMessage } from "@/lib/utils"
 
 /** 백엔드 PayrollSettingDto 와 맞추기 */

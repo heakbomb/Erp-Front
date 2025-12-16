@@ -2,11 +2,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
+import { Label } from "@/shared/ui/label";
 import { Plus, Search, Upload, Download, FileText, Loader2, Pencil, Trash2 } from "lucide-react";
 import { usePurchases } from "./hooks/usePurchases";
 import { PurchaseModal } from "./components/PurchaseModal";

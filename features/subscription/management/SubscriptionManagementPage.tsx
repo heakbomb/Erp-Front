@@ -1,9 +1,9 @@
 "use client"
 
 import React, { useState } from "react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card"
-import { Button } from "../../../components/ui/button"
-import { Badge } from "../../../components/ui/badge"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Button } from "@/shared/ui/button"
+import { Badge } from "@/shared/ui/badge"
 import { Check, Loader2 } from "lucide-react" 
 import { useSubscriptionManagement, plans } from "./hooks/useSubscriptionManagement"
 

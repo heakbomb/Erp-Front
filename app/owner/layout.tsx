@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import { AppLayout } from "@/components/common/AppLayout";
-import { OWNER_NAV_ITEMS } from "@/lib/navigation";
+import { AppLayout } from "@/shared/layout/AppLayout";
+import { OWNER_NAV_ITEMS } from "@/shared/utils/navigation";
 import { StoreProvider, useStore } from "@/contexts/StoreContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { Store as StoreIcon, ChevronDown } from "lucide-react"; // MessageCircleQuestion 제거 가능
-import { OwnerStoreGuard } from "@/features/owner/common/OwnerStoreGuard";
+import { OwnerStoreGuard } from "@/shared/layout/OwnerStoreGuard";
 
 function OwnerInfo() {
   const { user } = useAuth();
@@ -91,7 +91,7 @@ export default function OwnerLayout({
       <OwnerStoreGuard>
         <AppLayout
           navigation={OWNER_NAV_ITEMS} // ⭐️ 배열을 합칠 필요 없이 바로 사용
-          userInfo={<OwnerInfo />}
+          sidebarHeader={<OwnerInfo />}
           logoIcon={StoreIcon}
           logoText="요식업 ERP"
         >

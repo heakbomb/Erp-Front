@@ -1,7 +1,7 @@
 // features/purchases/purchasesService.ts
-import { apiClient } from "@/lib/api/client";
-import type { PageResponse } from "@/lib/types/api";
-import type { Inventory, PurchaseHistory } from "@/lib/types/database";
+import { apiClient } from "@/shared/api/apiClient";
+import type { PageResponse } from "@/shared/types/api";
+import type { Inventory, PurchaseHistory } from "@/shared/types/database";
 import { INGREDIENT_CATEGORIES } from "@/features/inventory/constants/itemCategory";
 
 // == 1. 타입 정의 ==

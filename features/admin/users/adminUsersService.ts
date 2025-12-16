@@ -1,5 +1,5 @@
-import { apiClient } from "@/lib/api/client";
-import { PageResponse } from "@/lib/types/api";
+import { apiClient } from "@/shared/api/apiClient";
+import { PageResponse } from "@/shared/types/api";
 
 // 목록 조회용 타입 (기존 OwnerResponse의 필드도 username일 가능성이 높음)
 export interface OwnerResponse {

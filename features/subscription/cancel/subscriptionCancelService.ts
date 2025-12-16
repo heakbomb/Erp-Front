@@ -1,5 +1,5 @@
 // features/subscription/cancel/subscriptionCancelService.ts
-import { apiClient } from "../../../lib/api/client"
+import { apiClient } from "@/shared/api/apiClient"
 
 interface CancelRequest {
   reason: string;

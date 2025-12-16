@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link"; 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Users, Store, Loader2, ListTodo, TrendingUp, MessageCircleQuestion } from "lucide-react"; // 아이콘 추가
 
 import { useAdminDashboard } from "./hooks/useAdminDashboard";

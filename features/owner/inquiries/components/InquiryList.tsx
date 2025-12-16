@@ -1,10 +1,10 @@
 // features/owner/inquiries/components/InquiryList.tsx
-import { InquiryResponse } from "@/lib/types/inquiry";
+import { InquiryResponse } from "@/shared/types/inquiry";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger
-} from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+} from "@/shared/ui/accordion";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import { Trash2 } from "lucide-react";
 
 interface Props {

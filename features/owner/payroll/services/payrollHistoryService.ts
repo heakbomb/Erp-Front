@@ -1,5 +1,5 @@
 // features/owner/payroll/services/payrollHistoryService.ts
-import { apiClient } from "@/lib/api/client"
+import { apiClient } from "@/shared/api/apiClient"
 
 export type PayrollHistoryDetail = {
   payrollId: number

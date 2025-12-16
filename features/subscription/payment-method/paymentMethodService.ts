@@ -1,6 +1,6 @@
 // features/subscription/payment-method/paymentMethodService.ts
 
-import { apiClient } from "@/lib/api/client";
+import { apiClient } from "@/shared/api/apiClient";
 
 export const paymentMethodService = {
   // 목록 조회

@@ -1,5 +1,5 @@
-import { apiClient } from "../../../lib/api/client";
-import type { PageResponse } from "../../../lib/types/api";
+import { apiClient } from "@/shared/api/apiClient";
+import type { PageResponse } from "@/shared/types/api";
 
 // --- 1. 구독 '상품' 관련 (기존) ---
 export type Subscription = {

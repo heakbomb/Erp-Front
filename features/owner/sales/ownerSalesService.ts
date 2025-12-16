@@ -1,6 +1,6 @@
 // features/owner/sales/ownerSalesService.ts
-import { apiClient } from "@/lib/api/client"
-import { PageResponse } from "@/lib/types/api"
+import { apiClient } from "@/shared/api/apiClient"
+import { PageResponse } from "@/shared/types/api"
 
 // ✅ [수정] 백엔드 DTO와 일치시킴
 export type SalesSummaryResponse = {

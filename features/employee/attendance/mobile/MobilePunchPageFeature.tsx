@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/shared/ui/card";
+import { Button } from "@/shared/ui/button";
 import { Loader2, Crosshair, QrCode } from "lucide-react";
 import { useMobilePunch } from "@/features/employee/attendance/mobile/hooks/useMobilePunch";
 import SimpleQrScanner from "@/features/employee/attendance/mobile/components/SimpleQrScanner";

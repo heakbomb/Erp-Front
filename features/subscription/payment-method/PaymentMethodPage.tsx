@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { usePaymentMethod } from './hooks/usePaymentMethod';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Label } from '@/components/ui/label';
+import { Button } from '@/shared/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/shared/ui/card';
+import { Input } from '@/shared/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/shared/ui/dialog";
+import { Label } from '@/shared/ui/label';
 import { CreditCard, Plus, Loader2, ArrowLeft, Pencil, Check, X, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 

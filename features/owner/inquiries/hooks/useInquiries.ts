@@ -1,7 +1,7 @@
 // features/owner/inquiries/hooks/useInquiries.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { inquiryService } from "../services/inquiryService";
-import { InquiryCreateRequest } from "@/lib/types/inquiry";
+import { InquiryCreateRequest } from "@/shared/types/inquiry";
 import { toast } from "sonner"; 
 
 // ✅ size 기본값을 6으로 설정 (한 페이지에 6개씩)

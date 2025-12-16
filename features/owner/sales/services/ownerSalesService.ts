@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api/client"; // ✅ apiClient 사용
+import { apiClient } from "@/shared/api/apiClient"; // ✅ apiClient 사용
 
 // ===== Types =====
 export type DailySalesDatum = {

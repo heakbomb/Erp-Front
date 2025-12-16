@@ -1,4 +1,4 @@
-import { apiClient } from "../../../lib/api/client"
+import { apiClient } from "@/shared/api/apiClient"
 
 // 백엔드 DTO (OwnerSubscriptionResponse)와 일치시킴
 export interface CurrentSubscription {

@@ -6,8 +6,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+} from "@/shared/ui/card";
+import { Input } from "@/shared/ui/input";
 import {
   Table,
   TableBody,
@@ -15,10 +15,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+} from "@/shared/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { Button } from "@/shared/ui/button";
+import { Badge } from "@/shared/ui/badge";
 import { Search, Loader2, Eye } from "lucide-react"; 
 
 import { useAdminUsers } from "./hooks/useAdminUsers";

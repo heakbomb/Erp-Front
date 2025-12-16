@@ -1,7 +1,7 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Badge } from "@/shared/ui/badge"
 import { Clock, Calendar, DollarSign, CheckCircle } from "lucide-react"
 import type { QuickStats, WorkRecord } from "../services/dashboardService"
 

@@ -5,14 +5,14 @@ import { useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ko } from "date-fns/locale";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/ui/dialog";
+import { Button } from "@/shared/ui/button";
+import { Label } from "@/shared/ui/label";
+import { Input } from "@/shared/ui/input";
+import { Checkbox } from "@/shared/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 
-import type { Employee } from "@/lib/types/database";
+import type { Employee } from "@/shared/types/database";
 
 type ShiftBulkModalProps = {
   open: boolean;

@@ -2,15 +2,15 @@
 
 import React, { useState } from "react";
 // ⭐️ shadcn/ui 컴포넌트
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Badge } from "@/shared/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 // ❌ 기존 Pagination import 제거
 import { Search, Loader2, MoreVertical, Plus, Trash2, Edit } from "lucide-react"; 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -19,9 +19,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+} from "@/shared/ui/alert-dialog"
+import { Label } from "@/shared/ui/label";
+import { Switch } from "@/shared/ui/switch";
 
 // ⭐️ 훅 및 타입 임포트
 import { useAdminSubscriptions } from "./hooks/useAdminSubscriptions";

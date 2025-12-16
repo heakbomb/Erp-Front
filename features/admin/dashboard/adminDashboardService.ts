@@ -1,4 +1,5 @@
-import { apiClient } from "../../../lib/api/client";
+import { apiClient } from "@/shared/api/apiClient";
+import { ApiErrorResponse } from "@/shared/types/api";
 
 // ✅ [복원] AuditLog 타입
 type AuditLog = {

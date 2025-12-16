@@ -7,8 +7,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+} from "@/shared/ui/card"
+import { Badge } from "@/shared/ui/badge"
 import {
   Users,
   TrendingUp,

@@ -7,9 +7,9 @@ import { Calendar, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns"
 import { useQueryClient } from "@tanstack/react-query" // ✅ 추가
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Button } from "@/shared/ui/button"
+import { Card, CardContent } from "@/shared/ui/card"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/ui/tabs"
 
 import { useStore } from "@/contexts/StoreContext"
 import { useEmployeeShifts } from "@/features/owner/shifts/hooks/useEmployeeShifts"
@@ -19,7 +19,7 @@ import ShiftCreateModal from "@/features/owner/shifts/components/ShiftCreateModa
 import ShiftBulkModal from "@/features/owner/shifts/components/ShiftBulkModal" // ✅ 추가
 import { fetchEmployees } from "@/features/owner/employees/services/employeesService"
 import { createShiftBulk } from "@/features/owner/shifts/services/employeeShiftService" // ✅ 추가
-import type { Employee, EmployeeShift } from "@/lib/types/database"
+import type { Employee, EmployeeShift } from "@/shared/types/database"
 
 // ✅ 로컬 기준 yyyy-MM-dd 포맷 (toISOString 절대 사용 X)
 function toDateOnlyString(d: Date): string {

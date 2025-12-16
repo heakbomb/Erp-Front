@@ -1,7 +1,7 @@
 // features/admin/stores/adminStoresService.ts
-import { apiClient } from "../../../lib/api/client";
-import type { Store } from "../../../lib/types/database"; // ⭐️ Store 타입 필요
-import type { PageResponse } from "../../../lib/types/api";
+import { apiClient } from "@/shared/api/apiClient";
+import type { Store } from "@/shared/types/database"; // ⭐️ Store 타입 필요
+import { PageResponse } from "@/shared/types/api";
 
 type AdminGetStoresParams = {
   page: number;

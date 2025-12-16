@@ -1,5 +1,5 @@
 // features/owner/payroll/services/ownerPayrollService.ts
-import { apiClient } from "@/lib/api/client"
+import { apiClient } from "@/shared/api/apiClient"
 
 export type EmployeePayroll = {
   id: number

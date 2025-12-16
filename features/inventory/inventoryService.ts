@@ -1,7 +1,7 @@
 // features/inventory/inventoryService.ts
-import { apiClient } from "../../lib/api/client";
-import type { Inventory } from "../../lib/types/database";
-import type { PageResponse } from "../../lib/types/api";
+import { apiClient } from "@/shared/api/apiClient";
+import type { Inventory } from "@/shared/types/database";
+import type { PageResponse } from "@/shared/types/api";
 
 // 1. 'status' 파라미터 추가
 type InventoryParams = {

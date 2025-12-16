@@ -1,18 +1,18 @@
 // features/owner/employees/components/EmployeesAll.tsx
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Badge } from "@/shared/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 import { Search, MoreVertical } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/shared/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/shared/ui/dialog"
 
 import useEmployeesAll from "@/features/owner/employees/hooks/useEmployeesAll"
 

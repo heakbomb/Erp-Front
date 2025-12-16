@@ -5,15 +5,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea"; 
+} from "@/shared/ui/dialog";
+import { Button } from "@/shared/ui/button";
+import { Textarea } from "@/shared/ui/textarea"; 
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage
-} from "@/components/ui/form";
+} from "@/shared/ui/form";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select";
+} from "@/shared/ui/select";
 import { useStores } from "@/features/owner/stores/hooks/useStores";
 import { InquiryCreateRequest } from "@/lib/types/inquiry";
 

@@ -1,7 +1,7 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+} from "@/shared/ui/dialog"
+import { Label } from "@/shared/ui/label"
 import { QrCode } from "lucide-react"
 
 import useEmployeesQr from "@/features/owner/employees/hooks/useEmployeesQr"

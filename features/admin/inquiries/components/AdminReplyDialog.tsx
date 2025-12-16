@@ -3,12 +3,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { InquiryResponse } from "@/lib/types/inquiry";
-import { Separator } from "@/components/ui/separator";
+} from "@/shared/ui/dialog";
+import { Button } from "@/shared/ui/button";
+import { Textarea } from "@/shared/ui/textarea";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/form";
+import { InquiryResponse } from "@/shared/types/inquiry";
+import { Separator } from "@/shared/ui/separator";
 
 const formSchema = z.object({
   answer: z.string().min(1, "답변 내용을 입력해주세요."),

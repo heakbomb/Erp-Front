@@ -8,24 +8,24 @@ import {
   MapPin, Phone, Mail, Store as StoreIcon, User, Users, Calendar, Clock 
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Input } from "@/shared/ui/input";
+import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/shared/ui/pagination";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { Separator } from "@/shared/ui/separator";
+import { ScrollArea } from "@/shared/ui/scroll-area";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shared/ui/dropdown-menu";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
-} from "@/components/ui/dialog";
+} from "@/shared/ui/dialog";
 
 import { useAdminStores } from "./hooks/useAdminStores";
-import type { Store } from "@/lib/types/database";
+import type { Store } from "@/shared/types/database";
 
 // ⭐️ [수정] StoreDetail 인터페이스 수정
 // Store에 이미 approvedAt이 존재하므로 여기서 중복 정의를 제거하여 충돌 방지

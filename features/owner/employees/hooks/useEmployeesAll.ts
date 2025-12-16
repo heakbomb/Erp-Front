@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useStore } from "@/contexts/StoreContext"
 
-import type { Employee } from "@/lib/types/database"
+import type { Employee } from "@/shared/types/database"
 
 import {
   fetchEmployees,

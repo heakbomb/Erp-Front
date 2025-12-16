@@ -1,11 +1,11 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Label } from "@/shared/ui/label"
+import { Switch } from "@/shared/ui/switch"
+import { Separator } from "@/shared/ui/separator"
 import { Bell, Lock, User, CreditCard } from "lucide-react"
 import Link from "next/link"
 

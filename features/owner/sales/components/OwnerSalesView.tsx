@@ -4,24 +4,24 @@ import React, { useState, useEffect } from "react"
 
 import {
   Card, CardContent, CardHeader, CardTitle,
-} from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+} from "@/shared/ui/card"
+import { Button } from "@/shared/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
+import { Badge } from "@/shared/ui/badge"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Progress } from "@/components/ui/progress"
+} from "@/shared/ui/dialog"
+import { Input } from "@/shared/ui/input"
+import { Label } from "@/shared/ui/label"
+import { Checkbox } from "@/shared/ui/checkbox"
+import { Progress } from "@/shared/ui/progress"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
+} from "@/shared/ui/popover"
+import { Calendar } from "@/shared/ui/calendar"
 import { cn } from "@/lib/utils"
 
 import {

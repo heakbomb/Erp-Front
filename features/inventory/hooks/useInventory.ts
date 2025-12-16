@@ -12,8 +12,8 @@ import {
   reactivateInventory,
   downloadInventoryExcel,
 } from "../inventoryService";
-import type { Inventory } from "../../../lib/types/database";
-import { DEFAULT_PAGE_SIZE } from "../../../lib/constants"; // ⭐️
+import type { Inventory } from "@/shared/types/database";
+import { DEFAULT_PAGE_SIZE } from "@/shared/utils/constants"; // ⭐️
 
 // react-hook-form에서 사용할 폼 타입
 export type InventoryFormValues = {

@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api/client";
+import { apiClient } from "@/shared/api/apiClient";
 
 // ✅ StoreCreateRequest에 gpsRadiusM 추가
 export interface StoreCreateRequest {

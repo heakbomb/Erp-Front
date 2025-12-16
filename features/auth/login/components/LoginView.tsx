@@ -2,9 +2,9 @@
 "use client"
 
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/shared/ui/button"
+import { Input } from "@/shared/ui/input"
+import { Label } from "@/shared/ui/label"
 import {
   Card,
   CardContent,
@@ -12,8 +12,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/shared/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs"
 import { Store, Users, Shield, Cookie as Google, QrCode } from "lucide-react" // 🔹 QrCode 추가
 import { useLogin } from "../hooks/useLogin"
 

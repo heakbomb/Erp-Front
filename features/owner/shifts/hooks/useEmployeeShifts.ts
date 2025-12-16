@@ -3,7 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useStore } from "@/contexts/StoreContext"
-import type { EmployeeShift } from "@/lib/types/database"
+import type { EmployeeShift } from "@/shared/types/database"
 import {
   fetchShifts,
   createShift as createShiftApi,

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/shared/ui/use-toast';
 import { paymentMethodService } from '../paymentMethodService';
 import { Owner } from '@/lib/types/database';
 

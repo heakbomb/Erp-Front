@@ -5,9 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useInquiries } from "../hooks/useInquiries";
 import { InquiryList } from "./InquiryList";
 import { InquiryCreateDialog } from "./InquiryCreateDialog";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import { Skeleton } from "@/shared/ui/skeleton";
+import { Button } from "@/shared/ui/button";
 
 // 한 번에 보여줄 페이지 번호 개수 (예: 1 2 3 4 5)
 const PAGE_WINDOW = 5;

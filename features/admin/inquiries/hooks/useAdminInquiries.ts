@@ -1,7 +1,7 @@
 // features/admin/inquiries/hooks/useAdminInquiries.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminInquiryService } from "../services/adminInquiryService";
-import { InquiryStatus, InquiryCategory } from "@/lib/types/inquiry";
+import { InquiryStatus, InquiryCategory } from "@/shared/types/inquiry";
 import { toast } from "sonner";
 import { useState } from "react";
 

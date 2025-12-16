@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api/client";
+import { apiClient } from "@/shared/api/apiClient";
 
 // 직원 프로필 타입
 export interface EmployeeProfile {
