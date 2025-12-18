@@ -1,7 +1,7 @@
 import axios from "axios";
-import { API_BASE_URL } from "@/lib/constants";
-import { extractErrorMessage } from "@/lib/utils";
-import { ApiErrorResponse } from "@/lib/types/api";
+import { API_BASE_URL } from "@/shared/utils/constants";
+import { extractErrorMessage } from "@/shared/utils/commonUtils";
+import { ApiErrorResponse } from "@/shared/types/api";
 
 // 🔴 비활성화 사업장 안내를 이미 했는지 체크하는 전역 플래그
 let inactiveStoreHandled = false;

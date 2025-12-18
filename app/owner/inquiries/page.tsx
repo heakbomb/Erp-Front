@@ -1,6 +1,7 @@
-// app/owner/inquiries/page.tsx
-import { InquiryView } from "@/features/owner/inquiries/components/InquiryView";
+"use client"
 
-export default function OwnerInquiryPage() {
-  return <InquiryView />;
+import InquiryList from "@/modules/inquiryC/InquiryList"
+
+export default function InquiriesPage() {
+  return <InquiryList />
 }

@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/shared/ui/use-toast';
 import { paymentMethodService } from '../paymentMethodService';
-import { Owner } from '@/lib/types/database';
+import { Owner } from '@/shared/types/database';
 
 export const usePaymentMethod = () => {
   const { user } = useAuth();

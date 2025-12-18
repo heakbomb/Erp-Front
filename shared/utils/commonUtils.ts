@@ -1,7 +1,8 @@
+// src/shared/utils/commonUtils.ts
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import axios from "axios"; // ✅ 추가: Axios 에러 타입 확인용
-import { ApiErrorResponse } from "@/shared/types/api"; // ✅ 경로 변경: lib -> shared
+import axios from "axios";
+import { ApiErrorResponse } from "@/shared/types/api";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -9,11 +10,9 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * API 에러 객체에서 사용자에게 보여줄 메시지를 추출합니다.
- * (백엔드 리팩토링 후 JSON 응답 우선 처리)
  */
 export function extractErrorMessage(e: any): string {
-  // 1. 백엔드 표준 에러 응답 (ApiErrorResponse) 처리
-  //    GlobalExceptionHandler에서 보낸 { code, message, details } 형식을 가장 먼저 확인
+  // 1. 백엔드 표준 에러 응답 처리
   if (axios.isAxiosError(e) && e.response?.data) {
     const data = e.response.data as ApiErrorResponse;
     if (data.message) {
@@ -21,12 +20,12 @@ export function extractErrorMessage(e: any): string {
     }
   }
 
-  // 2. 그 외 레거시/다른 형식의 에러 처리 (기존 로직 유지)
+  // 2. 레거시/다른 형식의 에러 처리
   const data = e?.response?.data;
-  if (typeof data === "string") return data; // 문자열 에러
-  if (typeof data?.message === "string") return data.message; // 일반 메시지
-  if (typeof data?.error === "string") return data.error; // 에러 필드
-  if (typeof data?.detail === "string") return data.detail; // 디테일 필드
+  if (typeof data === "string") return data;
+  if (typeof data?.message === "string") return data.message;
+  if (typeof data?.error === "string") return data.error;
+  if (typeof data?.detail === "string") return data.detail;
 
   // 3. 일반 자바스크립트 에러
   if (e instanceof Error) {
@@ -53,8 +52,33 @@ export const formatCurrency = (amount: number | ""): string => {
  */
 export const formatDate = (isoString?: string): string => {
   if (!isoString) return "-";
-  return isoString.split("T")[0]; // '2024-04-19T10:00:00' -> '2024-04-19'
+  return isoString.split("T")[0];
 };
+
+/**
+ * [New] 상대적인 시간 표기 (예: '방금 전', '5분 전')
+ */
+export function formatTimeAgo(dateString?: string): string {
+  if (!dateString) return "";
+  
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return "방금 전";
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes}분 전`;
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}시간 전`;
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) return `${diffInDays}일 전`;
+  
+  // 7일 이상이면 날짜로 표시
+  return formatDate(dateString);
+}
 
 /**
  * Store 상태값을 한글로 변환합니다.

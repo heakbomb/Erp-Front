@@ -1,9 +1,8 @@
+// app/employee/dashboard/page.tsx
 "use client"
 
-import { useEmployeeDashboard } from "@/features/employee/dashboard/hooks/useEmployeeDashboard"
-import { EmployeeDashboardView } from "@/features/employee/dashboard/components/EmployeeDashboardView"
+import EmployeeDashboard from "@/modules/dashboardC/EmployeeDashboard"
 
 export default function EmployeeDashboardPage() {
-  const dashboard = useEmployeeDashboard()
-  return <EmployeeDashboardView {...dashboard} />
+  return <EmployeeDashboard />
 }

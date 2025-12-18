@@ -1,6 +1,7 @@
 "use client"
-import PriceOptimizationView from "@/features/owner/ai-insights/components/PriceOptimizationView"
+
+import PriceOptView from "@/modules/aiInsightsC/PriceOptView"
 
 export default function PriceOptimizationPage() {
-  return <PriceOptimizationView />
+  return <PriceOptView />
 }

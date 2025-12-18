@@ -22,7 +22,7 @@ import {
   PopoverTrigger,
 } from "@/shared/ui/popover"
 import { Calendar } from "@/shared/ui/calendar"
-import { cn } from "@/lib/utils"
+import { cn } from "@/shared/utils/commonUtils"
 
 import {
   FileSpreadsheet, FileText, TrendingUp, TrendingDown, Loader2, Calendar as CalendarIcon

@@ -1,5 +1,5 @@
 import { apiClient } from "@/shared/api/apiClient"
-import { extractErrorMessage as utilExtractErrorMessage } from "@/lib/utils"
+import { extractErrorMessage as utilExtractErrorMessage } from "@/shared/utils/commonUtils"
 
 // 백엔드 OwnerPayrollResponse.EmployeePayroll 과 맞춰서 타입 정의
 export type PayrollCalcEmployee = {

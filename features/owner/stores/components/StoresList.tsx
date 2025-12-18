@@ -18,7 +18,7 @@ import { Store, MapPin, Phone, Edit, Trash2, Copy, RefreshCcw } from "lucide-rea
 
 import { useStores } from "@/features/owner/stores/hooks/useStores"
 import { NaverMapPicker } from "./NaverMapPicker"
-import { formatStoreStatus, extractErrorMessage } from "@/lib/utils"
+import { formatStoreStatus, extractErrorMessage } from "@/shared/utils/commonUtils"
 import type { StoreType } from "../services/storesService"
 
 export default function StoresList({

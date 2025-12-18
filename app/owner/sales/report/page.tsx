@@ -1,6 +1,6 @@
 "use client"
 
-import OwnerSalesReportView from "@/features/owner/sales/components/OwnerSalesReportView"
+import OwnerSalesReportView from "@/modules/salesC/OwnerSalesReportView"
 
 export default function OwnerSalesReportPage() {
   return <OwnerSalesReportView />

@@ -15,7 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/shared/ui/select";
 import { useStores } from "@/features/owner/stores/hooks/useStores";
-import { InquiryCreateRequest } from "@/lib/types/inquiry";
+import { InquiryCreateRequest } from "@/shared/types/inquiry";
 
 const MAX_TITLE_LENGTH = 50;   
 const MAX_CONTENT_LENGTH = 1000; 

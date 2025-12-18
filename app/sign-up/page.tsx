@@ -1,5 +1,6 @@
+// app/sign-up/page.tsx
 "use client"
-import SignUpView from "@/features/auth/sign-up/components/SignUpView"
+import SignUpView from "@/modules/authC/SignUpView"
 
 export default function SignUpPage() {
   return <SignUpView />

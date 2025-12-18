@@ -3,7 +3,7 @@
 
 import { format, isSameMonth } from "date-fns";
 import { ko } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils/commonUtils";
 
 import type { Employee, EmployeeShift } from "@/shared/types/database";
 

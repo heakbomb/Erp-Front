@@ -1,7 +1,7 @@
 "use client"
 
-import OwnerPayrollView from "@/features/owner/payroll/components/OwnerPayrollView"
+import OwnerPayrollView from "@/modules/payrollC/OwnerPayrollView"
 
-export default function OwnerPayrollPage() {
+export default function PayrollPage() {
   return <OwnerPayrollView />
 }

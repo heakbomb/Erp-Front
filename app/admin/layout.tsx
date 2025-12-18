@@ -20,8 +20,8 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/shared/ui/sheet";
-import { cn } from "@/lib/utils";
-import { ADMIN_NAV_ITEMS } from "@/lib/navigation";
+import { cn } from "@/shared/utils/commonUtils";
+import { ADMIN_NAV_ITEMS } from "@/shared/utils/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminLayout({

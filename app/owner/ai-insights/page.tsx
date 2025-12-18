@@ -1,5 +1,6 @@
 "use client"
-import AIInsightsView from "@/features/owner/ai-insights/components/AIInsightsView"
+
+import AIInsightsView from "@/modules/aiInsightsC/AIInsightsView"
 
 export default function AIInsightsPage() {
   return <AIInsightsView />

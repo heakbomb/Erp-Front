@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query"; 
-import { apiClient } from "@/lib/api/client"; 
+import { apiClient } from "@/shared/api/apiClient"; 
 import { 
   Check, Loader2, Search, X, MoreVertical, Eye, 
   MapPin, Phone, Mail, Store as StoreIcon, User, Users, Calendar, Clock 

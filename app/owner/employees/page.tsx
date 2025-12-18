@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import OwnerEmployeesPage from "@/features/owner/employees/components/OwnerEmployeesPage";
+import OwnerEmployeesPage from "@/modules/employeeC/OwnerEmployeesPage"
 
 export default function Page() {
-  return <OwnerEmployeesPage />;
+  return <OwnerEmployeesPage />
 }

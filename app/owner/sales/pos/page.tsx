@@ -1,7 +1,7 @@
 "use client"
 
-import PosTerminalView from "@/features/owner/sales/components/PosTerminalView"
+import PosTerminal from "@/modules/salesC/PosTerminal"
 
-export default function OwnerPosPage() {
-  return <PosTerminalView />
+export default function PosPage() {
+  return <PosTerminal />
 }

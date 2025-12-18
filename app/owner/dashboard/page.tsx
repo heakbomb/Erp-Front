@@ -1,7 +1,8 @@
+// app/owner/dashboard/page.tsx
 "use client"
 
-import OwnerDashboardView from "@/features/owner/dashboard/components/OwnerDashboardView"
+import OwnerDashboard from "@/modules/dashboardC/OwnerDashboard"
 
 export default function OwnerDashboardPage() {
-  return <OwnerDashboardView />
+  return <OwnerDashboard />
 }

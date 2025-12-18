@@ -1,7 +1,8 @@
-"use client";
+// app/employee/search-stores/page.tsx
+"use client"
 
-import SearchStoresPageFeature from "@/features/employee/search-stores/SearchStoresPageFeature";
+import SearchStoresView from "@/modules/storeC/SearchStoresView"
 
 export default function SearchStoresPage() {
-  return <SearchStoresPageFeature />;
+  return <SearchStoresView />
 }
