@@ -1,7 +1,9 @@
+// modules/employeeC/useEmployeeProfile.ts
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getEmployeeProfile, getEmployeeStores, updateEmployeePhone } from "../employeeProfileService";
+// ✅ 같은 폴더 내의 api 파일로 경로 수정
+import { getEmployeeProfile, getEmployeeStores, updateEmployeePhone } from "./employeeProfileApi";
 import { toast } from "sonner";
 
 export function useEmployeeProfile(employeeId: number) {
@@ -34,7 +36,7 @@ export function useEmployeeProfile(employeeId: number) {
   };
 }
 
-// ✅ [추가] 직원 소속 사업장 목록 조회 훅
+// 직원 소속 사업장 목록 조회 훅
 export function useEmployeeStores(employeeId: number) {
   const { data: stores, isLoading } = useQuery({
     queryKey: ["employeeStores", employeeId],

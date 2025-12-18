@@ -11,6 +11,7 @@ import { Input } from "@/shared/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/shared/utils/commonUtils";
 import { InventoryFormValues } from "./useInventory";
 import { Inventory, INGREDIENT_CATEGORIES } from "./inventoryTypes";
 
@@ -28,7 +29,7 @@ const validateQtyDigits = (val: number) => {
 
 const inventorySchema = z.object({
   itemName: z.string().min(1, "품목명 필수").max(ITEM_NAME_MAX_LENGTH),
-  itemType: z.string().min(1, "타입 필수"), // enum check는 select에서 보장됨
+  itemType: z.string().min(1, "타입 필수"),
   stockType: z.string().min(1, "단위 필수").max(STOCK_TYPE_MAX_LENGTH),
   stockQty: z.preprocess((val) => (val === "" ? "" : Number(val)), z.number().min(0).refine(validateQtyDigits, "자리수 초과")),
   safetyQty: z.preprocess((val) => (val === "" ? "" : Number(val)), z.number().min(0).refine(validateQtyDigits, "자리수 초과")),
@@ -76,10 +77,25 @@ export default function InventoryModal({ mode, open, onOpenChange, onSubmit, isP
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            
+            {/* 품목명 */}
             <FormField control={form.control} name="itemName" render={({ field }) => (
               <FormItem>
                 <FormLabel>품목명</FormLabel>
-                <FormControl><Input placeholder="예) 아라비카 원두" {...field} /></FormControl>
+                <FormControl>
+                  <Input 
+                    placeholder="예) 아라비카 원두" 
+                    {...field} 
+                    // [입력 제한] maxLength 속성 없이 slice로 처리하여 입력 차단
+                    onChange={(e) => field.onChange(e.target.value.slice(0, ITEM_NAME_MAX_LENGTH))}
+                  />
+                </FormControl>
+                {/* [경고] 꽉 찼을 때 빨간색 카운터 표시 */}
+                <div className="text-right text-xs">
+                  <span className={cn((field.value?.length || 0) >= ITEM_NAME_MAX_LENGTH ? "text-red-500 font-bold" : "text-muted-foreground")}>
+                    {field.value?.length || 0} / {ITEM_NAME_MAX_LENGTH}
+                  </span>
+                </div>
                 <FormMessage />
               </FormItem>
             )} />
@@ -99,10 +115,25 @@ export default function InventoryModal({ mode, open, onOpenChange, onSubmit, isP
                   <FormMessage />
                 </FormItem>
               )} />
+
+              {/* 수량 타입(단위) */}
               <FormField control={form.control} name="stockType" render={({ field }) => (
                 <FormItem>
                   <FormLabel>수량 타입</FormLabel>
-                  <FormControl><Input placeholder="예) kg, ea" {...field} /></FormControl>
+                  <FormControl>
+                    <Input 
+                      placeholder="예) kg, ea" 
+                      {...field}
+                      // [입력 제한]
+                      onChange={(e) => field.onChange(e.target.value.slice(0, STOCK_TYPE_MAX_LENGTH))}
+                    />
+                  </FormControl>
+                  {/* [경고] */}
+                  <div className="text-right text-xs">
+                    <span className={cn((field.value?.length || 0) >= STOCK_TYPE_MAX_LENGTH ? "text-red-500 font-bold" : "text-muted-foreground")}>
+                      {field.value?.length || 0} / {STOCK_TYPE_MAX_LENGTH}
+                    </span>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )} />

@@ -1,3 +1,4 @@
+// modules/employeeC/employeeProfileApi.ts
 import { apiClient } from "@/shared/api/apiClient";
 
 // 직원 프로필 타입
@@ -23,7 +24,7 @@ export const getEmployeeProfile = async (id: number) => {
   return response.data;
 };
 
-// ✅ [추가] 직원의 소속 사업장 목록 조회
+// 직원 소속 사업장 목록 조회
 export const getEmployeeStores = async (id: number) => {
   // ⚠️ 백엔드에 GET /employees/{id}/stores 엔드포인트 구현 필요
   const response = await apiClient.get<EmployeeStore[]>(`/employees/${id}/stores`);

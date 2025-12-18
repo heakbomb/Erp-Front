@@ -1,9 +1,9 @@
-// src/modules/store/StoreSelector.tsx
+// modules/storeC/StoreSelector.tsx
 "use client";
 
 import * as React from "react";
 import { Check, ChevronsUpDown, Store as StoreIcon } from "lucide-react";
-import { cn } from "@/shared/utils/commonUtils"; // 또는 lib/utils
+import { cn } from "@/shared/utils/commonUtils"; 
 import { Button } from "@/shared/ui/button";
 import {
   Command,
@@ -18,10 +18,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/ui/popover";
-import { useStore } from "@/contexts/StoreContext"; // ✅ 수정된 Context import
+import { useStore } from "@/contexts/StoreContext";
 
 export function StoreSelector({ className }: { className?: string }) {
-  const { stores, currentStoreId, changeStore, isLoading } = useStore();
+  // ✅ [수정] changeStore -> setCurrentStoreId 로 변경
+  const { stores, currentStoreId, setCurrentStoreId, isLoading } = useStore();
   const [open, setOpen] = React.useState(false);
 
   // 현재 선택된 매장 객체 찾기
@@ -67,7 +68,8 @@ export function StoreSelector({ className }: { className?: string }) {
                   key={store.storeId}
                   value={store.storeName}
                   onSelect={() => {
-                    changeStore(store.storeId);
+                    // ✅ [수정] 함수명 변경
+                    setCurrentStoreId(store.storeId);
                     setOpen(false);
                   }}
                 >

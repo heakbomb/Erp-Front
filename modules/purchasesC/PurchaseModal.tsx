@@ -12,6 +12,7 @@ import { Input } from "@/shared/ui/input";
 import { Checkbox } from "@/shared/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/shared/ui/select";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/shared/utils/commonUtils";
 import { PurchaseFormValues, TODAY } from "./usePurchases";
 import { InventoryOption, PurchaseHistoryResponse } from "./purchasesTypes";
 import { INGREDIENT_CATEGORIES } from "@/modules/inventoryC/inventoryTypes";
@@ -125,7 +126,20 @@ export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending,
                 <FormField control={form.control} name="newItemName" render={({ field }) => (
                   <FormItem>
                     <FormLabel>새 품목명</FormLabel>
-                    <FormControl><Input placeholder="예: 원두" {...field} /></FormControl>
+                    <FormControl>
+                      {/* [입력 제한] */}
+                      <Input 
+                        placeholder="예: 원두" 
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.value.slice(0, ITEM_NAME_MAX_LENGTH))}
+                      />
+                    </FormControl>
+                    {/* [경고] */}
+                    <div className="text-right text-xs">
+                       <span className={cn((field.value?.length || 0) >= ITEM_NAME_MAX_LENGTH ? "text-red-500 font-bold" : "text-muted-foreground")}>
+                         {field.value?.length || 0} / {ITEM_NAME_MAX_LENGTH}
+                       </span>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -143,7 +157,20 @@ export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending,
                   <FormField control={form.control} name="newStockType" render={({ field }) => (
                     <FormItem>
                       <FormLabel>단위</FormLabel>
-                      <FormControl><Input placeholder="예: kg" {...field} /></FormControl>
+                      <FormControl>
+                        {/* [입력 제한] */}
+                        <Input 
+                          placeholder="예: kg" 
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value.slice(0, STOCK_TYPE_MAX_LENGTH))}
+                        />
+                      </FormControl>
+                      {/* [경고] */}
+                      <div className="text-right text-xs">
+                        <span className={cn((field.value?.length || 0) >= STOCK_TYPE_MAX_LENGTH ? "text-red-500 font-bold" : "text-muted-foreground")}>
+                          {field.value?.length || 0} / {STOCK_TYPE_MAX_LENGTH}
+                        </span>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )} />

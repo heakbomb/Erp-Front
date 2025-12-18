@@ -42,10 +42,14 @@ export default function MenuModal({ mode, open, onOpenChange, defaultValues, onS
 
   const handleMenuNameChange = (e: any) => {
     const value = e.target.value;
+
+    // [수정] 20자를 넘으면 -> 잘라서 입력(Block) + 에러 메시지 표시(Warning)
     if (value.length > MENU_NAME_MAX_LENGTH) {
-      setMenuNameError(`메뉴명은 최대 ${MENU_NAME_MAX_LENGTH}자까지 입력 가능합니다.`);
+      setMenuName(value.slice(0, MENU_NAME_MAX_LENGTH)); // 20자까지만 입력
+      setMenuNameError(`메뉴명은 최대 ${MENU_NAME_MAX_LENGTH}자까지 입력 가능합니다.`); // 경고 띄움
       return;
     }
+
     setMenuNameError(null);
     setMenuName(value);
   };
@@ -96,8 +100,24 @@ export default function MenuModal({ mode, open, onOpenChange, defaultValues, onS
         <form className="space-y-4 py-4" onSubmit={handleSubmit}>
           <div className="space-y-1">
             <Label htmlFor="menu-name">메뉴명</Label>
-            <Input id="menu-name" value={menuName} onChange={handleMenuNameChange} placeholder="아메리카노" />
-            {menuNameError && <p className="mt-1 text-xs text-red-500">{menuNameError}</p>}
+            <Input 
+              id="menu-name" 
+              value={menuName} 
+              onChange={handleMenuNameChange} 
+              placeholder="아메리카노"
+              // [중요] maxLength 속성을 제거해야 21번째 글자 입력 시도가 감지되어 경고를 띄울 수 있음
+            />
+            {/* 에러 메시지 또는 글자 수 표시 */}
+            <div className="flex justify-between items-start mt-1">
+               {menuNameError ? (
+                 <p className="text-xs text-red-500">{menuNameError}</p>
+               ) : (
+                 <p className="text-xs text-muted-foreground"></p>
+               )}
+               <p className={cn("text-xs", menuName.length >= MENU_NAME_MAX_LENGTH ? "text-red-500 font-medium" : "text-muted-foreground")}>
+                 {menuName.length} / {MENU_NAME_MAX_LENGTH}
+               </p>
+            </div>
           </div>
           <div className="space-y-1">
             <Label htmlFor="price">판매가</Label>
@@ -113,3 +133,6 @@ export default function MenuModal({ mode, open, onOpenChange, defaultValues, onS
     </Dialog>
   );
 }
+
+// cn 유틸리티가 없다면 간단한 함수로 대체하거나 import 필요 (기존 파일 import 참조)
+import { cn } from "@/shared/utils/commonUtils";

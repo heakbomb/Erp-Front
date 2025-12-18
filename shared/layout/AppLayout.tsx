@@ -1,4 +1,3 @@
-// src/shared/layout/AppLayout.tsx
 "use client";
 
 import React from "react";
@@ -28,10 +27,10 @@ import {
 } from "@/shared/ui/breadcrumb";
 import { LucideIcon } from "lucide-react";
 
-// ✅ 네비게이션 아이템 타입 수정 (navigation.ts 데이터 구조와 일치)
+// ✅ 네비게이션 아이템 타입
 export interface NavItem {
-  name: string;  // title -> name 변경
-  href: string;  // url -> href 변경
+  name: string;
+  href: string;
   icon: LucideIcon;
   items?: {
     name: string;
@@ -39,11 +38,13 @@ export interface NavItem {
   }[];
 }
 
-// AppLayout Props 정의
+// AppLayout Props 정의 확장
 interface AppLayoutProps {
   children: React.ReactNode;
   navigation: NavItem[];          
   sidebarHeader?: React.ReactNode; 
+  sidebarFooter?: React.ReactNode; // ✅ [추가] 사이드바 하단 커스텀 영역
+  headerActions?: React.ReactNode; // ✅ [추가] 헤더 우측 커스텀 영역 (알림, 프로필 등)
   logoIcon?: LucideIcon;          
   logoText?: string;              
 }
@@ -52,12 +53,13 @@ export function AppLayout({
   children,
   navigation,
   sidebarHeader,
+  sidebarFooter, // ✅ 추가된 Prop
+  headerActions, // ✅ 추가된 Prop
   logoIcon: LogoIcon,
   logoText,
 }: AppLayoutProps) {
   const pathname = usePathname();
 
-  // 현재 경로와 메뉴 URL이 일치하는지 확인하는 헬퍼
   const isActive = (href: string) => {
     if (href === "/" || href === "/owner" || href === "/employee" || href === "/admin") {
         return pathname === href;
@@ -111,12 +113,15 @@ export function AppLayout({
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter>
-          {/* 필요 시 로그아웃 등 추가 */}
-        </SidebarFooter>
+        {/* 3. ✅ [추가] 사이드바 푸터 */}
+        {sidebarFooter && (
+          <SidebarFooter>
+            {sidebarFooter}
+          </SidebarFooter>
+        )}
       </Sidebar>
 
-      {/* 3. 메인 콘텐츠 영역 */}
+      {/* 4. 메인 콘텐츠 영역 */}
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
@@ -126,13 +131,19 @@ export function AppLayout({
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbPage className="line-clamp-1">
-                    {/* 현재 활성화된 메뉴 이름 표시 */}
                     {navigation.find((nav) => isActive(nav.href))?.name || "Dashboard"}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </div>
+
+          {/* ✅ [추가] 헤더 우측 액션 (알림, 유저 메뉴 등) */}
+          {headerActions && (
+            <div className="ml-auto flex items-center gap-2 px-4">
+              {headerActions}
+            </div>
+          )}
         </header>
         <div className="flex-1 overflow-auto p-4 md:p-6">
           {children}

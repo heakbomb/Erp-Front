@@ -1,10 +1,12 @@
+// modules/storeC/useSearchStores.ts
 "use client";
 
 import { useState } from "react";
 import { storeApi, extractErrorMessage } from "./storeApi";
 import type { PreviewStore, AssignmentStatus } from "./storeTypes";
 
-const MOCK_EMPLOYEE_ID = 3;   // 로그인 전 임시 값
+// 로그인 전 임시 값 (API가 토큰을 사용한다면 제거 가능하지만, 여기선 유지)
+const MOCK_EMPLOYEE_ID = 3; 
 
 export function useSearchStores() {
   const [workplaceCode, setWorkplaceCode] = useState("");
@@ -13,7 +15,7 @@ export function useSearchStores() {
   const [submitting, setSubmitting] = useState(false);
   const [searching, setSearching] = useState(false);
 
-  // 신청 상태: null(미조회) | "NONE" | "PENDING" | "ACCEPTED" | "REJECTED"
+  // 신청 상태: "NONE" | "PENDING" | "ACCEPTED" | "REJECTED" | null
   const [assignmentStatus, setAssignmentStatus] = useState<AssignmentStatus | "NONE" | null>(null);
 
   const handleSearch = async () => {
@@ -32,25 +34,24 @@ export function useSearchStores() {
       setSearching(true);
       setAssignmentStatus(null); 
 
-      // ✅ [수정] getStoreById 사용 및 데이터 매핑
       const rawStore = await storeApi.getStoreById(id);
       
       const mappedStore: PreviewStore = {
         storeId: rawStore.storeId,
         storeName: rawStore.storeName,
         industry: rawStore.industry,
-        distance: 0, // 기본값
-        address: "-",
+        distance: 0,
+        address: "-", // 필요한 경우 rawStore에서 매핑
         description: "-",
-        employeeCount: 0 // 기본값
+        employeeCount: 0
       };
       
       setSearchResult(mappedStore);
 
       try {
-        // ✅ [수정] MOCK_EMPLOYEE_ID 제거 (API가 알아서 처리하거나 토큰 사용 가정, or storeApi 수정 필요)
-        // storeApi.fetchAssignmentStatus는 storeId만 받음
-        const status = await storeApi.fetchAssignmentStatus(id);
+        // ✅ [수정] storeApi.ts가 (employeeId, storeId)를 받도록 되어 있다면 아래와 같이 호출
+        // 만약 storeApi를 수정하여 storeId만 받게 했다면 id만 전달하세요.
+        const status = await storeApi.fetchAssignmentStatus(MOCK_EMPLOYEE_ID, id);
         setAssignmentStatus(status);
 
         if (status === "PENDING") {
@@ -75,11 +76,13 @@ export function useSearchStores() {
       alert("이미 신청 중인 사업장입니다. 사장님 승인 대기 중입니다.");
       return;
     }
-    // ✅ [수정] APPROVED -> ACCEPTED
+    
+    // ✅ [수정] APPROVED -> ACCEPTED (타입 불일치 해결)
     if (assignmentStatus === "ACCEPTED") {
       alert("이미 승인된 사업장입니다. 출퇴근/근무 메뉴에서 확인하세요.");
       return;
     }
+
     if (appliedStores.includes(storeId) && assignmentStatus !== "REJECTED") {
       alert("이미 신청한 사업장입니다.");
       return;
@@ -87,8 +90,12 @@ export function useSearchStores() {
 
     try {
       setSubmitting(true);
-      // ✅ [수정] storeApi.applyToStore(storeId) 사용 (단일 인자)
-      await storeApi.applyToStore(storeId);
+      // ✅ [수정] storeApi가 객체를 받도록 되어 있다면 아래와 같이 호출
+      await storeApi.applyToStore({
+        employeeId: MOCK_EMPLOYEE_ID,
+        storeId,
+        role: "STAFF"
+      });
 
       setAppliedStores((prev) =>
         prev.includes(storeId) ? prev : [...prev, storeId],
