@@ -1,4 +1,4 @@
-// lib/types/inquiry.ts
+
 
 export type InquiryStatus = 'PENDING' | 'RESPONDED';
 export type InquiryCategory = 'REPORT' | 'SUGGESTION' | 'INQUIRY';

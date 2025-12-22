@@ -1,4 +1,3 @@
-// modules/purchasesC/PurchaseModal.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -24,6 +23,24 @@ const QTY_MAX_FRACTION_DIGITS = 3;
 const PRICE_MAX_INTEGER_DIGITS = 8;
 const PRICE_MAX_FRACTION_DIGITS = 2;
 
+// ✅ 입력값 자릿수 제한 검사 함수 (물리적 차단용)
+const checkDigitLimit = (val: string, maxInt: number, maxFrac: number) => {
+  if (val === "") return true;
+  // 숫자 이외의 문자(e 등) 입력 방지 (input type="number"라도 e 입력 가능하므로)
+  if (!/^-?\d*\.?\d*$/.test(val)) return false;
+
+  const [integerRaw, fraction] = val.split(".");
+  const integer = integerRaw.replace("-", ""); // 음수 부호 제외하고 길이 체크
+
+  // 정수부 길이 체크
+  if (integer.length > maxInt) return false;
+  // 소수부 길이 체크 (소수점이 있는 경우에만)
+  if (fraction !== undefined && fraction.length > maxFrac) return false;
+
+  return true;
+};
+
+// 기존 유효성 검사 로직 (submit 시 최종 확인용)
 const validateQtyDigits = (val: number) => {
   if (!Number.isFinite(val)) return false;
   const [integerRaw, fraction = ""] = val.toString().split(".");
@@ -127,14 +144,12 @@ export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending,
                   <FormItem>
                     <FormLabel>새 품목명</FormLabel>
                     <FormControl>
-                      {/* [입력 제한] */}
                       <Input 
                         placeholder="예: 원두" 
                         {...field}
                         onChange={(e) => field.onChange(e.target.value.slice(0, ITEM_NAME_MAX_LENGTH))}
                       />
                     </FormControl>
-                    {/* [경고] */}
                     <div className="text-right text-xs">
                        <span className={cn((field.value?.length || 0) >= ITEM_NAME_MAX_LENGTH ? "text-red-500 font-bold" : "text-muted-foreground")}>
                          {field.value?.length || 0} / {ITEM_NAME_MAX_LENGTH}
@@ -158,14 +173,12 @@ export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending,
                     <FormItem>
                       <FormLabel>단위</FormLabel>
                       <FormControl>
-                        {/* [입력 제한] */}
                         <Input 
                           placeholder="예: kg" 
                           {...field}
                           onChange={(e) => field.onChange(e.target.value.slice(0, STOCK_TYPE_MAX_LENGTH))}
                         />
                       </FormControl>
-                      {/* [경고] */}
                       <div className="text-right text-xs">
                         <span className={cn((field.value?.length || 0) >= STOCK_TYPE_MAX_LENGTH ? "text-red-500 font-bold" : "text-muted-foreground")}>
                           {field.value?.length || 0} / {STOCK_TYPE_MAX_LENGTH}
@@ -179,11 +192,45 @@ export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending,
             )}
 
             <div className="grid grid-cols-2 gap-4">
+              {/* ✅ 수량 입력 제한 적용 */}
               <FormField control={form.control} name="formQty" render={({ field }) => (
-                <FormItem><FormLabel>수량</FormLabel><FormControl><Input type="number" step="any" {...field} onChange={e=>field.onChange(e.target.value)} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>수량</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="any" 
+                      {...field} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (checkDigitLimit(val, QTY_MAX_INTEGER_DIGITS, QTY_MAX_FRACTION_DIGITS)) {
+                          field.onChange(val);
+                        }
+                      }} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
+              {/* ✅ 단가 입력 제한 적용 */}
               <FormField control={form.control} name="formUnitPrice" render={({ field }) => (
-                <FormItem><FormLabel>단가</FormLabel><FormControl><Input type="number" step="any" {...field} onChange={e=>field.onChange(e.target.value)} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>단가</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="any" 
+                      {...field} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (checkDigitLimit(val, PRICE_MAX_INTEGER_DIGITS, PRICE_MAX_FRACTION_DIGITS)) {
+                          field.onChange(val);
+                        }
+                      }} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
             </div>
 
