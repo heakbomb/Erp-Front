@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/contexts/StoreContext";
 import { purchasesApi } from "./purchasesApi";
+import { useSearch } from "@/shared/hooks/useSearch"; // ✅ useSearch import
 import type { 
   PurchaseHistoryResponse, 
   InventoryOption, 
@@ -42,8 +43,20 @@ export function usePurchases() {
   const [endDate, setEndDate] = useState<string>("");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
-  const [searchText, setSearchText] = useState("");
   
+  // ✅ [수정] useSearch 훅 올바르게 사용
+  // 1. 인자를 객체 { onSearch: ... } 형태로 전달
+  // 2. 반환값을 컴포넌트에서 사용하는 이름으로 매핑 (keyword -> searchQuery 등)
+  const { 
+    keyword: searchQuery, 
+    setKeyword: setSearchQuery, 
+    activeKeyword, 
+    handleKeyDown, 
+    submitSearch: handleSearch 
+  } = useSearch({
+    onSearch: () => setPage(0), // 검색 실행 시 페이지 초기화
+  });
+
   const [editingPurchase, setEditingPurchase] = useState<PurchaseHistoryResponse | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
 
@@ -194,16 +207,17 @@ export function usePurchases() {
     return rows.reduce((sum, r) => sum + Number(r.purchaseQty) * Number(r.unitPrice), 0);
   }, [rows]);
 
+  // ✅ [수정] activeKeyword 사용 (검색 버튼/엔터 입력 시 업데이트된 값)
   const filteredRows = useMemo(() => {
-    if (!searchText.trim()) return rows;
-    const t = searchText.trim().toLowerCase();
+    if (!activeKeyword.trim()) return rows;
+    const t = activeKeyword.trim().toLowerCase();
     return rows.filter((r) => {
       // API에서 itemId만 오므로 inventoryOpts에서 이름을 찾음
       const inv = inventoryOpts.find(i => i.itemId === r.itemId);
       const name = inv?.itemName?.toLowerCase() || r.itemName?.toLowerCase() || "";
       return name.includes(t);
     });
-  }, [rows, searchText, inventoryOpts]);
+  }, [rows, activeKeyword, inventoryOpts]);
 
   const handlePageChange = (p: number) => {
     if (p >= 0 && p < (purchasesQuery.data?.totalPages ?? 0)) setPage(p);
@@ -220,7 +234,13 @@ export function usePurchases() {
     selectedItemId, setSelectedItemId,
     startDate, setStartDate,
     endDate, setEndDate,
-    searchText, setSearchText,
+    
+    // ✅ 반환값 유지 (useSearch에서 매핑함)
+    searchQuery,    // input value
+    setSearchQuery, // state setter
+    handleSearch,   // 검색 실행 함수
+    handleKeyDown,  // 엔터 키 핸들러
+    
     size, setSize,
     
     page,

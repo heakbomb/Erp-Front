@@ -1,4 +1,3 @@
-// modules/inquiryC/InquiryList.tsx
 "use client";
 
 import { useState } from "react";
@@ -11,8 +10,7 @@ import { Button } from "@/shared/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/shared/ui/accordion";
 import { Badge } from "@/shared/ui/badge";
 import { Trash2 } from "lucide-react";
-
-const PAGE_WINDOW = 5;
+import { CommonPagination } from "@/shared/ui/CommonPagination"; // ✅ 추가
 
 // 날짜 포맷팅 헬퍼
 function formatDate(dateValue: any) {
@@ -46,8 +44,6 @@ export default function InquiryList() {
   */
 
   const handlePageChange = (p: number) => { if (p >= 0 && p < totalPages) setPage(p); };
-  const start = Math.floor(page / PAGE_WINDOW) * PAGE_WINDOW;
-  const end = Math.min(start + PAGE_WINDOW - 1, Math.max(totalPages - 1, 0));
 
   return (
     <div className="space-y-6 p-6">
@@ -121,21 +117,12 @@ export default function InquiryList() {
                 ))}
               </Accordion>
               
-              {/* 페이지네이션 UI */}
-              {totalPages > 0 && (
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">페이지 {page + 1} / {Math.max(totalPages, 1)}</div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" disabled={page === 0} onClick={() => handlePageChange(0)}>« 처음</Button>
-                    <Button variant="outline" size="sm" disabled={page <= 0} onClick={() => handlePageChange(page - 1)}>‹ 이전</Button>
-                    {Array.from({ length: end - start + 1 }, (_, i) => start + i).map((p) => (
-                        <Button key={p} variant={p === page ? "default" : "outline"} size="sm" onClick={() => handlePageChange(p)}>{p + 1}</Button>
-                    ))}
-                    <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => handlePageChange(page + 1)}>다음 ›</Button>
-                    <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => handlePageChange(totalPages - 1)}>마지막 »</Button>
-                  </div>
-                </div>
-              )}
+              {/* ✅ 공통 페이징 컴포넌트 적용 */}
+              <CommonPagination 
+                page={page} 
+                totalPages={totalPages} 
+                onPageChange={handlePageChange} 
+              />
             </>
           )}
         </CardContent>

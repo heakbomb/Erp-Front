@@ -6,10 +6,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/contexts/StoreContext";
 import { inventoryApi } from "./inventoryApi";
 import type { Inventory, InventoryUpsertBody, InventoryStatus } from "./inventoryTypes";
+import { useSearch } from "@/shared/hooks/useSearch";
+import { usePagination } from "@/shared/hooks/usePagination";
 
 const DEFAULT_PAGE_SIZE = 10;
 
-// 폼 값 타입
 export type InventoryFormValues = {
   itemName: string;
   itemType: string;
@@ -22,28 +23,31 @@ export function useInventory() {
   const { currentStoreId } = useStore();
   const queryClient = useQueryClient();
 
+  // ✅ 공용 훅 사용
+  const pagination = usePagination({ initialSize: DEFAULT_PAGE_SIZE });
+  const search = useSearch({
+    onSearch: () => pagination.resetPage(), // 검색 시 1페이지로 리셋
+  });
+
   // 필터 상태
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-  const [searchQuery, setSearchQuery] = useState("");
   const [showInactiveOnly, setShowInactiveOnly] = useState(false);
-  const sort = "itemName,asc";
   const [itemTypeFilter, setItemTypeFilter] = useState<string | undefined>(undefined);
   const [isExporting, setIsExporting] = useState(false);
-
+  
   // 모달 상태
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Inventory | null>(null);
 
-  // ✅ [수정] status 타입을 InventoryStatus로 명시
   const currentStatus: InventoryStatus = showInactiveOnly ? "INACTIVE" : "ACTIVE";
-  
+  const sort = "itemName,asc";
+
+  // API 파라미터 (activeKeyword 사용 -> 엔터 쳐야만 변경됨)
   const queryParams = {
     storeId: currentStoreId!,
-    q: searchQuery,
-    page,
-    size: pageSize,
+    q: search.activeKeyword, 
+    page: pagination.page,
+    size: pagination.size,
     sort,
     status: currentStatus,
     itemType: itemTypeFilter,
@@ -55,12 +59,12 @@ export function useInventory() {
     isLoading: isInventoryLoading,
     error: inventoryError,
   } = useQuery({
-    queryKey: ["inventory", queryParams],
+    queryKey: ["inventory", queryParams], // activeKeyword가 바뀌어야 재요청됨
     queryFn: () => inventoryApi.getInventory(queryParams),
     enabled: !!currentStoreId,
   });
 
-  // 2. 재고 부족 알림 조회 (활성 재고 전체 로딩 후 필터링)
+  // 2. 재고 부족 알림 조회
   const {
     data: lowStockItems,
     isLoading: isLowStockLoading,
@@ -88,7 +92,7 @@ export function useInventory() {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["inventory", currentStoreId, "lowStock"] });
       setIsAddModalOpen(false);
-      setPage(0);
+      pagination.resetPage();
     },
     onError: (error: any) => alert(`생성 실패: ${error.message}`),
   });
@@ -179,18 +183,13 @@ export function useInventory() {
     }
   };
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    setPage(0);
-  };
-
   const handleChangeItemType = (value: string) => {
     setItemTypeFilter(value || undefined);
-    setPage(0);
+    pagination.resetPage();
   };
 
   const goToPage = (p: number) => {
-    if (p >= 0 && p < (inventoryData?.totalPages ?? 0)) setPage(p);
+    if (p >= 0 && p < (inventoryData?.totalPages ?? 0)) pagination.handlePageChange(p);
   };
 
   return {
@@ -199,12 +198,19 @@ export function useInventory() {
     inventoryError,
     lowStockItems: lowStockItems ?? [],
     isLowStockLoading,
-    page,
-    pageSize,
-    setPageSize,
+    
+    // 페이징 & 검색
+    page: pagination.page,
+    pageSize: pagination.size,
+    setPageSize: pagination.handleSizeChange,
     goToPage,
-    searchQuery,
-    handleSearch,
+    
+    searchQuery: search.keyword,           // Input value
+    setSearchQuery: search.handleChange,   // ✅ [수정] 누락되었던 핸들러 추가
+    handleSearch: search.submitSearch,     // Button onClick
+    handleKeyDown: search.handleKeyDown,   // Input onKeyDown (Enter)
+    
+    // 필터 및 모달
     showInactiveOnly,
     setShowInactiveOnly,
     itemTypeFilter,
@@ -215,6 +221,8 @@ export function useInventory() {
     setIsEditModalOpen,
     editingItem,
     isExporting,
+    
+    // Actions
     openAddModal: () => { setEditingItem(null); setIsAddModalOpen(true); },
     openEditModal: (item: Inventory) => { setEditingItem(item); setIsEditModalOpen(true); },
     handleCreate,
@@ -222,6 +230,8 @@ export function useInventory() {
     handleDeactivate,
     handleReactivate,
     handleExportExcel,
+    
+    // Loading States
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeactivating: deactivateMutation.isPending,
