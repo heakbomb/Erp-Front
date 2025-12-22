@@ -4,17 +4,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/contexts/StoreContext";
 import { employeeApi } from "./employeeApi";
+import { useSearch } from "@/shared/hooks/useSearch"; // ✅ useSearch import
 import type { StoreEmployee, Banner } from "./employeeTypes";
 
 export default function useEmployeeList() {
   const { currentStoreId } = useStore();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  // ✅ [수정] 공통 검색 훅 사용
+  // keyword: 입력창의 값 (실시간)
+  // activeKeyword: 엔터/검색버튼으로 확정된 값 (필터링용)
+  const { 
+    keyword: searchQuery, 
+    setKeyword: setSearchQuery, 
+    activeKeyword, 
+    handleKeyDown 
+  } = useSearch();
+
   const [employees, setEmployees] = useState<StoreEmployee[]>([]);
   const [loading, setLoading] = useState(false);
   const [banner, setBanner] = useState<Banner>(null);
 
-  // 수정 관련 State (현재 UI에는 없지만 로직 포함)
+  // 수정 관련 State
   const [openEdit, setOpenEdit] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ name: "", email: "", phone: "", provider: "" });
@@ -50,8 +60,9 @@ export default function useEmployeeList() {
     loadEmployees(currentStoreId);
   }, [currentStoreId]);
 
+  // ✅ [수정] activeKeyword를 기준으로 필터링 수행
   const filtered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = activeKeyword.trim().toLowerCase();
     if (!q) return employees;
     return employees.filter(
       (e) =>
@@ -59,7 +70,7 @@ export default function useEmployeeList() {
         (e.email ?? "").toLowerCase().includes(q) ||
         (e.phone ?? "").toLowerCase().includes(q)
     );
-  }, [employees, searchQuery]);
+  }, [employees, activeKeyword]);
 
   // 수정 다이얼로그 열기
   const openEditDialog = (emp: StoreEmployee) => {
@@ -115,7 +126,7 @@ export default function useEmployeeList() {
   const formatDate = (iso?: string | null) => (iso ? iso.slice(0, 10) : "-");
 
   return {
-    searchQuery, setSearchQuery,
+    searchQuery, setSearchQuery, handleKeyDown, // ✅ handleKeyDown 추가 반환
     employees, filtered, loading, banner,
     openDelete, setOpenDelete, targetToDelete, setTargetToDelete,
     openEdit, setOpenEdit, editForm, setEditForm,

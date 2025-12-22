@@ -46,7 +46,7 @@ import {
 } from "@/shared/ui/dialog";
 import { Separator } from "@/shared/ui/separator";
 import { ScrollArea } from "@/shared/ui/scroll-area";
-import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/shared/ui/pagination";
+import { CommonPagination } from "@/shared/ui/CommonPagination"; // ✅ 추가
 
 // ✅ [수정] interface extends 대신 type & Omit 사용으로 충돌 방지
 type AdminStore = Omit<Store, "approvedAt"> & {
@@ -265,31 +265,12 @@ export default function AdminStoreList() {
             <TabsContent value="REJECTED">{StoresTableContent}</TabsContent>
             <TabsContent value="ALL">{StoresTableContent}</TabsContent>
 
-            {totalPages > 0 && (
-              <div className="mt-4">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        href="#" 
-                        onClick={(e) => { e.preventDefault(); if(page > 0) handlePageChange(page - 1); }} 
-                        className={page === 0 ? "pointer-events-none opacity-50" : ""}
-                      />
-                    </PaginationItem>
-                    <PaginationItem>
-                      <span className="px-4 text-sm">Page {page + 1} / {totalPages}</span>
-                    </PaginationItem>
-                    <PaginationItem>
-                      <PaginationNext 
-                        href="#" 
-                        onClick={(e) => { e.preventDefault(); if(page < totalPages - 1) handlePageChange(page + 1); }}
-                        className={page >= totalPages - 1 ? "pointer-events-none opacity-50" : ""}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            )}
+            {/* ✅ 공통 페이징 컴포넌트 적용 */}
+            <CommonPagination 
+              page={page} 
+              totalPages={totalPages} 
+              onPageChange={handlePageChange} 
+            />
           </Tabs>
         </CardContent>
       </Card>

@@ -1,36 +1,43 @@
-// src/modules/admin/useAdminLogs.ts
 "use client";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { adminApi } from "./adminApi";
 import type { LogLevel } from "./adminTypes";
+import { useSearch } from "@/shared/hooks/useSearch";
+import { usePagination } from "@/shared/hooks/usePagination";
 
 export function useAdminLogs() {
-  const [page, setPage] = useState(0);
   const [levelFilter, setLevelFilter] = useState<LogLevel | "ALL">("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-  const pageSize = 20;
+  
+  const pagination = usePagination({ initialPage: 0, initialSize: 20 });
+  const search = useSearch({
+    onSearch: () => pagination.resetPage(),
+  });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["adminLogs", page, levelFilter, searchQuery],
+    queryKey: ["adminLogs", pagination.page, levelFilter, search.activeKeyword], // activeKeyword 사용
     queryFn: () => adminApi.getLogs({
-      page,
-      size: pageSize,
+      page: pagination.page,
+      size: pagination.size,
       level: levelFilter,
-      q: searchQuery,
+      q: search.activeKeyword,
     }),
   });
 
   return {
     logs: data?.content ?? [],
     totalPages: data?.totalPages ?? 0,
-    page,
-    setPage,
+    page: pagination.page,
+    setPage: pagination.setPage,
+    handlePageChange: pagination.handlePageChange,
     levelFilter,
     setLevelFilter,
-    searchQuery,
-    setSearchQuery,
+    
+    searchQuery: search.keyword,
+    setSearchQuery: search.handleChange,
+    handleKeyDown: search.handleKeyDown, // Enter
+    
     isLoading,
   };
 }

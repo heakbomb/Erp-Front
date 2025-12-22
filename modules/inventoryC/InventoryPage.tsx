@@ -22,7 +22,8 @@ export default function InventoryPage() {
     inventoryData, isInventoryLoading, inventoryError,
     lowStockItems, isLowStockLoading,
     page, pageSize, setPageSize, goToPage,
-    searchQuery, handleSearch,
+    // ✅ [수정] localSearch 대신 훅의 상태와 핸들러 사용
+    searchQuery, setSearchQuery, handleKeyDown, 
     showInactiveOnly, setShowInactiveOnly,
     itemTypeFilter, handleChangeItemType,
     isAddModalOpen, setIsAddModalOpen,
@@ -36,9 +37,6 @@ export default function InventoryPage() {
   const totalPages = inventoryData?.totalPages ?? 0;
   const start = Math.floor(page / PAGE_WINDOW) * PAGE_WINDOW;
   const end = Math.min(start + PAGE_WINDOW - 1, Math.max(totalPages - 1, 0));
-
-  const [localSearch, setLocalSearch] = useState(searchQuery);
-  useEffect(() => { setLocalSearch(searchQuery) }, [searchQuery]);
 
   const renderCategoryLabel = (val?: string) => 
     INGREDIENT_CATEGORIES.find(c => c.value === val)?.label || val || "-";
@@ -104,10 +102,10 @@ export default function InventoryPage() {
               <div className="relative w-64">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input 
-                  placeholder="품목 검색..." 
-                  value={localSearch}
-                  onChange={(e) => setLocalSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(e.currentTarget.value)}
+                  placeholder="품목 검색 (Enter)" 
+                  value={searchQuery}          // ✅ 훅의 상태 사용
+                  onChange={setSearchQuery}    // ✅ 훅의 핸들러 사용
+                  onKeyDown={handleKeyDown}    // ✅ 훅의 엔터키 핸들러 사용
                   className="pl-8"
                 />
               </div>
