@@ -1,6 +1,7 @@
-// app/owner/subscription/payment-method/page.tsx
-import PaymentMethodPage from "@/features/subscription/payment-method/PaymentMethodPage";
+"use client"
 
-export default function Page() {
-  return <PaymentMethodPage />;
+import PaymentMethods from "@/modules/subscriptionC/PaymentMethods"
+
+export default function PaymentMethodPage() {
+  return <PaymentMethods />
 }

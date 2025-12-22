@@ -9,9 +9,11 @@ import {
   useEffect,
   useMemo,
 } from "react";
-import { StoreResponse as Store } from "@/features/owner/stores/services/storesService";
+
+// ✅ [수정] features -> modules로 경로 변경
+import { Store } from "@/modules/storeC/storeTypes";
+import { storeApi } from "@/modules/storeC/storeApi";
 import { useAuth } from "./AuthContext";
-import { fetchStores } from "@/features/owner/stores/services/storesService";
 
 interface StoreContextType {
   currentStoreId: number | null;
@@ -31,7 +33,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 const STORAGE_KEY = "currentStoreId";
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const { user, isLoggedIn } = useAuth();
+  const { user } = useAuth(); // isLoggedIn 제거 (사용 안 함)
 
   const [stores, setStores] = useState<Store[]>([]);
   const [currentStoreIdState, _setCurrentStoreIdState] = useState<number | null>(null);
@@ -53,7 +55,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setIsLoading(true);
 
-    fetchStores()
+    // ✅ [수정] storeApi.fetchMyStores 사용
+    // user.id가 있으면 사용하고, 없으면 기본값 1 (또는 로직에 맞게 수정)
+    // 여기서는 기존 동작 유지를 위해 인자 없이 호출 (기본값 1 사용)하거나 user?.id를 전달
+    storeApi.fetchMyStores((user as any)?.id)
       .then((data) => {
         setStores(data);
 
@@ -100,7 +105,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .finally(() => {
         setIsLoading(false);
       });
-    // 🔁 의존성 없음: 앱 로드시 한 번만 호출
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
 

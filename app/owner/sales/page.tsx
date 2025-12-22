@@ -1,7 +1,7 @@
 "use client"
 
-import OwnerSalesView from "@/features/owner/sales/components/OwnerSalesView"
+import SalesDashboard from "@/modules/salesC/SalesDashboard"
 
 export default function OwnerSalesPage() {
-  return <OwnerSalesView />
+  return <SalesDashboard />
 }

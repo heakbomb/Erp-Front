@@ -1,5 +1,7 @@
-import OwnerSettingsView from "@/features/owner/settings/components/OwnerSettingsView"
+"use client"
 
-export default function OwnerSettingsPage() {
+import OwnerSettingsView from "@/modules/settingsC/OwnerSettingsView"
+
+export default function SettingsPage() {
   return <OwnerSettingsView />
 }
