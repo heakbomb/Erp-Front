@@ -1,5 +1,7 @@
 // modules/adminC/adminTypes.ts
 
+import { StoreIndustry } from '../storeC/storeTypes'; // ✅ Import 추가
+
 export type UserTab = "ALL" | "OWNERS" | "EMPLOYEES";
 
 // 목록 조회용 타입
@@ -31,7 +33,7 @@ export interface OwnerDetailResponse {
   stores: {
     storeId: number;
     storeName: string;
-    industry: string;
+    industry: StoreIndustry; // ✅ string -> StoreIndustry 변경
     status: string;
     active: boolean;
   }[];

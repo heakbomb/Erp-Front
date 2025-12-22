@@ -25,23 +25,30 @@ import {
 } from "@/shared/ui/select"
 
 import { storeApi } from "./storeApi"
-import type { BusinessNumber } from "./storeTypes"
+import { BusinessNumber, StoreIndustry, STORE_INDUSTRY_LABELS } from "./storeTypes" // ✅ Import 추가
 import NaverMapPicker from "./NaverMapPicker"
 
 export default function StoreAdd({
   verifiedInfo,
   onCreatedAction,
-  trigger, // ✅ [수정] 외부에서 버튼을 주입받기 위한 prop 추가
+  trigger, 
 }: {
   verifiedInfo?: any | null
   onCreatedAction?: () => void
-  trigger?: React.ReactNode // ✅ 타입 정의
+  trigger?: React.ReactNode 
 }) {
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    bizId: string;
+    storeName: string;
+    industry: StoreIndustry; // ✅ 타입 변경
+    posVendor: string;
+    latitude: string;
+    longitude: string;
+  }>({
     bizId: "",
     storeName: "",
-    industry: "",
+    industry: StoreIndustry.KOREAN, // ✅ 기본값 설정
     posVendor: "",
     latitude: "",
     longitude: "",
@@ -57,7 +64,6 @@ export default function StoreAdd({
 
   useEffect(() => {
     if (!open) return
-    // 이미 목록이 있거나 로딩 중이면 스킵
     if (bizList.length > 0 || bizLoading) return
 
     const loadBizNumbers = async () => {
@@ -105,14 +111,13 @@ export default function StoreAdd({
 
     if (!form.bizId.trim()) missing.push("사업자번호")
     if (!form.storeName.trim()) missing.push("사업장명")
-    if (!form.industry.trim()) missing.push("업종")
+    // industry는 select이므로 기본값이 있어 검사 생략 가능하지만 안전하게 체크
+    if (!form.industry) missing.push("업종")
     if (!form.latitude.trim()) missing.push("위도")
     if (!form.longitude.trim()) missing.push("경도")
 
     if (missing.length > 0) {
-      alert(
-        `다음 항목을 입력해 주세요:\n\n- ${missing.join("\n- ")}`
-      )
+      alert(`다음 항목을 입력해 주세요:\n\n- ${missing.join("\n- ")}`)
       return
     }
 
@@ -128,10 +133,11 @@ export default function StoreAdd({
       })
       alert("사업장이 추가되었습니다.")
       setOpen(false)
+      // 초기화
       setForm({
         bizId: verifiedInfo?.bizId ? String(verifiedInfo.bizId) : "",
         storeName: "",
-        industry: "",
+        industry: StoreIndustry.KOREAN,
         posVendor: "",
         latitude: "",
         longitude: "",
@@ -149,7 +155,6 @@ export default function StoreAdd({
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          {/* ✅ [수정] 외부 trigger가 있으면 그것을 사용, 없으면 기본 버튼 사용 */}
           {trigger ? (
             trigger
           ) : (
@@ -177,10 +182,7 @@ export default function StoreAdd({
                 <Select
                   value={form.bizId}
                   onValueChange={(value) =>
-                    setForm((p) => ({
-                      ...p,
-                      bizId: value,
-                    }))
+                    setForm((p) => ({ ...p, bizId: value }))
                   }
                 >
                   <SelectTrigger id="add-bizId">
@@ -223,22 +225,29 @@ export default function StoreAdd({
               </p>
             </div>
 
-            {/* 업종 */}
+            {/* ✅ [수정] 업종 (Select Box) */}
             <div className="space-y-1">
               <Label htmlFor="add-industry">업종</Label>
-              <Input
-                id="add-industry"
+              <Select
                 value={form.industry}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    industry: e.target.value.slice(0, maxLen),
-                  }))
+                onValueChange={(value) =>
+                  setForm((p) => ({ ...p, industry: value as StoreIndustry }))
                 }
-                placeholder="예) 카페 / 한식 / 분식"
-                maxLength={maxLen}
-                className={form.industry.length >= maxLen ? "border-red-500" : ""}
-              />
+              >
+                <SelectTrigger id="add-industry">
+                  <SelectValue placeholder="업종 선택" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {Object.values(StoreIndustry).map((enumVal) => (
+                    <SelectItem key={enumVal} value={enumVal}>
+                      {STORE_INDUSTRY_LABELS[enumVal]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground px-1 mt-1">
+                * 정확한 매출 분석을 위해 업종을 신중히 선택해주세요.
+              </p>
             </div>
 
             {/* POS 시스템(선택) */}

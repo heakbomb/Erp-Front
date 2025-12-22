@@ -31,7 +31,7 @@ export default function WeekScheduleGrid({
     return local.toISOString().split("T")[0];
   };
 
-  // 🔥 직원별 색상 고정 (employeeId 기반)
+  // 🔥 직원별 색상 고정
   const COLORS = [
     "bg-red-100",
     "bg-blue-100",
@@ -47,7 +47,7 @@ export default function WeekScheduleGrid({
     return COLORS[idx];
   };
 
-  // 날짜별 근무 데이터
+  // 날짜별 근무 데이터 매핑
   const dayShiftsMap: Record<string, EmployeeShift[]> = {};
   shifts.forEach((s) => {
     if (!s.shiftDate) return;
@@ -60,9 +60,9 @@ export default function WeekScheduleGrid({
   employees.forEach((e) => employeeMap.set(e.employeeId, e));
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
       {/* 요일 헤더 */}
-      <div className="grid grid-cols-7 bg-muted text-xs sm:text-sm">
+      <div className="grid grid-cols-7 bg-muted text-xs sm:text-sm border-b">
         {days.map((d, idx) => {
           const isSat = idx === 5;
           const isSun = idx === 6;
@@ -70,15 +70,15 @@ export default function WeekScheduleGrid({
             <div
               key={idx}
               className={cn(
-                "px-2 py-2 text-center border-b",
-                isSat && "bg-blue-100 text-blue-700",
-                isSun && "bg-red-100 text-red-700",
+                "px-2 py-3 text-center border-r last:border-r-0",
+                isSat && "bg-blue-50 text-blue-700",
+                isSun && "bg-red-50 text-red-700"
               )}
             >
-              <div className="font-semibold">
+              <div className="font-semibold text-sm">
                 {format(d, "EEE", { locale: ko })}
               </div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-[11px] text-muted-foreground mt-0.5">
                 {format(d, "MM/dd")}
               </div>
             </div>
@@ -86,43 +86,48 @@ export default function WeekScheduleGrid({
         })}
       </div>
 
-      {/* 날짜 셀 */}
-      <div className="grid grid-cols-7 min-h-[240px] text-xs sm:text-sm">
+      {/* 날짜 셀 (본문) */}
+      <div className="grid grid-cols-7 min-h-[600px] text-xs sm:text-sm">
         {days.map((d, idx) => {
           const dateStr = getDateStr(d);
-          const dayShifts = dayShiftsMap[dateStr] ?? [];
+          const rawShifts = dayShiftsMap[dateStr] ?? [];
           const isSat = idx === 5;
           const isSun = idx === 6;
+
+          // 🟢 수정됨: 시작 시간(startTime) 순으로 오름차순 정렬
+          const sortedShifts = [...rawShifts].sort((a, b) => 
+            a.startTime.localeCompare(b.startTime)
+          );
 
           return (
             <div
               key={dateStr}
               className={cn(
-                "border-t border-r last:border-r-0 p-1 sm:p-2 flex flex-col gap-1",
-                isSat && "bg-blue-50",
-                isSun && "bg-red-50",
+                "border-r last:border-r-0 p-2 flex flex-col gap-2 h-full",
+                isSat && "bg-blue-50/30",
+                isSun && "bg-red-50/30"
               )}
             >
-              {/* 날짜 + (옵션) 근무 추가 버튼 */}
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {format(d, "d일", { locale: ko })}
+              {/* 날짜 + 추가 버튼 */}
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-medium text-gray-500">
+                  {format(d, "d", { locale: ko })}
                 </span>
 
                 {!readOnly && (
                   <button
                     type="button"
-                    className="text-[11px] text-primary hover:underline"
+                    className="text-[11px] font-medium text-primary hover:bg-primary/10 px-1.5 py-0.5 rounded transition-colors"
                     onClick={() => onDayCreate(dateStr)}
                   >
-                    + 근무 추가
+                    + 추가
                   </button>
                 )}
               </div>
 
-              {/* 근무 목록 */}
-              <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
-                {dayShifts.map((s) => {
+              {/* 근무 목록 (정렬된 데이터 사용) */}
+              <div className="flex flex-col gap-1.5 flex-1">
+                {sortedShifts.map((s) => {
                   const emp = employeeMap.get(s.employeeId);
                   const label =
                     emp?.name ?? s.employeeName ?? `직원#${s.employeeId}`;
@@ -132,26 +137,28 @@ export default function WeekScheduleGrid({
                     <div
                       key={s.shiftId}
                       className={cn(
-                        "cursor-pointer rounded border px-1 py-0.5 text-[11px] leading-tight hover:opacity-80",
-                        empColor,
+                        "cursor-pointer rounded border px-2 py-1.5 text-[11px] leading-tight hover:opacity-80 shadow-sm transition-all hover:translate-y-[-1px]",
+                        empColor
                       )}
                       onClick={() => {
                         if (!readOnly) onShiftClick?.(s);
                       }}
                     >
-                      <div className="font-semibold truncate">{label}</div>
-                      <div className="text-[10px]">
+                      <div className="font-bold truncate mb-0.5">{label}</div>
+                      <div className="text-[10px] opacity-80">
                         {s.startTime} ~ {s.endTime}
-                        {s.breakMinutes ? ` (휴게 ${s.breakMinutes}분)` : ""}
+                        {s.breakMinutes ? ` (${s.breakMinutes}분)` : ""}
                       </div>
                     </div>
                   );
                 })}
 
-                {dayShifts.length === 0 && (
-                  <div className="text-[11px] text-muted-foreground">
-                    근무 없음
-                  </div>
+                {/* 빈 공간 클릭 시 추가 동작 */}
+                {sortedShifts.length === 0 && (
+                  <div 
+                    className="flex-1 min-h-[50px] cursor-pointer" 
+                    onClick={() => !readOnly && onDayCreate(dateStr)}
+                  />
                 )}
               </div>
             </div>
