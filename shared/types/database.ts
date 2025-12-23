@@ -1,4 +1,4 @@
-// lib/types/database.ts
+
 
 /**
  * 상세_테이블_정의서.pdf (Table 2.1 ~ 2.23)와

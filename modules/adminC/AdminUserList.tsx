@@ -1,4 +1,3 @@
-// modules/adminC/AdminUserList.tsx
 "use client";
 
 import { useState } from "react";
@@ -25,8 +24,7 @@ import { useAdminUsers } from "./useAdminUsers";
 import { UserDetailDialog } from "./UserDetailDialog";
 import { getUserDetail } from "./adminApi";
 import type { OwnerDetailResponse } from "./adminTypes";
-
-const PAGE_WINDOW = 5;
+import { CommonPagination } from "@/shared/ui/CommonPagination"; // ✅ 추가
 
 export default function AdminUserList() {
   const {
@@ -67,10 +65,6 @@ export default function AdminUserList() {
   const totalPages = activeQuery.data?.totalPages || 0;
   const isLoading = activeQuery.isLoading;
   const totalElements = activeQuery.data?.totalElements || 0;
-
-  // 페이지네이션 계산
-  const start = Math.floor(page / PAGE_WINDOW) * PAGE_WINDOW;
-  const end = Math.min(start + PAGE_WINDOW - 1, Math.max(totalPages - 1, 0));
 
   return (
     <div className="space-y-6">
@@ -156,64 +150,12 @@ export default function AdminUserList() {
               </Table>
             </div>
 
-            {totalPages > 0 && (
-              <div className="mt-4 flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  페이지 {page + 1} / {Math.max(totalPages, 1)}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page === 0}
-                    onClick={() => handlePageChange(0)}
-                  >
-                    « 처음
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 0}
-                    onClick={() => handlePageChange(page - 1)}
-                  >
-                    ‹ 이전
-                  </Button>
-
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: end - start + 1 }, (_, i) => start + i).map(
-                      (p) => (
-                        <Button
-                          key={p}
-                          variant={p === page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handlePageChange(p)}
-                        >
-                          {p + 1}
-                        </Button>
-                      )
-                    )}
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages - 1}
-                    onClick={() => handlePageChange(page + 1)}
-                  >
-                    다음 ›
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages - 1}
-                    onClick={() => handlePageChange(totalPages - 1)}
-                  >
-                    마지막 »
-                  </Button>
-                </div>
-              </div>
-            )}
+            {/* ✅ 공통 페이징 컴포넌트 적용 */}
+            <CommonPagination 
+              page={page} 
+              totalPages={totalPages} 
+              onPageChange={handlePageChange} 
+            />
           </Tabs>
         </CardContent>
       </Card>

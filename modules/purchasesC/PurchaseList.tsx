@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/shared/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
@@ -10,6 +10,7 @@ import { Label } from "@/shared/ui/label";
 import { Plus, Search, Loader2, Pencil, Trash2 } from "lucide-react";
 import { usePurchases } from "./usePurchases";
 import PurchaseModal from "./PurchaseModal";
+import { CommonPagination } from "@/shared/ui/CommonPagination"; // ✅ 공통 페이지네이션
 
 const KR = new Intl.NumberFormat("ko-KR");
 
@@ -22,33 +23,14 @@ export default function PurchaseList() {
     selectedItemId, setSelectedItemId,
     startDate, setStartDate,
     endDate, setEndDate,
-    searchText, setSearchText,
+    // ✅ useSearch에서 매핑된 값들 사용
+    searchQuery, setSearchQuery, handleSearch, handleKeyDown,
     size, setSize,
     page, totalPages, totalElements, handlePageChange,
     totalAmount, filteredRows,
     isAddOpen, setIsAddOpen, handleSubmit, isSubmitting,
     editingPurchase, handleEditClick, handleDeleteClick, handleModalClose
   } = usePurchases();
-
-  const renderPageButtons = () => {
-    if (totalPages <= 1) return null;
-    const groupSize = 5;
-    const currentGroup = Math.floor(page / groupSize);
-    const start = currentGroup * groupSize;
-    const end = Math.min(totalPages, start + groupSize);
-    
-    return (
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" disabled={page === 0} onClick={() => handlePageChange(page - 1)}>이전</Button>
-        {Array.from({ length: end - start }, (_, idx) => {
-          const p = start + idx;
-          return <Button key={p} variant={p === page ? "default" : "outline"} size="sm" onClick={() => handlePageChange(p)}>{p + 1}</Button>;
-        })}
-        <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => handlePageChange(page + 1)}>다음</Button>
-        <span className="text-xs text-muted-foreground ml-2">총 {totalElements}건</span>
-      </div>
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -72,7 +54,20 @@ export default function PurchaseList() {
             </select>
           </div>
           <div className="space-y-1"><Label>검색</Label>
-            <div className="relative"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-8" placeholder="품목명..." value={searchText} onChange={e => setSearchText(e.target.value)} /></div>
+            {/* ✅ 검색 입력 필드 및 버튼 */}
+            <div className="relative flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  className="pl-8" 
+                  placeholder="품목명..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                  onKeyDown={handleKeyDown}
+                />
+              </div>
+              <Button variant="secondary" onClick={handleSearch}>검색</Button>
+            </div>
           </div>
           <div className="space-y-1"><Label>페이지 크기</Label>
             <select className="w-full h-9 rounded-md border px-3 text-sm bg-background" value={size} onChange={e => { setSize(Number(e.target.value)); handlePageChange(0); }}>
@@ -92,7 +87,6 @@ export default function PurchaseList() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>매입 내역</CardTitle>
-            {renderPageButtons()}
           </div>
         </CardHeader>
         <CardContent>
@@ -132,6 +126,13 @@ export default function PurchaseList() {
               </TableBody>
             </Table>
           )}
+          
+          {/* ✅ 공통 페이징 컴포넌트 적용 */}
+          <CommonPagination 
+            page={page} 
+            totalPages={totalPages} 
+            onPageChange={handlePageChange} 
+          />
         </CardContent>
       </Card>
 

@@ -1,10 +1,11 @@
 // modules/adminC/adminApi.ts
 import { apiClient } from "@/shared/api/apiClient";
-import type { PageResponse } from "@/shared/types/api"; // shared types 경로 확인 필요 (없으면 commonTypes 등 사용)
+import type { PageResponse } from "@/shared/types/api";
 import type { 
   OwnerResponse, 
   EmployeeResponse, 
-  OwnerDetailResponse 
+  OwnerDetailResponse,
+  SystemLogResponse // ✅ 추가된 타입 import
 } from "./adminTypes";
 
 export const getOwners = async (params: any) => {
@@ -22,11 +23,16 @@ export const getUserDetail = async (ownerId: number) => {
   return response.data;
 };
 
-// 기존 adminApi 객체 스타일 대신 features 처럼 개별 함수 export로 변경하거나,
-// 호환성을 위해 객체로 묶어줄 수도 있지만, features와 구조를 맞추기 위해 개별 export를 권장합니다.
-// 만약 기존 코드에서 adminApi.xxx 로 쓰고 있었다면 아래와 같이 묶어줄 수 있습니다.
+// ✅ [추가] 로그 목록 조회 API
+export const getLogs = async (params: any) => {
+  // 백엔드 API 경로가 /admin/logs 라고 가정
+  const response = await apiClient.get<PageResponse<SystemLogResponse>>("/admin/logs", { params });
+  return response.data;
+};
+
 export const adminApi = {
   getOwners,
   getEmployees,
   getUserDetail,
+  getLogs, // ✅ export 객체에 추가
 };

@@ -13,7 +13,8 @@ import useEmployeeList from "./useEmployeeList";
 
 export default function EmployeeList() {
   const {
-    searchQuery, setSearchQuery, employees, filtered, loading, banner,
+    searchQuery, setSearchQuery, handleKeyDown, // ✅ handleKeyDown 추가 Destructuring
+    employees, filtered, loading, banner,
     openDelete, setOpenDelete, targetToDelete, setTargetToDelete, confirmDelete, formatDate
   } = useEmployeeList();
 
@@ -27,7 +28,14 @@ export default function EmployeeList() {
             <div><CardTitle>직원 목록</CardTitle><CardDescription>{employees.length}명의 직원이 있습니다.</CardDescription></div>
             <div className="relative w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="검색..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-8" />
+              {/* ✅ [수정] onKeyDown 이벤트 연결 */}
+              <Input 
+                placeholder="검색..." 
+                value={searchQuery} 
+                onChange={e => setSearchQuery(e.target.value)} 
+                onKeyDown={handleKeyDown}
+                className="pl-8" 
+              />
             </div>
           </div>
         </CardHeader>

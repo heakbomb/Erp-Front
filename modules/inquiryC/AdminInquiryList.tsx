@@ -1,7 +1,6 @@
-// modules/inquiryC/AdminInquiryList.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAdminInquiries } from "./useAdminInquiries";
 import AdminReplyDialog from "./AdminReplyDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -10,8 +9,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { Inquiry } from "./inquiryTypes";
-
-const PAGE_WINDOW = 5;
+import { CommonPagination } from "@/shared/ui/CommonPagination"; // ✅ 추가
 
 export default function AdminInquiryList() {
   const [page, setPage] = useState(0);
@@ -44,10 +42,7 @@ export default function AdminInquiryList() {
     if (p >= 0 && p < totalPages) setPage(p);
   };
 
-  const start = Math.floor(page / PAGE_WINDOW) * PAGE_WINDOW;
-  const end = Math.min(start + PAGE_WINDOW - 1, Math.max(totalPages - 1, 0));
-
-  // 날짜 포맷팅 (헬퍼 함수 혹은 features 코드 재사용)
+  // 날짜 포맷팅
   const formatDate = (dateValue: any) => {
       if(!dateValue) return "-";
       return new Date(dateValue).toLocaleString("ko-KR", {
@@ -136,25 +131,12 @@ export default function AdminInquiryList() {
             </TableBody>
           </Table>
 
-          {/* 페이지네이션 */}
-          {totalPages > 0 && (
-            <div className="mt-4 flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                페이지 {page + 1} / {Math.max(totalPages, 1)}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => handlePageChange(0)}>« 처음</Button>
-                <Button variant="outline" size="sm" disabled={page <= 0} onClick={() => handlePageChange(page - 1)}>‹ 이전</Button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: end - start + 1 }, (_, i) => start + i).map((p) => (
-                    <Button key={p} variant={p === page ? "default" : "outline"} size="sm" onClick={() => handlePageChange(p)}>{p + 1}</Button>
-                  ))}
-                </div>
-                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => handlePageChange(page + 1)}>다음 ›</Button>
-                <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => handlePageChange(totalPages - 1)}>마지막 »</Button>
-              </div>
-            </div>
-          )}
+          {/* ✅ 공통 페이징 컴포넌트 적용 */}
+          <CommonPagination 
+            page={page} 
+            totalPages={totalPages} 
+            onPageChange={handlePageChange} 
+          />
         </CardContent>
       </Card>
 

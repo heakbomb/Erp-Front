@@ -15,12 +15,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select"
 import { Store, MapPin, Edit, Trash2, Copy, RefreshCcw, Plus, ShieldCheck } from "lucide-react"
 
 import { useStores } from "./useStores"
 import NaverMapPicker from "./NaverMapPicker"
 import { extractErrorMessage } from "./storeApi"
-import type { StoreType } from "./storeTypes"
+import { StoreType, StoreIndustry, STORE_INDUSTRY_LABELS } from "./storeTypes" // ✅ Import 추가
 import StoreAdd from "./StoreAdd"
 import StoreVerifyDialog from "./StoreVerifyDialog"
 
@@ -65,10 +72,19 @@ export default function StoreList({
 
   const [openEdit, setOpenEdit] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState({
+  
+  // ✅ [수정] 업종 타입을 StoreIndustry로 변경
+  const [editForm, setEditForm] = useState<{
+    bizId: string;
+    storeName: string;
+    industry: StoreIndustry;
+    posVendor: string;
+    latitude: string;
+    longitude: string;
+  }>({
     bizId: "",
     storeName: "",
-    industry: "",
+    industry: StoreIndustry.KOREAN,
     posVendor: "",
     latitude: "",
     longitude: "",
@@ -123,7 +139,7 @@ export default function StoreList({
     setEditForm({
       bizId: s.bizId ? String(s.bizId) : "",
       storeName: s.storeName ?? "",
-      industry: s.industry ?? "",
+      industry: s.industry, // ✅ 타입이 일치하므로 바로 할당
       posVendor: s.posVendor ?? "",
       latitude: s.latitude != null ? String(s.latitude) : "",
       longitude: s.longitude != null ? String(s.longitude) : "",
@@ -136,7 +152,7 @@ export default function StoreList({
 
     const missing: string[] = []
     if (!editForm.storeName.trim()) missing.push("사업장명")
-    if (!editForm.industry.trim()) missing.push("업종")
+    if (!editForm.industry) missing.push("업종")
     if (!editForm.latitude.trim()) missing.push("위도")
     if (!editForm.longitude.trim()) missing.push("경도")
 
@@ -168,13 +184,7 @@ export default function StoreList({
 
   return (
     <>
-      {/* ✅ [수정] 버튼 배치 변경
-          1. flex-col, items-end로 우측 정렬 및 세로 배치
-          2. 필터 버튼을 위로(첫 번째 요소)
-          3. 기능 버튼 그룹을 아래로(두 번째 요소)
-      */}
       <div className="flex flex-col items-end gap-2 mb-6">
-        {/* 1. 필터 버튼 (상단) */}
         <Button
           variant={showInactiveOnly ? "default" : "outline"}
           size="sm"
@@ -183,7 +193,6 @@ export default function StoreList({
           {showInactiveOnly ? "활성 사업장 보기" : "비활성화된 사업장 보기"}
         </Button>
 
-        {/* 2. 기능 버튼 그룹 (하단) */}
         <div className="flex gap-2">
             <StoreVerifyDialog 
                 trigger={
@@ -223,7 +232,10 @@ export default function StoreList({
                     </div>
                     <div>
                       <CardTitle>{store.storeName}</CardTitle>
-                      <CardDescription>{store.industry}</CardDescription>
+                      {/* ✅ [수정] 업종 한글 표시 */}
+                      <CardDescription>
+                        {STORE_INDUSTRY_LABELS[store.industry] || store.industry}
+                      </CardDescription>
                     </div>
                   </div>
                   <Badge
@@ -348,20 +360,26 @@ export default function StoreList({
               />
             </div>
 
+            {/* ✅ [수정] 업종 (Select Box) */}
             <div className="space-y-1">
               <Label htmlFor="edit-industry">업종</Label>
-              <Input
-                id="edit-industry"
+              <Select
                 value={editForm.industry}
-                onChange={(e) =>
-                  setEditForm((p) => ({
-                    ...p,
-                    industry: e.target.value.slice(0, maxLen),
-                  }))
+                onValueChange={(value) =>
+                  setEditForm((p) => ({ ...p, industry: value as StoreIndustry }))
                 }
-                maxLength={maxLen}
-                className={editForm.industry.length >= maxLen ? "border-red-500" : ""}
-              />
+              >
+                <SelectTrigger id="edit-industry">
+                  <SelectValue placeholder="업종 선택" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {Object.values(StoreIndustry).map((enumVal) => (
+                    <SelectItem key={enumVal} value={enumVal}>
+                      {STORE_INDUSTRY_LABELS[enumVal]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1">

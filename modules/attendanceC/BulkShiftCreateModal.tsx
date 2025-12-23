@@ -24,7 +24,7 @@ import {
 } from "@/shared/ui/select";
 import { Separator } from "@/shared/ui/separator";
 import type { Employee } from "@/modules/employeeC/employeeTypes";
-import { cn } from "@/shared/utils/commonUtils"; // classnames 유틸
+import { cn } from "@/shared/utils/commonUtils";
 
 export type BulkShiftFormValues = {
   employeeId: number | "";
@@ -78,6 +78,38 @@ export default function BulkShiftCreateModal({
     }
   }, [open, targetMonth]);
 
+  // --- [날짜 보정 핸들러] ---
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStart = e.target.value;
+    setRangeStart(newStart);
+    if (rangeEnd && newStart > rangeEnd) setRangeEnd(newStart);
+  };
+
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEnd = e.target.value;
+    setRangeEnd(newEnd);
+    if (rangeStart && newEnd < rangeStart) setRangeStart(newEnd);
+  };
+
+  // --- [✅ 시간 보정 핸들러 추가] ---
+  const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStart = e.target.value;
+    setStartTime(newStart);
+    // 시작 시간이 종료 시간보다 늦으면 -> 종료 시간을 시작 시간으로 맞춤
+    if (endTime && newStart > endTime) {
+      setEndTime(newStart);
+    }
+  };
+
+  const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEnd = e.target.value;
+    setEndTime(newEnd);
+    // 종료 시간이 시작 시간보다 빠르면 -> 시작 시간을 종료 시간으로 맞춤
+    if (startTime && newEnd < startTime) {
+      setStartTime(newEnd);
+    }
+  };
+
   // 요일 토글
   const toggleWeekday = (dayIdx: number) => {
     setSelectedWeekdays((prev) =>
@@ -90,16 +122,13 @@ export default function BulkShiftCreateModal({
   const handleSubmit = async () => {
     if (!employeeId) return alert("직원을 선택해주세요.");
     if (!rangeStart || !rangeEnd) return alert("기간을 설정해주세요.");
+    if (rangeStart > rangeEnd) return alert("종료일이 시작일보다 빠를 수 없습니다.");
+    if (startTime > endTime) return alert("종료 시간이 시작 시간보다 빠를 수 없습니다.");
 
     const start = new Date(rangeStart);
     const end = new Date(rangeEnd);
-
-    if (start > end) return alert("종료일이 시작일보다 빠를 수 없습니다.");
-
-    // 기간 내 날짜 생성
     const allDays = eachDayOfInterval({ start, end });
     
-    // 요일 필터링 (선택된 요일이 있으면 해당 요일만 포함)
     let targetDates = allDays;
     if (selectedWeekdays.length > 0) {
       targetDates = allDays.filter(d => selectedWeekdays.includes(d.getDay()));
@@ -137,8 +166,6 @@ export default function BulkShiftCreateModal({
         </DialogHeader>
 
         <div className="p-6 space-y-6">
-          
-          {/* 1. 직원 및 시간 설정 */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium flex items-center gap-1.5">
@@ -163,13 +190,15 @@ export default function BulkShiftCreateModal({
                 <Label className="text-sm font-medium flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-primary" /> 시작 시간
                 </Label>
-                <Input type="time" className="h-10" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                {/* ✅ 핸들러 교체 */}
+                <Input type="time" className="h-10" value={startTime} onChange={handleStartTimeChange} />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-primary" /> 종료 시간
                 </Label>
-                <Input type="time" className="h-10" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+                {/* ✅ 핸들러 교체 */}
+                <Input type="time" className="h-10" value={endTime} onChange={handleEndTimeChange} />
               </div>
             </div>
 
@@ -181,16 +210,15 @@ export default function BulkShiftCreateModal({
 
           <Separator />
 
-          {/* 2. 날짜 및 요일 설정 */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium flex items-center gap-1.5">
                 <CalendarDays className="w-4 h-4 text-primary" /> 기간 설정
               </Label>
               <div className="flex items-center gap-2">
-                <Input type="date" className="h-10" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
+                <Input type="date" className="h-10" value={rangeStart} onChange={handleStartDateChange} />
                 <span className="text-muted-foreground">~</span>
-                <Input type="date" className="h-10" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
+                <Input type="date" className="h-10" value={rangeEnd} onChange={handleEndDateChange} />
               </div>
             </div>
 

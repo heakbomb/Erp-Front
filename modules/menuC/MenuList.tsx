@@ -1,4 +1,4 @@
-// modules/menuC/MenuPage.tsx
+// modules/menuC/MenuList.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -24,7 +24,8 @@ export default function MenuPage() {
     invOptions, page, pageSize, setPageSize, totalPages, goToPage,
     isAddModalOpen, setIsAddModalOpen, isEditModalOpen, setIsEditModalOpen,
     editingMenu, openAddModal, openEditModal, handleCreate, handleUpdate, toggleStatus,
-    isRecipeModalOpen, setIsRecipeModalOpen, selectedMenuForRecipe, openRecipeModal
+    isRecipeModalOpen, setIsRecipeModalOpen, selectedMenuForRecipe, openRecipeModal,
+    handleKeyDown // ✅ [추가] 엔터키 검색 핸들러 추가
   } = useMenu();
 
   const start = Math.floor(page / PAGE_WINDOW) * PAGE_WINDOW;
@@ -41,7 +42,15 @@ export default function MenuPage() {
           <div className="flex items-center gap-3">
             <div className="relative w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="메뉴 검색..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-8" />
+              <Input 
+                placeholder="메뉴 검색..." 
+                value={searchQuery} 
+                // ✅ [수정] 문자열이 아닌 이벤트 핸들러 자체를 전달 (e.target.value 제거)
+                onChange={setSearchQuery} 
+                // ✅ [추가] 엔터키 입력 시 검색 실행
+                onKeyDown={handleKeyDown}
+                className="pl-8" 
+              />
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={showInactiveOnly} onChange={e => setShowInactiveOnly(e.target.checked)} className="h-4 w-4" />

@@ -1,16 +1,12 @@
-// modules/menuC/useMenu.ts
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/contexts/StoreContext";
 import { menuApi } from "./menuApi";
-import type { 
-  ActiveStatus, 
-  MenuItem, 
-  InventoryItem, 
-  RecipeIngredient 
-} from "./menuTypes";
+import type { ActiveStatus, MenuItem, InventoryItem, RecipeIngredient } from "./menuTypes";
+import { useSearch } from "@/shared/hooks/useSearch";
+import { usePagination } from "@/shared/hooks/usePagination";
 
 export type MenuFormValues = {
   menuName: string;
@@ -21,43 +17,37 @@ export function useMenu() {
   const { currentStoreId } = useStore();
   const queryClient = useQueryClient();
 
-  // 검색/필터
-  const [searchQuery, setSearchQuery] = useState("");
+  const pagination = usePagination({ initialSize: 6 });
+  const search = useSearch({
+    onSearch: () => pagination.resetPage(),
+  });
+
   const [showInactiveOnly, setShowInactiveOnly] = useState(false);
-
-  // 페이지네이션 (1페이지 6개)
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(6);
-
-  // 인벤토리 & 레시피 상태
   const [invOptions, setInvOptions] = useState<InventoryItem[]>([]);
   const [recipeMap, setRecipeMap] = useState<Record<number, RecipeIngredient[]>>({});
 
-  // 모달 상태
+  // 모달 상태 (생략 없이 유지)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingMenu, setEditingMenu] = useState<MenuItem | null>(null);
-
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [selectedMenuForRecipe, setSelectedMenuForRecipe] = useState<MenuItem | null>(null);
 
-  // 1. 인벤토리 로드
   useEffect(() => {
     if (!currentStoreId) return;
     menuApi.fetchInventory(currentStoreId).then(setInvOptions).catch(() => setInvOptions([]));
   }, [currentStoreId]);
 
-  // 2. 메뉴 목록 쿼리
   const status: ActiveStatus | undefined = showInactiveOnly ? "INACTIVE" : "ACTIVE";
   
   const { data: menuPage, isLoading: loading, error } = useQuery({
-    queryKey: ["menus", currentStoreId, searchQuery, status, page, pageSize],
+    queryKey: ["menus", currentStoreId, search.activeKeyword, status, pagination.page, pagination.size], // activeKeyword
     queryFn: () => menuApi.fetchMenus({
       storeId: currentStoreId!,
-      q: searchQuery || undefined,
+      q: search.activeKeyword || undefined,
       status,
-      page,
-      size: pageSize,
+      page: pagination.page,
+      size: pagination.size,
       sort: "menuName,asc",
     }),
     enabled: !!currentStoreId,
@@ -66,14 +56,13 @@ export function useMenu() {
   const items = menuPage?.content ?? [];
   const totalPages = menuPage?.totalPages ?? 0;
 
-  // 3. 통계 쿼리
+  // 통계 및 계산
   const { data: statsData } = useQuery({
     queryKey: ["menuStats", currentStoreId],
     queryFn: () => menuApi.fetchMenuStats(currentStoreId!),
     enabled: !!currentStoreId,
   });
 
-  // 4. 원가/마진 계산 (클라이언트 사이드)
   const calculatedCostMap = useMemo(() => {
     const map: Record<number, number> = {};
     for (const m of items) map[m.menuId] = Number(m.calculatedCost ?? 0);
@@ -100,54 +89,33 @@ export function useMenu() {
     queryClient.invalidateQueries({ queryKey: ["menuStats"] });
   }, [queryClient]);
 
-  // 핸들러
+  // Handlers (Create, Update, ToggleStatus, RecipeUpdate 등)
   const handleCreate = async (values: MenuFormValues) => {
-    if (!values.menuName.trim() || values.price === "" || isNaN(Number(values.price))) {
-      return alert("메뉴명과 판매가를 올바르게 입력하세요.");
-    }
+    if (!values.menuName.trim() || values.price === "") return alert("입력 확인 필요");
     try {
-      await menuApi.createMenu({
-        storeId: currentStoreId!,
-        menuName: values.menuName.trim(),
-        price: Number(values.price),
-      });
+      await menuApi.createMenu({ storeId: currentStoreId!, menuName: values.menuName, price: Number(values.price) });
       setIsAddModalOpen(false);
-      setPage(0);
+      pagination.resetPage();
       invalidateMenus();
-    } catch (e: any) {
-      alert(e.response?.data?.message || "생성 중 오류 발생");
-    }
+    } catch (e: any) { alert(e.response?.data?.message || "오류"); }
   };
 
   const handleUpdate = async (values: MenuFormValues) => {
     if (!editingMenu) return;
-    if (!values.menuName.trim() || values.price === "" || isNaN(Number(values.price))) {
-      return alert("메뉴명과 판매가를 올바르게 입력하세요.");
-    }
     try {
-      await menuApi.updateMenu(editingMenu.menuId, {
-        storeId: currentStoreId!,
-        menuName: values.menuName.trim(),
-        price: Number(values.price),
-      });
+      await menuApi.updateMenu(editingMenu.menuId, { storeId: currentStoreId!, menuName: values.menuName, price: Number(values.price) });
       setIsEditModalOpen(false);
-      setEditingMenu(null);
       invalidateMenus();
-    } catch (e: any) {
-      alert(e.response?.data?.message || "수정 중 오류 발생");
-    }
+    } catch (e: any) { alert(e.response?.data?.message || "오류"); }
   };
 
   const toggleStatus = async (row: MenuItem) => {
     const isActive = row.status === "ACTIVE";
-    if (!confirm(isActive ? "비활성화하시겠습니까?" : "활성화하시겠습니까?")) return;
+    if (!confirm(isActive ? "비활성화?" : "활성화?")) return;
     try {
-      if (isActive) await menuApi.deactivateMenu(row.menuId, currentStoreId!);
-      else await menuApi.reactivateMenu(row.menuId, currentStoreId!);
+      isActive ? await menuApi.deactivateMenu(row.menuId, currentStoreId!) : await menuApi.reactivateMenu(row.menuId, currentStoreId!);
       invalidateMenus();
-    } catch (e: any) {
-      alert(e.response?.data?.message || "상태 변경 실패");
-    }
+    } catch (e: any) { alert("상태 변경 실패"); }
   };
 
   const handleRecipeUpdated = (menuId: number, list: RecipeIngredient[]) => {
@@ -156,23 +124,31 @@ export function useMenu() {
   };
 
   const goToPage = (p: number) => {
-    if (menuPage && p >= 0 && p < totalPages) setPage(p);
+    if (menuPage && p >= 0 && p < totalPages) pagination.handlePageChange(p);
   };
 
   return {
     items, loading, error: error ? (error as Error).message : null,
     calculatedCostMap, stats,
-    searchQuery, setSearchQuery, showInactiveOnly, setShowInactiveOnly,
-    page, pageSize, setPageSize, totalPages, goToPage,
+    searchQuery: search.keyword,
+    setSearchQuery: search.handleChange,
+    handleKeyDown: search.handleKeyDown, // Enter
+    
+    page: pagination.page,
+    pageSize: pagination.size,
+    setPageSize: pagination.handleSizeChange,
+    totalPages, goToPage,
+
+    showInactiveOnly, setShowInactiveOnly,
     invOptions, recipeMap, onRecipeUpdated: handleRecipeUpdated,
+    
     isAddModalOpen, setIsAddModalOpen,
     isEditModalOpen, setIsEditModalOpen,
     editingMenu,
-    openAddModal: () => { setEditingMenu(null); setIsEditModalOpen(false); setIsAddModalOpen(true); },
-    openEditModal: (row: MenuItem) => { setEditingMenu(row); setIsAddModalOpen(false); setIsEditModalOpen(true); },
+    openAddModal: () => { setEditingMenu(null); setIsAddModalOpen(true); },
+    openEditModal: (row: MenuItem) => { setEditingMenu(row); setIsEditModalOpen(true); },
     handleCreate, handleUpdate, toggleStatus,
-    isRecipeModalOpen, setIsRecipeModalOpen,
-    selectedMenuForRecipe,
+    isRecipeModalOpen, setIsRecipeModalOpen, selectedMenuForRecipe,
     openRecipeModal: (row: MenuItem) => { setSelectedMenuForRecipe(row); setIsRecipeModalOpen(true); },
   };
 }
