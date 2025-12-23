@@ -13,6 +13,8 @@ export interface AttendanceItem {
 export interface MobileAttendanceItem {
   recordTime: string;
   recordType: "IN" | "OUT";
+  // ✅ shift 기준으로 IN/OUT 판단하려면 필요
+  shiftId: number | null;
 }
 
 /* --- 직원(Employee) 관련 (Grid 표시용) --- */
@@ -29,8 +31,8 @@ export interface EmployeeShift {
   storeId: number;
   employeeId: number;
   shiftDate: string; // "YYYY-MM-DD"
-  startTime: string; // "HH:mm"
-  endTime: string;   // "HH:mm"
+  startTime: string; // "HH:mm" (or "HH:mm:ss" 올 수도 있음)
+  endTime: string; // "HH:mm" (or "HH:mm:ss" 올 수도 있음)
   breakMinutes?: number;
   isFixed: boolean;
   employeeName?: string; // 조인 결과
@@ -41,7 +43,7 @@ export interface EmployeeShift {
 export interface ShiftQueryParams {
   storeId: number;
   from: string; // "YYYY-MM-DD" or "YYYY"
-  to: string;   // "YYYY-MM-DD" or "MM"
+  to: string; // "YYYY-MM-DD" or "MM"
 }
 
 export interface SaveShiftPayload {
@@ -87,6 +89,21 @@ export interface MobilePunchPayload {
   qrCode: string;
   latitude: number | null;
   longitude: number | null;
+
+  // ✅ shift 연동
+  shiftId: number;
+}
+
+/* --- ✅ [추가] 현재 shift 상태(버튼 활성화 판단용) --- */
+export interface AttendanceShiftStatus {
+  shiftId: number | null;
+  shiftDate: string | null;
+
+  canClockIn: boolean;
+  canClockOut: boolean;
+
+  // UI 메시지(예: "현재 근무 시간이 아닙니다.", "이미 출근 처리됨" 등)
+  message?: string | null;
 }
 
 /* --- 사장님용 출결 조회 --- */

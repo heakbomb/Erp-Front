@@ -23,7 +23,7 @@ import {
 import { Loader2 } from "lucide-react";
 
 import useEmployeesAttendance from "./useEmployeesAttendance";
-import type { EmployeeAttendanceSummary, OwnerAttendanceLogItem } from "./attendanceTypes";
+import type { EmployeeAttendanceSummary } from "./attendanceTypes";
 
 export default function EmployeesAttendance() {
   const {
@@ -32,7 +32,8 @@ export default function EmployeesAttendance() {
     summaryEmployeeFilter,
     summaryItems,
     logStoreIdInput,
-    logDate,
+    logFromDate,
+    logToDate,
     logEmployeeFilter,
     logs,
     loading,
@@ -42,7 +43,8 @@ export default function EmployeesAttendance() {
     setSummaryMonth,
     setSummaryEmployeeFilter,
     setLogStoreIdInput,
-    setLogDate,
+    setLogFromDate,
+    setLogToDate,
     setLogEmployeeFilter,
     loadSummary,
     loadLogs,
@@ -50,8 +52,9 @@ export default function EmployeesAttendance() {
 
   const handleTodayLogs = () => {
     const today = new Date().toISOString().slice(0, 10);
-    setLogDate(today);
-    void loadLogs({ date: today });
+    setLogFromDate(today);
+    setLogToDate(today);
+    void loadLogs({ from: today, to: today });
   };
 
   const employeeOptions = useMemo<EmployeeAttendanceSummary[]>(
@@ -72,10 +75,17 @@ export default function EmployeesAttendance() {
   }, [summaryItems, summaryEmployeeFilter]);
 
   const filteredLogs = useMemo(() => {
-    if (logEmployeeFilter === "all") return logs;
-    const id = Number(logEmployeeFilter);
-    if (Number.isNaN(id)) return logs;
-    return logs.filter((l) => l.employeeId === id);
+    const base = (() => {
+      if (logEmployeeFilter === "all") return logs;
+      const id = Number(logEmployeeFilter);
+      if (Number.isNaN(id)) return logs;
+      return logs.filter((l) => l.employeeId === id);
+    })();
+
+    // ✅ 요구사항 1) 기록시간 기준 오름차순 정렬 (08:00 → 09:00 ...)
+    return [...base].sort(
+      (a, b) => new Date(a.recordTime).getTime() - new Date(b.recordTime).getTime(),
+    );
   }, [logs, logEmployeeFilter]);
 
   const logStats = useMemo(() => {
@@ -117,7 +127,9 @@ export default function EmployeesAttendance() {
                 placeholder="사업장 ID"
                 inputMode="numeric"
                 value={summaryStoreIdInput}
-                onChange={(e) => setSummaryStoreIdInput(e.target.value.replace(/[^0-9]/g, ""))}
+                onChange={(e) =>
+                  setSummaryStoreIdInput(e.target.value.replace(/[^0-9]/g, ""))
+                }
               />
               <Input
                 className="w-40"
@@ -137,7 +149,12 @@ export default function EmployeesAttendance() {
                   </option>
                 ))}
               </select>
-              <Button size="sm" onClick={() => void loadSummary()} disabled={loading} className="whitespace-nowrap">
+              <Button
+                size="sm"
+                onClick={() => void loadSummary()}
+                disabled={loading}
+                className="whitespace-nowrap"
+              >
                 {loading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
                 조회
               </Button>
@@ -146,13 +163,22 @@ export default function EmployeesAttendance() {
 
           <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
             <span>
-              총 직원 <Badge variant="outline" className="ml-1">{stats.totalEmployees}명</Badge>
+              총 직원{" "}
+              <Badge variant="outline" className="ml-1">
+                {stats.totalEmployees}명
+              </Badge>
             </span>
             <span>
-              이번 달 총 근무일수 <Badge variant="outline" className="ml-1">{stats.totalWorkDays}일</Badge>
+              이번 달 총 근무일수{" "}
+              <Badge variant="outline" className="ml-1">
+                {stats.totalWorkDays}일
+              </Badge>
             </span>
             <span>
-              이번 달 총 근무시간 <Badge variant="outline" className="ml-1">{stats.totalWorkHours.toFixed(1)}h</Badge>
+              이번 달 총 근무시간{" "}
+              <Badge variant="outline" className="ml-1">
+                {stats.totalWorkHours.toFixed(1)}h
+              </Badge>
             </span>
           </div>
         </CardHeader>
@@ -173,17 +199,27 @@ export default function EmployeesAttendance() {
                   <TableRow>
                     <TableHead>직원</TableHead>
                     <TableHead className="text-right">이번 달 근무일수</TableHead>
-                    <TableHead className="text-right">이번 달 총 근무시간 (h)</TableHead>
+                    <TableHead className="text-right">
+                      이번 달 총 근무시간 (h)
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredSummaryItems.map((row) => (
                     <TableRow key={row.employeeId}>
                       <TableCell>
-                        <div className="font-medium">{row.employeeName ?? `직원 #${row.employeeId}`}</div>
+                        <div className="font-medium">
+                          {row.employeeName ?? `직원 #${row.employeeId}`}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-right">{row.workDaysThisMonth ?? 0}일</TableCell>
-                      <TableCell className="text-right">{row.workHoursThisMonth != null ? row.workHoursThisMonth.toFixed(1) : "-"}</TableCell>
+                      <TableCell className="text-right">
+                        {row.workDaysThisMonth ?? 0}일
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {row.workHoursThisMonth != null
+                          ? row.workHoursThisMonth.toFixed(1)
+                          : "-"}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -210,14 +246,25 @@ export default function EmployeesAttendance() {
                 placeholder="사업장 ID"
                 inputMode="numeric"
                 value={logStoreIdInput}
-                onChange={(e) => setLogStoreIdInput(e.target.value.replace(/[^0-9]/g, ""))}
+                onChange={(e) =>
+                  setLogStoreIdInput(e.target.value.replace(/[^0-9]/g, ""))
+                }
+              />
+
+              {/* ✅ 요구사항 2) 기간 선택(from~to) */}
+              <Input
+                className="w-44"
+                type="date"
+                value={logFromDate}
+                onChange={(e) => setLogFromDate(e.target.value)}
               />
               <Input
                 className="w-44"
                 type="date"
-                value={logDate}
-                onChange={(e) => setLogDate(e.target.value)}
+                value={logToDate}
+                onChange={(e) => setLogToDate(e.target.value)}
               />
+
               <select
                 className="w-40 rounded-md border px-2 py-1 text-sm"
                 value={logEmployeeFilter}
@@ -230,11 +277,21 @@ export default function EmployeesAttendance() {
                   </option>
                 ))}
               </select>
-              <Button size="sm" onClick={() => void loadLogs()} disabled={loading} className="whitespace-nowrap">
+              <Button
+                size="sm"
+                onClick={() => void loadLogs()}
+                disabled={loading}
+                className="whitespace-nowrap"
+              >
                 {loading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
                 조회
               </Button>
-              <Button variant="outline" size="sm" onClick={handleTodayLogs} className="whitespace-nowrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTodayLogs}
+                className="whitespace-nowrap"
+              >
                 오늘
               </Button>
             </div>
@@ -243,10 +300,30 @@ export default function EmployeesAttendance() {
 
         <CardContent>
           <div className="mb-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-            <span>총 로그 <Badge variant="outline" className="ml-1">{logStats.totalLogs}건</Badge></span>
-            <span>출근(IN) <Badge variant="outline" className="ml-1">{logStats.inCount}건</Badge></span>
-            <span>퇴근(OUT) <Badge variant="outline" className="ml-1">{logStats.outCount}건</Badge></span>
-            <span>직원 수 <Badge variant="outline" className="ml-1">{logStats.employeeCount}명</Badge></span>
+            <span>
+              총 로그{" "}
+              <Badge variant="outline" className="ml-1">
+                {logStats.totalLogs}건
+              </Badge>
+            </span>
+            <span>
+              출근(IN){" "}
+              <Badge variant="outline" className="ml-1">
+                {logStats.inCount}건
+              </Badge>
+            </span>
+            <span>
+              퇴근(OUT){" "}
+              <Badge variant="outline" className="ml-1">
+                {logStats.outCount}건
+              </Badge>
+            </span>
+            <span>
+              직원 수{" "}
+              <Badge variant="outline" className="ml-1">
+                {logStats.employeeCount}명
+              </Badge>
+            </span>
           </div>
 
           {loading ? (
@@ -255,7 +332,7 @@ export default function EmployeesAttendance() {
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="text-sm text-muted-foreground">
-              조회된 출결 로그가 없습니다. 사업장 ID와 날짜, 직원 필터를 확인해주세요.
+              조회된 출결 로그가 없습니다. 사업장 ID와 기간, 직원 필터를 확인해주세요.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -271,17 +348,27 @@ export default function EmployeesAttendance() {
                   {filteredLogs.map((l) => (
                     <TableRow key={l.logId}>
                       <TableCell>
-                        <div className="font-medium">{l.employeeName ?? `직원 #${l.employeeId}`}</div>
-                        <div className="text-xs text-muted-foreground">ID {l.employeeId}</div>
+                        <div className="font-medium">
+                          {l.employeeName ?? `직원 #${l.employeeId}`}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          ID {l.employeeId}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {new Date(l.recordTime).toLocaleString("ko-KR", {
-                          year: "2-digit", month: "2-digit", day: "2-digit",
-                          hour: "2-digit", minute: "2-digit", second: "2-digit",
+                          year: "2-digit",
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
                         })}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={l.recordType === "IN" ? "default" : "secondary"}>
+                        <Badge
+                          variant={l.recordType === "IN" ? "default" : "secondary"}
+                        >
                           {l.recordType === "IN" ? "출근" : "퇴근"}
                         </Badge>
                       </TableCell>

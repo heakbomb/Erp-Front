@@ -45,19 +45,10 @@ export default function MobilePunchPage() {
     handleScanSuccess,
     handleCloseScanner,
     canPunch,
+    status,
+    canClockIn,
+    canClockOut,
   } = useMobilePunch();
-
-  // 🔥 오늘 출근/퇴근 여부 기반 버튼 활성화 상태 계산
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const todayRecords = recent.filter((r) =>
-    r.recordTime.startsWith(todayKey)
-  );
-
-  const hasInToday = todayRecords.some((r) => r.recordType === "IN");
-  const hasOutToday = todayRecords.some((r) => r.recordType === "OUT");
-
-  const canClockIn = canPunch && !hasInToday;
-  const canClockOut = canPunch && hasInToday && !hasOutToday;
 
   if (!mounted) return null;
 
@@ -70,8 +61,8 @@ export default function MobilePunchPage() {
             (banner.type === "success"
               ? "bg-green-100 text-green-800"
               : banner.type === "error"
-                ? "bg-red-100 text-red-800"
-                : "bg-blue-100 text-blue-800")
+              ? "bg-red-100 text-red-800"
+              : "bg-blue-100 text-blue-800")
           }
         >
           {banner.msg}
@@ -79,6 +70,10 @@ export default function MobilePunchPage() {
       )}
 
       <DigitalClock />
+
+      {status?.message && (
+        <div className="text-center text-sm text-muted-foreground">{status.message}</div>
+      )}
 
       <Card>
         <CardContent className="p-4 space-y-3">
@@ -145,11 +140,7 @@ export default function MobilePunchPage() {
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Button
-          size="lg"
-          disabled={!canClockIn}
-          onClick={() => sendPunch("IN")}
-        >
+        <Button size="lg" disabled={!canClockIn} onClick={() => sendPunch("IN")}>
           출근
         </Button>
         <Button
@@ -170,16 +161,9 @@ export default function MobilePunchPage() {
           ) : (
             <div className="space-y-2">
               {recent.map((r, i) => (
-                <div
-                  key={`${r.recordTime}-${i}`}
-                  className="flex justify-between text-sm"
-                >
+                <div key={`${r.recordTime}-${i}`} className="flex justify-between text-sm">
                   <span>{r.recordTime.replace("T", " ").slice(0, 16)}</span>
-                  <span
-                    className={
-                      r.recordType === "IN" ? "text-green-600" : "text-amber-600"
-                    }
-                  >
+                  <span className={r.recordType === "IN" ? "text-green-600" : "text-amber-600"}>
                     {r.recordType === "IN" ? "출근" : "퇴근"}
                   </span>
                 </div>

@@ -10,7 +10,7 @@ let inactiveStoreHandled = false;
  * 공용 API 클라이언트
  */
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: "/api", // ✅ rewrites 설정 사용
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",

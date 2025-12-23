@@ -11,7 +11,8 @@ import type {
   SaveShiftPayload,
   ShiftQueryParams,
   EmployeeAttendanceSummary,
-  OwnerAttendanceLogItem
+  OwnerAttendanceLogItem,
+  AttendanceShiftStatus,
 } from "./attendanceTypes";
 
 // 헬퍼: 날짜 범위에 포함된 모든 (년, 월) 쌍을 구함
@@ -65,6 +66,14 @@ export const attendanceApi = {
     await apiClient.post("/attendance/punch", payload);
   },
 
+  /* --- ✅ [추가] 현재 shift 상태(버튼 활성화 판단) --- */
+  fetchAttendanceShiftStatus: async (employeeId: number, storeId: number) => {
+    const res = await apiClient.get<AttendanceShiftStatus>("/attendance/shift/status", {
+      params: { employeeId, storeId },
+    });
+    return res.data;
+  },
+
   /* --- 시프트 (Shift) 관리 --- */
   fetchShifts: async (params: ShiftQueryParams) => {
     const { storeId, from, to } = params;
@@ -78,10 +87,8 @@ export const attendanceApi = {
       )
     );
 
-    const allShifts = responses.flatMap(res => res.data || []);
-    const uniqueShifts = Array.from(
-      new Map(allShifts.map(s => [s.shiftId, s])).values()
-    );
+    const allShifts = responses.flatMap((res) => res.data || []);
+    const uniqueShifts = Array.from(new Map(allShifts.map((s) => [s.shiftId, s])).values());
 
     return uniqueShifts;
   },
@@ -139,7 +146,6 @@ export const attendanceApi = {
 
 /* ----------------------------------
    [추가] 사장님용 출결 조회 (Named Exports)
-   - useEmployeesAttendance.ts에서 import { ... } 형태로 사용 중
 ---------------------------------- */
 
 // 1. 직원별 월간 출결 요약 조회
@@ -156,13 +162,14 @@ export async function fetchEmployeesAttendanceSummary(params: {
 // 2. 일별 출퇴근 로그 조회
 export async function fetchOwnerAttendanceLogs(params: {
   storeId: number;
-  date: string; // "yyyy-MM-dd"
+  from: string; // "yyyy-MM-dd"
+  to: string; // "yyyy-MM-dd"
 }): Promise<OwnerAttendanceLogItem[]> {
   const res = await apiClient.get<OwnerAttendanceLogItem[]>("/attendance/owner/logs", {
     params: {
       storeId: params.storeId,
-      from: params.date,
-      to: params.date,
+      from: params.from,
+      to: params.to,
     },
   });
   return res.data;
