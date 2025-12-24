@@ -186,22 +186,23 @@ export default function ShiftCreateModal({
         </div>
 
         <DialogFooter className="flex justify-between sm:justify-between w-full">
-           <div className="flex gap-2">
+          <div className="flex gap-2">
             {isEditMode && onDelete && (
               <Button variant="destructive" onClick={handleDelete} type="button">
                 삭제
               </Button>
             )}
-            {onDeleteMonthAll && form.employeeId && (
+            {/* ✅ 수정: "월 전체 삭제"는 수정 모드에서만 노출 */}
+            {isEditMode && onDeleteMonthAll && form.employeeId && (
               <Button variant="outline" onClick={handleDeleteMonth} type="button">
                 월 전체 삭제
               </Button>
             )}
-           </div>
-           <div className="flex gap-2">
-             <Button variant="outline" onClick={onClose} type="button">취소</Button>
-             <Button onClick={handleSubmit} type="button">저장</Button>
-           </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} type="button">취소</Button>
+            <Button onClick={handleSubmit} type="button">저장</Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

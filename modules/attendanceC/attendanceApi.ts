@@ -74,7 +74,7 @@ export const attendanceApi = {
     await apiClient.post("/attendance/punch", payload);
   },
 
-  /* --- ✅ [추가] 현재 shift 상태(버튼 활성화 판단) --- */
+  /* --- ✅ 현재 shift 상태 --- */
   fetchAttendanceShiftStatus: async (employeeId: number, storeId: number) => {
     const res = await apiClient.get<AttendanceShiftStatus>("/attendance/shift/status", {
       params: { employeeId, storeId },
@@ -97,7 +97,6 @@ export const attendanceApi = {
 
     const allShifts = responses.flatMap((res) => res.data || []);
     const uniqueShifts = Array.from(new Map(allShifts.map((s) => [s.shiftId, s])).values());
-
     return uniqueShifts;
   },
 
@@ -116,19 +115,23 @@ export const attendanceApi = {
     return res.data;
   },
 
+  // ✅ updateShift: isFixed를 "전달했을 때만" 업데이트하도록 개선
   updateShift: async (storeId: number, shiftId: number, body: Partial<SaveShiftPayload>) => {
     const normalize = (t?: string) => (!t ? undefined : t.length === 5 ? `${t}:00` : t);
 
-    const res = await apiClient.post<EmployeeShift>(`/shift`, {
+    const payload: any = {
       shiftId,
       storeId,
       employeeId: body.employeeId,
       shiftDate: body.date,
       startTime: normalize(body.startTime),
       endTime: normalize(body.endTime),
-      breakMinutes: typeof body.breakMinutes === "number" ? body.breakMinutes : undefined,
-      isFixed: body.isFixed ?? false,
-    });
+    };
+
+    if (typeof body.breakMinutes === "number") payload.breakMinutes = body.breakMinutes;
+    if (typeof body.isFixed === "boolean") payload.isFixed = body.isFixed;
+
+    const res = await apiClient.post<EmployeeShift>(`/shift`, payload);
     return res.data;
   },
 
@@ -138,6 +141,7 @@ export const attendanceApi = {
       ...payload,
       startTime: normalize(payload.startTime),
       endTime: normalize(payload.endTime),
+      isFixed: payload.isFixed ?? false,
     };
     const res = await apiClient.post<EmployeeShift[]>("/shift/bulk", body);
     return res.data;
@@ -152,11 +156,7 @@ export const attendanceApi = {
   },
 };
 
-/* ----------------------------------
-   [추가] 사장님용 출결 조회 (Named Exports)
----------------------------------- */
-
-// 1. 직원별 월간 출결 요약 조회
+/* --- 사장님용 출결 조회 --- */
 export async function fetchEmployeesAttendanceSummary(params: {
   storeId: number;
   month: string; // "yyyy-MM"
@@ -167,7 +167,6 @@ export async function fetchEmployeesAttendanceSummary(params: {
   return res.data;
 }
 
-// 2. 일별 출퇴근 로그 조회
 export async function fetchOwnerAttendanceLogs(params: {
   storeId: number;
   from: string; // "yyyy-MM-dd"
