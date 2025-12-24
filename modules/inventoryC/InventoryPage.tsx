@@ -11,7 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/shared/ui/badge";
 import { Plus, Search, AlertTriangle, Upload, Edit, Loader2 } from "lucide-react";
 import { INGREDIENT_CATEGORIES } from "./inventoryTypes";
-import { Upload } from "lucide-react";
 
 const PAGE_WINDOW = 5;
 
