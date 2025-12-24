@@ -13,7 +13,6 @@ export type WeekScheduleGridProps = {
   employees: Employee[];
   onDayCreate: (dateStr: string) => void;
   onShiftClick?: (shift: EmployeeShift) => void;
-  /** ✅ 직원페이지용 읽기 전용 모드 */
   readOnly?: boolean;
 };
 
@@ -25,13 +24,11 @@ export default function WeekScheduleGrid({
   onShiftClick,
   readOnly = false,
 }: WeekScheduleGridProps) {
-  // 🔥 날짜 하루 밀림 방지용
   const getDateStr = (d: Date) => {
     const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
     return local.toISOString().split("T")[0];
   };
 
-  // 🔥 직원별 색상 고정
   const COLORS = [
     "bg-red-100",
     "bg-blue-100",
@@ -47,7 +44,6 @@ export default function WeekScheduleGrid({
     return COLORS[idx];
   };
 
-  // 날짜별 근무 데이터 매핑
   const dayShiftsMap: Record<string, EmployeeShift[]> = {};
   shifts.forEach((s) => {
     if (!s.shiftDate) return;
@@ -86,7 +82,7 @@ export default function WeekScheduleGrid({
         })}
       </div>
 
-      {/* 날짜 셀 (본문) */}
+      {/* 날짜 셀 */}
       <div className="grid grid-cols-7 min-h-[600px] text-xs sm:text-sm">
         {days.map((d, idx) => {
           const dateStr = getDateStr(d);
@@ -94,8 +90,7 @@ export default function WeekScheduleGrid({
           const isSat = idx === 5;
           const isSun = idx === 6;
 
-          // 🟢 수정됨: 시작 시간(startTime) 순으로 오름차순 정렬
-          const sortedShifts = [...rawShifts].sort((a, b) => 
+          const sortedShifts = [...rawShifts].sort((a, b) =>
             a.startTime.localeCompare(b.startTime)
           );
 
@@ -108,7 +103,6 @@ export default function WeekScheduleGrid({
                 isSun && "bg-red-50/30"
               )}
             >
-              {/* 날짜 + 추가 버튼 */}
               <div className="flex justify-between items-center">
                 <span className="text-xs font-medium text-gray-500">
                   {format(d, "d", { locale: ko })}
@@ -125,12 +119,10 @@ export default function WeekScheduleGrid({
                 )}
               </div>
 
-              {/* 근무 목록 (정렬된 데이터 사용) */}
               <div className="flex flex-col gap-1.5 flex-1">
                 {sortedShifts.map((s) => {
                   const emp = employeeMap.get(s.employeeId);
-                  const label =
-                    emp?.name ?? s.employeeName ?? `직원#${s.employeeId}`;
+                  const label = emp?.name ?? s.employeeName ?? `직원#${s.employeeId}`;
                   const empColor = getEmpColor(s.employeeId);
 
                   return (
@@ -144,7 +136,12 @@ export default function WeekScheduleGrid({
                         if (!readOnly) onShiftClick?.(s);
                       }}
                     >
-                      <div className="font-bold truncate mb-0.5">{label}</div>
+                      {/* ✅ 고정일 때만 📌 */}
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <div className="font-bold truncate">{label}</div>
+                        {s.isFixed && <span className="text-[11px]">📌</span>}
+                      </div>
+
                       <div className="text-[10px] opacity-80">
                         {s.startTime} ~ {s.endTime}
                         {s.breakMinutes ? ` (${s.breakMinutes}분)` : ""}
@@ -153,10 +150,9 @@ export default function WeekScheduleGrid({
                   );
                 })}
 
-                {/* 빈 공간 클릭 시 추가 동작 */}
                 {sortedShifts.length === 0 && (
-                  <div 
-                    className="flex-1 min-h-[50px] cursor-pointer" 
+                  <div
+                    className="flex-1 min-h-[50px] cursor-pointer"
                     onClick={() => !readOnly && onDayCreate(dateStr)}
                   />
                 )}
