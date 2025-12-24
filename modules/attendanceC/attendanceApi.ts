@@ -31,6 +31,14 @@ function getMonthsInRange(from: string, to: string) {
   return months;
 }
 
+// ✅ 로컬 오늘 yyyy-MM-dd
+function getLocalTodayYMD(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /* ----------------------------------
    기존 attendanceApi 객체 (Employee/Shared 기능)
 ---------------------------------- */
@@ -172,5 +180,11 @@ export async function fetchOwnerAttendanceLogs(params: {
       to: params.to,
     },
   });
-  return res.data;
+  return res.data ?? [];
+}
+
+// ✅ 3. 오늘 출퇴근 로그 조회 (백엔드 수정 X, 기존 logs 재사용)
+export async function fetchOwnerTodayAttendanceLogs(storeId: number) {
+  const today = getLocalTodayYMD();
+  return fetchOwnerAttendanceLogs({ storeId, from: today, to: today });
 }

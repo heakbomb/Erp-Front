@@ -9,7 +9,6 @@ import {
   SidebarHeader,
   SidebarFooter,
   SidebarProvider,
-  SidebarTrigger,
   SidebarInset,
   SidebarMenu,
   SidebarMenuItem,
@@ -41,20 +40,20 @@ export interface NavItem {
 // AppLayout Props 정의 확장
 interface AppLayoutProps {
   children: React.ReactNode;
-  navigation: NavItem[];          
-  sidebarHeader?: React.ReactNode; 
-  sidebarFooter?: React.ReactNode; // ✅ [추가] 사이드바 하단 커스텀 영역
-  headerActions?: React.ReactNode; // ✅ [추가] 헤더 우측 커스텀 영역 (알림, 프로필 등)
-  logoIcon?: LucideIcon;          
-  logoText?: string;              
+  navigation: NavItem[];
+  sidebarHeader?: React.ReactNode;
+  sidebarFooter?: React.ReactNode;
+  headerActions?: React.ReactNode;
+  logoIcon?: LucideIcon;
+  logoText?: string;
 }
 
 export function AppLayout({
   children,
   navigation,
   sidebarHeader,
-  sidebarFooter, // ✅ 추가된 Prop
-  headerActions, // ✅ 추가된 Prop
+  sidebarFooter,
+  headerActions,
   logoIcon: LogoIcon,
   logoText,
 }: AppLayoutProps) {
@@ -62,24 +61,30 @@ export function AppLayout({
 
   const isActive = (href: string) => {
     if (href === "/" || href === "/owner" || href === "/employee" || href === "/admin") {
-        return pathname === href;
+      return pathname === href;
     }
     return pathname?.startsWith(href);
   };
 
+  const currentTitle =
+    navigation.find((nav) => isActive(nav.href))?.name || "Dashboard";
+
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon">
+      {/* ✅ collapsible 제거: 닫힘/열림 기능 자체 없음 */}
+      <Sidebar className="overflow-visible">
         {/* 1. 사이드바 헤더 */}
-        <SidebarHeader>
+        <SidebarHeader className="overflow-visible">
           {sidebarHeader ? (
-            <div className="w-full">{sidebarHeader}</div>
+            <div className="w-full px-2 py-2 overflow-visible min-w-0">
+              {sidebarHeader}
+            </div>
           ) : LogoIcon && logoText ? (
-            <div className="flex items-center gap-2 px-4 py-2">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+            <div className="flex items-center gap-2 px-4 py-2 overflow-visible">
+              <div className="flex aspect-square size-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <LogoIcon className="size-4" />
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
                 <span className="truncate font-semibold">{logoText}</span>
               </div>
             </div>
@@ -89,21 +94,27 @@ export function AppLayout({
         <Separator />
 
         {/* 2. 사이드바 메뉴 콘텐츠 */}
-        <SidebarContent>
+        <SidebarContent className="overflow-visible">
           <SidebarGroup>
-            <SidebarGroupLabel>Menu</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
+            {/* ✅ 트리거(닫는 버튼) 삭제 */}
+            <SidebarGroupLabel className="flex items-center justify-between gap-2 px-3">
+              <span className="text-base font-semibold tracking-tight">Menu</span>
+            </SidebarGroupLabel>
+
+            <SidebarGroupContent className="overflow-visible">
+              <SidebarMenu className="gap-1.5 px-2">
                 {navigation.map((item) => (
-                  <SidebarMenuItem key={item.name}>
+                  <SidebarMenuItem key={item.name} className="overflow-visible">
                     <SidebarMenuButton
                       asChild
                       isActive={isActive(item.href)}
                       tooltip={item.name}
+                      /* ✅ 모션 제거: transition/translate/hover 애니메이션 제거 */
+                      className="h-11 rounded-xl px-3 text-[15px] font-medium"
                     >
-                      <Link href={item.href}>
-                        {item.icon && <item.icon />}
-                        <span>{item.name}</span>
+                      <Link href={item.href} className="flex items-center gap-3 min-w-0">
+                        {item.icon && <item.icon className="size-5 shrink-0" />}
+                        <span className="truncate">{item.name}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -113,41 +124,38 @@ export function AppLayout({
           </SidebarGroup>
         </SidebarContent>
 
-        {/* 3. ✅ [추가] 사이드바 푸터 */}
+        {/* 3. 사이드바 푸터 */}
         {sidebarFooter && (
-          <SidebarFooter>
-            {sidebarFooter}
+          <SidebarFooter className="overflow-visible">
+            <div className="px-2 py-2 overflow-visible">{sidebarFooter}</div>
           </SidebarFooter>
         )}
       </Sidebar>
 
       {/* 4. 메인 콘텐츠 영역 */}
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
+        {/* ✅ 모션/전환 제거: transition / group-has 관련 클래스 제거 */}
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background">
+          <div className="flex items-center gap-2 px-2">
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbPage className="line-clamp-1">
-                    {navigation.find((nav) => isActive(nav.href))?.name || "Dashboard"}
+                    {currentTitle}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </div>
 
-          {/* ✅ [추가] 헤더 우측 액션 (알림, 유저 메뉴 등) */}
           {headerActions && (
-            <div className="ml-auto flex items-center gap-2 px-4">
+            <div className="ml-auto flex items-center gap-2 px-2">
               {headerActions}
             </div>
           )}
         </header>
-        <div className="flex-1 overflow-auto p-4 md:p-6">
-          {children}
-        </div>
+
+        <div className="flex-1 overflow-auto p-4 md:p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );
