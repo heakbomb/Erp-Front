@@ -2,10 +2,15 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays } from "date-fns";
-import { 
-  Loader2, ChevronLeft, ChevronRight, ArrowLeft
-} from "lucide-react";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  addDays,
+} from "date-fns";
+import { Loader2, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 
 import { useStore } from "@/contexts/StoreContext";
 import useEmployeeList from "./useEmployeeList";
@@ -15,13 +20,17 @@ import WeekScheduleGrid from "@/modules/attendanceC/WeekScheduleGrid";
 import MonthScheduleGrid from "@/modules/attendanceC/MonthScheduleGrid";
 
 // 모달 컴포넌트
-import ShiftCreateModal, { type ShiftFormValues } from "@/modules/attendanceC/ShiftCreateModal";
-import BulkShiftCreateModal, { type BulkShiftFormValues } from "@/modules/attendanceC/BulkShiftCreateModal";
+import ShiftCreateModal, {
+  type ShiftFormValues,
+} from "@/modules/attendanceC/ShiftCreateModal";
+import BulkShiftCreateModal, {
+  type BulkShiftFormValues,
+} from "@/modules/attendanceC/BulkShiftCreateModal";
 
-import { Card, CardContent } from "@/shared/ui/card"; // CardHeader 제거 (커스텀 헤더 사용)
+import { Card, CardContent } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { toast } from "sonner";
-import { cn } from "@/shared/utils/commonUtils"; // 필요 시 classnames 유틸
+import { cn } from "@/shared/utils/commonUtils";
 
 const toDateOnlyString = (d: Date) => format(d, "yyyy-MM-dd");
 
@@ -30,7 +39,9 @@ export default function OwnerEmployeeSchedulePage() {
   const { employees } = useEmployeeList();
 
   const [mode, setMode] = useState<"WEEK" | "MONTH">("WEEK");
-  const [anchorDate, setAnchorDate] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 0 })); // 일요일 시작 기준
+  const [anchorDate, setAnchorDate] = useState<Date>(
+    startOfWeek(new Date(), { weekStartsOn: 0 })
+  );
   const [shifts, setShifts] = useState<EmployeeShift[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -47,17 +58,20 @@ export default function OwnerEmployeeSchedulePage() {
       const end = endOfWeek(anchorDate, { weekStartsOn: 0 });
       const days = Array.from({ length: 7 }).map((_, i) => addDays(start, i));
       return {
-        rangeLabel: `${format(start, "yyyy-MM-dd")} ~ ${format(end, "yyyy-MM-dd")}`,
+        rangeLabel: `${format(start, "yyyy-MM-dd")} ~ ${format(
+          end,
+          "yyyy-MM-dd"
+        )}`,
         weekDays: days,
         monthDates: [] as Date[],
       };
     } else {
       const start = startOfMonth(anchorDate);
       const end = endOfMonth(anchorDate);
-      
+
       const startGrid = startOfWeek(start, { weekStartsOn: 0 });
       const endGrid = endOfWeek(end, { weekStartsOn: 0 });
-      
+
       const dates: Date[] = [];
       let current = startGrid;
       while (current <= endGrid) {
@@ -79,9 +93,15 @@ export default function OwnerEmployeeSchedulePage() {
     setLoading(true);
     try {
       const from = toDateOnlyString(mode === "WEEK" ? weekDays[0] : monthDates[0]);
-      const to = toDateOnlyString(mode === "WEEK" ? weekDays[6] : monthDates[monthDates.length - 1]);
-      
-      const data = await attendanceApi.fetchShifts({ storeId: currentStoreId, from, to });
+      const to = toDateOnlyString(
+        mode === "WEEK" ? weekDays[6] : monthDates[monthDates.length - 1]
+      );
+
+      const data = await attendanceApi.fetchShifts({
+        storeId: currentStoreId,
+        from,
+        to,
+      });
       setShifts(data || []);
     } catch (e) {
       console.error(e);
@@ -93,9 +113,10 @@ export default function OwnerEmployeeSchedulePage() {
 
   useEffect(() => {
     fetchShifts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStoreId, anchorDate, mode]);
 
-  // 핸들러들 (생략 없이 유지)
+  // 단일 등록/수정
   const handleSingleSubmit = async (values: ShiftFormValues, shiftId?: number) => {
     if (!currentStoreId) return;
     try {
@@ -117,7 +138,15 @@ export default function OwnerEmployeeSchedulePage() {
       fetchShifts();
       setIsSingleOpen(false);
     } catch (e: any) {
-      toast.error(e.response?.data?.message || "저장 실패");
+      const status = e?.response?.status;
+      const message = e?.response?.data?.message;
+
+      if (status === 409) {
+        toast.error("이미 등록된 근무입니다.\n같은 날짜·시간·직원은 중복 등록할 수 없습니다.");
+        return;
+      }
+
+      toast.error(message || "저장 실패");
     }
   };
 
@@ -140,7 +169,12 @@ export default function OwnerEmployeeSchedulePage() {
     try {
       const from = toDateOnlyString(startOfMonth(anchorDate));
       const to = toDateOnlyString(endOfMonth(anchorDate));
-      await attendanceApi.deleteShiftRange({ storeId: currentStoreId, employeeId, from, to });
+      await attendanceApi.deleteShiftRange({
+        storeId: currentStoreId,
+        employeeId,
+        from,
+        to,
+      });
       toast.success("일괄 삭제되었습니다.");
       fetchShifts();
       setIsSingleOpen(false);
@@ -149,31 +183,45 @@ export default function OwnerEmployeeSchedulePage() {
     }
   };
 
+  /**
+   * ✅ 핵심 수정:
+   * - values.isFixed를 그대로 반영 (강제로 false 덮어쓰기 금지)
+   * - (선택) bulk API가 있으면 createShiftBulk로 바꿔도 됨
+   */
   const handleBulkSubmit = async (values: BulkShiftFormValues) => {
     if (!currentStoreId) return;
-    let success = 0, fail = 0;
+
+    let success = 0;
+    let duplicated = 0;
+    let fail = 0;
+
     await Promise.all(
       values.dates.map(async (date) => {
         try {
           await attendanceApi.createShift({
             storeId: currentStoreId,
             employeeId: Number(values.employeeId),
-            date: date,
+            date,
             startTime: values.startTime,
             endTime: values.endTime,
             breakMinutes: values.breakMinutes,
-            isFixed: false,
+            isFixed: !!values.isFixed, // ✅ 여기 핵심: 체크값 그대로 전달
           });
           success++;
-        } catch { fail++; }
+        } catch (e: any) {
+          if (e?.response?.status === 409) duplicated++;
+          else fail++;
+        }
       })
     );
+
+    if (success > 0) toast.success(`${success}건 등록 완료`);
+    if (duplicated > 0) toast.message(`${duplicated}건은 이미 등록되어 건너뜀`);
+    if (fail > 0) toast.error(`${fail}건 등록 실패`);
+
     if (success > 0) {
-      toast.success(`${success}건 등록 완료`);
       fetchShifts();
       setIsBulkOpen(false);
-    } else {
-      toast.error("등록 실패");
     }
   };
 
@@ -190,33 +238,52 @@ export default function OwnerEmployeeSchedulePage() {
     setIsSingleOpen(true);
   };
 
-  const handlePrev = () => setAnchorDate(prev => mode === "WEEK" ? addDays(prev, -7) : addDays(startOfMonth(prev), -1));
-  const handleNext = () => setAnchorDate(prev => mode === "WEEK" ? addDays(prev, 7) : addDays(endOfMonth(prev), 1));
+  const handlePrev = () =>
+    setAnchorDate((prev) =>
+      mode === "WEEK"
+        ? addDays(prev, -7)
+        : addDays(startOfMonth(prev), -1)
+    );
+  const handleNext = () =>
+    setAnchorDate((prev) =>
+      mode === "WEEK"
+        ? addDays(prev, 7)
+        : addDays(endOfMonth(prev), 1)
+    );
   const handleToday = () => setAnchorDate(new Date());
 
-  if (!currentStoreId) return <div className="p-8 text-center text-muted-foreground">매장을 선택해주세요.</div>;
+  if (!currentStoreId)
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        매장을 선택해주세요.
+      </div>
+    );
 
   // 직원 이름 목록 생성
-  const employeeNames = employees.map(e => e.name).join(", ");
+  const employeeNames = employees.map((e) => e.name).join(", ");
 
   return (
     <div className="space-y-6 p-4 md:p-8 max-w-[1400px] mx-auto">
-      {/* 1. 페이지 헤더 (이미지와 동일하게 구성) */}
+      {/* 1. 페이지 헤더 */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">직원 근무 시간표</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            직원 근무 시간표
+          </h1>
           <p className="text-muted-foreground text-sm">
             주간 / 월간 근무표를 한눈에 확인하고, 사장님이 직접 스케줄을 설정할 수 있습니다.
           </p>
-          {/* 등록된 직원 목록 텍스트 */}
           <p className="text-xs text-muted-foreground mt-2">
             등록된 직원 ({employees.length}명): {employeeNames}
           </p>
         </div>
 
-        {/* 우측 상단 '직원 관리로 돌아가기' 버튼 */}
         <Link href="/owner/employees">
-          <Button variant="outline" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-4 w-4" />
             직원 관리로 돌아가기
           </Button>
@@ -226,17 +293,27 @@ export default function OwnerEmployeeSchedulePage() {
       {/* 2. 메인 스케줄 카드 */}
       <Card className="border shadow-sm bg-white">
         <CardContent className="p-6 space-y-6">
-          
-          {/* 툴바 영역 (이미지와 동일한 배치: 좌측 토글 / 우측 컨트롤 그룹) */}
+          {/* ✅ 요청한 “흰 여백(툴바 위)” 안내문: 조건 없이 항상 표시 */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 rounded-md border bg-white px-2 py-1 shadow-sm">
+                <span aria-hidden>📌</span>
+                <span>표시된 핀 아이콘은 “고정 근무 스케줄”입니다.</span>
+              </span>
+            </div>
+          </div>
+
+          {/* 툴바 */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            
             {/* 좌측: 보기 모드 토글 */}
             <div className="flex items-center bg-muted/20 p-1 rounded-lg border">
               <button
                 onClick={() => setMode("WEEK")}
                 className={cn(
                   "px-4 py-1.5 text-sm font-medium rounded-md transition-all",
-                  mode === "WEEK" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  mode === "WEEK"
+                    ? "bg-white text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 주간 보기
@@ -245,7 +322,9 @@ export default function OwnerEmployeeSchedulePage() {
                 onClick={() => setMode("MONTH")}
                 className={cn(
                   "px-4 py-1.5 text-sm font-medium rounded-md transition-all",
-                  mode === "MONTH" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  mode === "MONTH"
+                    ? "bg-white text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 월간 보기
@@ -254,25 +333,38 @@ export default function OwnerEmployeeSchedulePage() {
 
             {/* 우측: 날짜 네비게이션 + 오늘 + 일괄 등록 */}
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePrev}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+                onClick={handlePrev}
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              
+
               <div className="flex items-center justify-center min-w-[180px] h-9 px-3 border rounded-md bg-white">
                 <span className="text-sm font-medium">{rangeLabel}</span>
               </div>
-              
-              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleNext}>
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+                onClick={handleNext}
+              >
                 <ChevronRight className="h-4 w-4" />
               </Button>
 
-              <Button variant="ghost" className="h-9 px-3 font-normal" onClick={handleToday}>
+              <Button
+                variant="ghost"
+                className="h-9 px-3 font-normal"
+                onClick={handleToday}
+              >
                 오늘
               </Button>
 
-              {/* 월간 근무 일괄 등록 버튼 (진한 남색 스타일) */}
-              <Button 
-                className="h-9 bg-[#1e293b] hover:bg-[#334155] text-white gap-2 ml-2" 
+              <Button
+                className="h-9 bg-[#1e293b] hover:bg-[#334155] text-white gap-2 ml-2"
                 onClick={() => setIsBulkOpen(true)}
               >
                 월간 근무 일괄 등록
@@ -288,21 +380,21 @@ export default function OwnerEmployeeSchedulePage() {
                 <p>스케줄을 불러오는 중입니다...</p>
               </div>
             ) : mode === "WEEK" ? (
-              <WeekScheduleGrid 
-                days={weekDays} 
-                shifts={shifts} 
-                employees={employees} 
-                onDayCreate={handleDayCreate} 
-                onShiftClick={handleShiftClick} 
+              <WeekScheduleGrid
+                days={weekDays}
+                shifts={shifts}
+                employees={employees}
+                onDayCreate={handleDayCreate}
+                onShiftClick={handleShiftClick}
                 readOnly={false}
               />
             ) : (
-              <MonthScheduleGrid 
-                dates={monthDates} 
-                shifts={shifts} 
-                employees={employees} 
-                onDayCreate={handleDayCreate} 
-                onShiftClick={handleShiftClick} 
+              <MonthScheduleGrid
+                dates={monthDates}
+                shifts={shifts}
+                employees={employees}
+                onDayCreate={handleDayCreate}
+                onShiftClick={handleShiftClick}
                 readOnly={false}
               />
             )}
@@ -311,7 +403,7 @@ export default function OwnerEmployeeSchedulePage() {
       </Card>
 
       {/* 모달들 */}
-      <ShiftCreateModal 
+      <ShiftCreateModal
         open={isSingleOpen}
         onClose={() => setIsSingleOpen(false)}
         date={selectedDate}
@@ -322,7 +414,7 @@ export default function OwnerEmployeeSchedulePage() {
         onDeleteMonthAll={handleSingleDeleteMonth}
       />
 
-      <BulkShiftCreateModal 
+      <BulkShiftCreateModal
         open={isBulkOpen}
         onClose={() => setIsBulkOpen(false)}
         targetMonth={anchorDate}

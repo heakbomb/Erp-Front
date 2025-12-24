@@ -34,7 +34,7 @@ export interface EmployeeShift {
   startTime: string; // "HH:mm" (or "HH:mm:ss" 올 수도 있음)
   endTime: string; // "HH:mm" (or "HH:mm:ss" 올 수도 있음)
   breakMinutes?: number;
-  isFixed: boolean;
+  isFixed?: boolean;
   employeeName?: string; // 조인 결과
   color?: string; // 프론트 표시용
 }

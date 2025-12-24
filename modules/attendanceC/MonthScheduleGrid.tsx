@@ -13,7 +13,6 @@ export type MonthScheduleGridProps = {
   employees: Employee[];
   onDayCreate: (dateStr: string) => void;
   onShiftClick?: (shift: EmployeeShift) => void;
-  /** ✅ 직원페이지용 읽기 전용 모드 */
   readOnly?: boolean;
 };
 
@@ -25,13 +24,11 @@ export default function MonthScheduleGrid({
   onShiftClick,
   readOnly = false,
 }: MonthScheduleGridProps) {
-  // 🔥 날짜 하루 밀림 해결
   const getDateStr = (d: Date) => {
     const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
     return local.toISOString().split("T")[0];
   };
 
-  // 🔥 직원별 고정 색상
   const COLORS = [
     "bg-red-100",
     "bg-blue-100",
@@ -47,28 +44,25 @@ export default function MonthScheduleGrid({
     return COLORS[idx];
   };
 
-  // 날짜별 맵
   const shiftMap: Record<string, EmployeeShift[]> = {};
   shifts.forEach((s) => {
     if (!s.shiftDate) return;
-    if (!shiftMap[s.shiftDate]) shiftMap[s.shiftDate] = [];
-    shiftMap[s.shiftDate].push(s);
+    const key = s.shiftDate.length > 10 ? s.shiftDate.slice(0, 10) : s.shiftDate;
+    if (!shiftMap[key]) shiftMap[key] = [];
+    shiftMap[key].push(s);
   });
 
   const employeeMap = new Map<number, Employee>();
   employees.forEach((e) => employeeMap.set(e.employeeId, e));
 
   if (!dates.length) {
-    return (
-      <p className="text-sm text-muted-foreground">표시할 날짜가 없습니다.</p>
-    );
+    return <p className="text-sm text-muted-foreground">표시할 날짜가 없습니다.</p>;
   }
 
   const currentMonth = dates[15]?.getMonth() ?? new Date().getMonth();
 
   return (
     <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
-      {/* 요일 헤더 */}
       <div className="grid grid-cols-7 bg-muted text-xs sm:text-sm">
         {["월", "화", "수", "목", "금", "토", "일"].map((label, idx) => {
           const isSat = idx === 5;
@@ -88,13 +82,11 @@ export default function MonthScheduleGrid({
         })}
       </div>
 
-      {/* 날짜 셀 */}
       <div className="grid grid-cols-7 text-xs sm:text-sm">
         {dates.map((d, idx) => {
           const dateStr = getDateStr(d);
           const rawShifts = shiftMap[dateStr] ?? [];
 
-          // 🟢 수정됨: 시작 시간(startTime) 순으로 오름차순 정렬
           const sortedShifts = [...rawShifts].sort((a, b) =>
             a.startTime.localeCompare(b.startTime)
           );
@@ -116,7 +108,6 @@ export default function MonthScheduleGrid({
                 !isOtherMonth && isSun && "bg-red-50/30"
               )}
             >
-              {/* 날짜 + (옵션) 근무 추가 버튼 */}
               <div className="flex justify-between items-center mb-1">
                 <span className={cn("text-[11px] font-medium", isOtherMonth && "opacity-50")}>
                   {format(d, "d", { locale: ko })}
@@ -133,12 +124,10 @@ export default function MonthScheduleGrid({
                 )}
               </div>
 
-              {/* 근무 목록 (정렬된 데이터 사용) */}
               <div className="flex flex-col gap-1 max-h-24 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
                 {sortedShifts.map((s) => {
                   const emp = employeeMap.get(s.employeeId);
-                  const label =
-                    emp?.name ?? s.employeeName ?? `직원 #${s.employeeId}`;
+                  const label = emp?.name ?? s.employeeName ?? `직원 #${s.employeeId}`;
                   const empColor = getEmpColor(s.employeeId);
 
                   return (
@@ -152,7 +141,12 @@ export default function MonthScheduleGrid({
                         if (!readOnly) onShiftClick?.(s);
                       }}
                     >
-                      <div className="font-semibold truncate leading-tight">{label}</div>
+                      {/* ✅ 고정일 때만 📌 */}
+                      <div className="flex items-center justify-between gap-2 leading-tight">
+                        <div className="font-semibold truncate">{label}</div>
+                        {s.isFixed && <span className="text-[10px]">📌</span>}
+                      </div>
+
                       <div className="text-[9px] opacity-80 leading-none mt-0.5">
                         {s.startTime}~{s.endTime}
                         {s.breakMinutes ? ` (${s.breakMinutes}분)` : ""}
@@ -161,9 +155,11 @@ export default function MonthScheduleGrid({
                   );
                 })}
 
-                {/* 근무 없음 표시 (선택사항, 너무 지저분하면 제거 가능) */}
                 {sortedShifts.length === 0 && !isOtherMonth && (
-                  <div className="h-full min-h-[20px]" onClick={() => !readOnly && onDayCreate(dateStr)} />
+                  <div
+                    className="h-full min-h-[20px]"
+                    onClick={() => !readOnly && onDayCreate(dateStr)}
+                  />
                 )}
               </div>
             </div>
