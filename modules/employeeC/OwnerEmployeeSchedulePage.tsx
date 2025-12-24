@@ -16,6 +16,9 @@ import { useStore } from "@/contexts/StoreContext";
 import useEmployeeList from "./useEmployeeList";
 import { attendanceApi } from "@/modules/attendanceC/attendanceApi";
 import type { EmployeeShift } from "@/modules/attendanceC/attendanceTypes";
+// ✅ 그리드용 Employee 타입 (name 필수)
+import type { Employee as GridEmployee } from "@/modules/attendanceC/attendanceTypes"; 
+
 import WeekScheduleGrid from "@/modules/attendanceC/WeekScheduleGrid";
 import MonthScheduleGrid from "@/modules/attendanceC/MonthScheduleGrid";
 
@@ -50,6 +53,16 @@ export default function OwnerEmployeeSchedulePage() {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedShift, setSelectedShift] = useState<EmployeeShift | null>(null);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
+
+  // ✅ [핵심 수정] 그리드 컴포넌트용 직원 리스트 변환 (name 필수 보장)
+  const gridEmployees: GridEmployee[] = useMemo(() => {
+    return employees.map((emp) => ({
+      employeeId: emp.employeeId,
+      name: emp.name ?? "이름 없음", // name이 없으면 기본값 설정
+      email: emp.email ?? null,
+      phone: emp.phone ?? null,
+    }));
+  }, [employees]);
 
   // 날짜 계산
   const { rangeLabel, weekDays, monthDates } = useMemo(() => {
@@ -152,7 +165,6 @@ export default function OwnerEmployeeSchedulePage() {
 
   const handleSingleDelete = async (shiftId: number) => {
     if (!currentStoreId) return;
-    if (!confirm("삭제하시겠습니까?")) return;
     try {
       await attendanceApi.deleteShift(currentStoreId, shiftId);
       toast.success("삭제되었습니다.");
@@ -165,7 +177,6 @@ export default function OwnerEmployeeSchedulePage() {
 
   const handleSingleDeleteMonth = async (employeeId: number) => {
     if (!currentStoreId) return;
-    if (!confirm("이 직원의 이번 달 근무를 모두 삭제하시겠습니까?")) return;
     try {
       const from = toDateOnlyString(startOfMonth(anchorDate));
       const to = toDateOnlyString(endOfMonth(anchorDate));
@@ -183,11 +194,6 @@ export default function OwnerEmployeeSchedulePage() {
     }
   };
 
-  /**
-   * ✅ 핵심 수정:
-   * - values.isFixed를 그대로 반영 (강제로 false 덮어쓰기 금지)
-   * - (선택) bulk API가 있으면 createShiftBulk로 바꿔도 됨
-   */
   const handleBulkSubmit = async (values: BulkShiftFormValues) => {
     if (!currentStoreId) return;
 
@@ -205,7 +211,7 @@ export default function OwnerEmployeeSchedulePage() {
             startTime: values.startTime,
             endTime: values.endTime,
             breakMinutes: values.breakMinutes,
-            isFixed: !!values.isFixed, // ✅ 여기 핵심: 체크값 그대로 전달
+            isFixed: !!values.isFixed,
           });
           success++;
         } catch (e: any) {
@@ -259,7 +265,6 @@ export default function OwnerEmployeeSchedulePage() {
       </div>
     );
 
-  // 직원 이름 목록 생성
   const employeeNames = employees.map((e) => e.name).join(", ");
 
   return (
@@ -293,7 +298,6 @@ export default function OwnerEmployeeSchedulePage() {
       {/* 2. 메인 스케줄 카드 */}
       <Card className="border shadow-sm bg-white">
         <CardContent className="p-6 space-y-6">
-          {/* ✅ 요청한 “흰 여백(툴바 위)” 안내문: 조건 없이 항상 표시 */}
           <div className="flex items-start justify-between gap-3">
             <div className="text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1 rounded-md border bg-white px-2 py-1 shadow-sm">
@@ -305,7 +309,6 @@ export default function OwnerEmployeeSchedulePage() {
 
           {/* 툴바 */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            {/* 좌측: 보기 모드 토글 */}
             <div className="flex items-center bg-muted/20 p-1 rounded-lg border">
               <button
                 onClick={() => setMode("WEEK")}
@@ -331,7 +334,6 @@ export default function OwnerEmployeeSchedulePage() {
               </button>
             </div>
 
-            {/* 우측: 날짜 네비게이션 + 오늘 + 일괄 등록 */}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -383,7 +385,7 @@ export default function OwnerEmployeeSchedulePage() {
               <WeekScheduleGrid
                 days={weekDays}
                 shifts={shifts}
-                employees={employees}
+                employees={gridEmployees} // ✅ 변환된 직원 목록 전달
                 onDayCreate={handleDayCreate}
                 onShiftClick={handleShiftClick}
                 readOnly={false}
@@ -392,7 +394,7 @@ export default function OwnerEmployeeSchedulePage() {
               <MonthScheduleGrid
                 dates={monthDates}
                 shifts={shifts}
-                employees={employees}
+                employees={gridEmployees} // ✅ 변환된 직원 목록 전달
                 onDayCreate={handleDayCreate}
                 onShiftClick={handleShiftClick}
                 readOnly={false}
@@ -402,12 +404,12 @@ export default function OwnerEmployeeSchedulePage() {
         </CardContent>
       </Card>
 
-      {/* 모달들 */}
+      {/* 모달들 (모달은 employeeC 타입을 사용하므로 원래 리스트 전달) */}
       <ShiftCreateModal
         open={isSingleOpen}
         onClose={() => setIsSingleOpen(false)}
         date={selectedDate}
-        employees={employees}
+        employees={employees} // ✅ 원본 유지
         initialShift={selectedShift}
         onSubmit={handleSingleSubmit}
         onDelete={handleSingleDelete}
@@ -418,7 +420,7 @@ export default function OwnerEmployeeSchedulePage() {
         open={isBulkOpen}
         onClose={() => setIsBulkOpen(false)}
         targetMonth={anchorDate}
-        employees={employees}
+        employees={employees} // ✅ 원본 유지
         onSubmit={handleBulkSubmit}
       />
     </div>

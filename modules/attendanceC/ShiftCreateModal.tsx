@@ -25,8 +25,8 @@ export type ShiftFormValues = {
 interface Props {
   open: boolean;
   onClose: () => void;
-  date: string; // "YYYY-MM-DD"
-  employees: Employee[]; // 부모에서 전달받음
+  date: string;
+  employees: Employee[];
   initialShift?: EmployeeShift | null;
   onSubmit: (payload: ShiftFormValues, shiftId?: number) => Promise<void>;
   onDelete?: (shiftId: number) => Promise<void>;
@@ -53,7 +53,8 @@ export default function ShiftCreateModal({
     breakMinutes: 0,
   });
 
-  // 모달이 열리거나 initialShift가 바뀔 때 폼 초기화
+  const [isBreakTimeLimitReached, setIsBreakTimeLimitReached] = useState(false);
+
   useEffect(() => {
     if (initialShift) {
       setForm({
@@ -72,6 +73,7 @@ export default function ShiftCreateModal({
         breakMinutes: 0,
       });
     }
+    setIsBreakTimeLimitReached(false);
   }, [initialShift, date, open]);
 
   const handleChange = (field: keyof ShiftFormValues, value: string) => {
@@ -82,12 +84,21 @@ export default function ShiftCreateModal({
       }));
       return;
     }
+    
+    // ✅ 3자리 제한 로직 적용
     if (field === "breakMinutes") {
+      if (value.length > 3) {
+        setIsBreakTimeLimitReached(true);
+        return;
+      } else {
+        setIsBreakTimeLimitReached(false);
+      }
       let num = value === "" ? 0 : Number(value);
       if (num < 0) num = 0;
       setForm((prev) => ({ ...prev, breakMinutes: num }));
       return;
     }
+
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -103,7 +114,11 @@ export default function ShiftCreateModal({
     await onSubmit(form, initialShift?.shiftId);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    // ✅ 이벤트 전파 방지
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!initialShift || !onDelete) return;
     if (confirm("정말 삭제하시겠습니까?")) {
       await onDelete(initialShift.shiftId);
@@ -111,7 +126,11 @@ export default function ShiftCreateModal({
     }
   };
 
-  const handleDeleteMonth = async () => {
+  const handleDeleteMonth = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    // ✅ 이벤트 전파 방지
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!form.employeeId || !onDeleteMonthAll) return;
     if (confirm("이 직원의 이번 달 근무를 모두 삭제하시겠습니까?")) {
       await onDeleteMonthAll(Number(form.employeeId));
@@ -182,6 +201,12 @@ export default function ShiftCreateModal({
               value={form.breakMinutes ?? 0}
               onChange={(e) => handleChange("breakMinutes", e.target.value)}
             />
+            {/* ✅ 경고 문구 추가 */}
+            {isBreakTimeLimitReached && (
+              <p className="text-xs text-red-500 mt-1">
+                휴게시간은 최대 3자리(999분)까지 입력 가능합니다.
+              </p>
+            )}
           </div>
         </div>
 
@@ -192,7 +217,6 @@ export default function ShiftCreateModal({
                 삭제
               </Button>
             )}
-            {/* ✅ 수정: "월 전체 삭제"는 수정 모드에서만 노출 */}
             {isEditMode && onDeleteMonthAll && form.employeeId && (
               <Button variant="outline" onClick={handleDeleteMonth} type="button">
                 월 전체 삭제

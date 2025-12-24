@@ -32,8 +32,6 @@ export type BulkShiftFormValues = {
   startTime: string;
   endTime: string;
   breakMinutes?: number;
-
-  // ✅ 추가
   isFixed?: boolean;
 };
 
@@ -60,8 +58,9 @@ export default function BulkShiftCreateModal({
   const [endTime, setEndTime] = useState("18:00");
   const [breakMinutes, setBreakMinutes] = useState(60);
 
-  // ✅ 고정 스케줄
+  // ✅ 고정 스케줄 및 휴게시간 경고
   const [isFixed, setIsFixed] = useState(false);
+  const [isBreakTimeLimitReached, setIsBreakTimeLimitReached] = useState(false);
 
   // 날짜 선택 상태
   const [rangeStart, setRangeStart] = useState("");
@@ -76,6 +75,7 @@ export default function BulkShiftCreateModal({
       setBreakMinutes(60);
       setSelectedWeekdays([]);
       setIsFixed(false);
+      setIsBreakTimeLimitReached(false);
 
       const start = startOfMonth(targetMonth);
       const end = endOfMonth(targetMonth);
@@ -106,6 +106,19 @@ export default function BulkShiftCreateModal({
     const newEnd = e.target.value;
     setEndTime(newEnd);
     if (startTime && newEnd < startTime) setStartTime(newEnd);
+  };
+
+  // ✅ 휴게시간 3자리 제한 핸들러
+  const handleBreakTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    // 3자리 초과 입력 차단 및 경고 표시
+    if (val.length > 3) {
+      setIsBreakTimeLimitReached(true);
+      return; 
+    } else {
+      setIsBreakTimeLimitReached(false);
+    }
+    setBreakMinutes(Number(val));
   };
 
   const toggleWeekday = (dayIdx: number) => {
@@ -140,7 +153,7 @@ export default function BulkShiftCreateModal({
         startTime,
         endTime,
         breakMinutes,
-        isFixed, // ✅ 핵심: 고정 전달
+        isFixed,
       });
     } finally {
       setLoading(false);
@@ -181,7 +194,6 @@ export default function BulkShiftCreateModal({
               </Select>
             </div>
 
-            {/* ✅ 고정 스케줄 체크 */}
             <div className="flex items-center gap-2">
               <input
                 id="bulkIsFixed"
@@ -226,8 +238,14 @@ export default function BulkShiftCreateModal({
                 type="number"
                 className="h-10"
                 value={breakMinutes}
-                onChange={(e) => setBreakMinutes(Number(e.target.value))}
+                onChange={handleBreakTimeChange} // ✅ 변경된 핸들러 연결
               />
+              {/* ✅ 경고 문구 추가 */}
+              {isBreakTimeLimitReached && (
+                <p className="text-xs text-red-500 mt-1">
+                  휴게시간은 최대 3자리(999분)까지 입력 가능합니다.
+                </p>
+              )}
             </div>
           </div>
 
