@@ -9,7 +9,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import { Badge } from "@/shared/ui/badge";
-import { Plus, Search, AlertTriangle, Download, Edit, Loader2 } from "lucide-react";
+import { Plus, Search, AlertTriangle, Upload, Edit, Loader2 } from "lucide-react";
 import { INGREDIENT_CATEGORIES } from "./inventoryTypes";
 
 const PAGE_WINDOW = 5;
@@ -51,7 +51,7 @@ export default function InventoryPage() {
         {mounted && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleExportExcel} disabled={isExporting}>
-              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
               Excel 내보내기
             </Button>
             <Button onClick={openAddModal}>

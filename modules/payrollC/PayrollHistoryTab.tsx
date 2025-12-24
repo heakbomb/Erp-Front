@@ -215,6 +215,7 @@ export default function PayrollHistoryTab() {
               {/* ✅ 여기! 상세 보기 내부에 "월 전체 다운로드" 버튼 추가 */}
               <Button
                 variant="outline"
+                className="mr-6 mt-2"
                 onClick={handleDownloadAllPayslips}
                 disabled={!selectedMonth || detailLoading || printingKey === "ALL"}
               >
