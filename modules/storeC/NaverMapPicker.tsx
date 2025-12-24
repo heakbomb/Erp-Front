@@ -1,5 +1,5 @@
 // modules/storeC/NaverMapPicker.tsx
-"use client"
+"use client";
 
 import { useEffect, useState } from "react";
 import useNaverLoader from "./useNaverLoader";
@@ -9,11 +9,13 @@ export default function NaverMapPicker({
   mapId,
   defaultLat = 37.5665,
   defaultLng = 126.978,
+  readOnly = false, // ✅ 추가
 }: {
   onSelect: (lat: number, lng: number) => void;
   mapId: string;
   defaultLat?: number;
   defaultLng?: number;
+  readOnly?: boolean; // ✅ 추가
 }) {
   const loaded = useNaverLoader();
   const [inited, setInited] = useState(false);
@@ -22,28 +24,35 @@ export default function NaverMapPicker({
     if (!loaded || inited) return;
     const el = document.getElementById(mapId);
     if (!el) return;
+
     const { naver } = window as any;
-    if (!naver?.maps) { 
-        console.warn("Naver Maps API is not fully loaded yet.");
-        return;
+    if (!naver?.maps) {
+      console.warn("Naver Maps API is not fully loaded yet.");
+      return;
     }
 
     const map = new naver.maps.Map(el, {
       center: new naver.maps.LatLng(defaultLat, defaultLng),
       zoom: 15,
     });
+
     const marker = new naver.maps.Marker({
       position: new naver.maps.LatLng(defaultLat, defaultLng),
       map,
     });
-    naver.maps.Event.addListener(map, "click", (e: any) => {
-      const lat = e.coord.lat();
-      const lng = e.coord.lng();
-      marker.setPosition(e.coord);
-      onSelect(lat, lng);
-    });
+
+    // ✅ readOnly면 클릭 이벤트 등록 안 함 (보기 전용)
+    if (!readOnly) {
+      naver.maps.Event.addListener(map, "click", (e: any) => {
+        const lat = e.coord.lat();
+        const lng = e.coord.lng();
+        marker.setPosition(e.coord);
+        onSelect(lat, lng);
+      });
+    }
+
     setInited(true);
-  }, [loaded, inited, mapId, onSelect, defaultLat, defaultLng]);
+  }, [loaded, inited, mapId, onSelect, defaultLat, defaultLng, readOnly]);
 
   return (
     <div

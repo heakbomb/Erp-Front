@@ -13,6 +13,13 @@ import type {
   UpdateStoreStatusBody
 } from "./storeTypes";
 
+type StoreGpsResponse = {
+  storeId: number;
+  latitude: number;
+  longitude: number;
+  gpsRadiusM?: number | null;
+};
+
 export const storeApi = {
   /* --- 관리자 (Admin) 기능 --- */
   getStores: async (params: AdminGetStoresParams) => {
@@ -20,6 +27,7 @@ export const storeApi = {
     return res.data;
   },
 
+  // ✅ 이름 오타만 정리(기능 동일)
   updateStoreStatus: async (storeId: number, body: UpdateStoreStatusBody) => {
     const res = await apiClient.patch<Store>(`/admin/stores/${storeId}/status`, body);
     return res.data;
@@ -72,34 +80,44 @@ export const storeApi = {
     return res.data;
   },
 
-  /* --- 직원 (Employee) QR 및 검색 관련 --- */
-  fetchStoreQr: async (storeId: number) => {
-    const res = await apiClient.get<{ qrCode: string }>(`/store/${storeId}/qr`);
+  /* --- 직원 (Employee) 검색 관련 --- */
+
+  // ✅ 승인된 사업장만 조회
+  getApprovedStoreById: async (storeId: number) => {
+    const res = await apiClient.get<Store>(`/store/approved/${storeId}`);
     return res.data;
   },
 
-  getStoreById: async (storeId: number) => {
-    const res = await apiClient.get<Store>(`/store/${storeId}`);
+  // ✅ GPS 좌표만 조회: GET /store/{storeId}/gps
+  getStoreGps: async (storeId: number) => {
+    const res = await apiClient.get<StoreGpsResponse>(`/store/${storeId}/gps`);
     return res.data;
   },
 
-  // ✅ [수정] features와 동일하게 /assignments/status 사용 및 404 처리
-  fetchAssignmentStatus: async (employeeId: number, storeId: number): Promise<AssignmentStatus | "NONE"> => {
+  // ✅ /assignments/status 는 200 또는 204(No Content)
+  fetchAssignmentStatus: async (
+    employeeId: number,
+    storeId: number
+  ): Promise<AssignmentStatus | "NONE"> => {
     try {
-      const res = await apiClient.get<{ status: AssignmentStatus }>(`/assignments/status`, {
+      const res = await apiClient.get<{ status: string }>(`/assignments/status`, {
         params: { employeeId, storeId },
       });
-      return res.data.status;
+
+      const raw = res.data?.status;
+      if (!raw) return "NONE";
+
+      // 백엔드: APPROVED / PENDING / REJECTED
+      // 프론트: ACCEPTED / PENDING / REJECTED 로 쓰는 경우 매핑
+      if (raw === "APPROVED") return "ACCEPTED" as AssignmentStatus;
+
+      return raw as AssignmentStatus;
     } catch (e: any) {
-      // 404면 신청 이력 없음으로 처리
-      if (e?.response?.status === 404) {
-        return "NONE";
-      }
+      if (e?.response?.status === 204 || e?.response?.status === 404) return "NONE";
       throw e;
     }
   },
 
-  // ✅ [수정] features와 동일하게 /assignments/apply 사용
   applyToStore: async (data: { employeeId: number; storeId: number; role: string }) => {
     await apiClient.post(`/assignments/apply`, data);
   },
