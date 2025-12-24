@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/shared/ui/badge";
 import { Plus, Search, AlertTriangle, Download, Edit, Loader2 } from "lucide-react";
 import { INGREDIENT_CATEGORIES } from "./inventoryTypes";
+import { Upload } from "lucide-react";
 
 const PAGE_WINDOW = 5;
 
@@ -23,7 +24,7 @@ export default function InventoryPage() {
     lowStockItems, isLowStockLoading,
     page, pageSize, setPageSize, goToPage,
     // ✅ [수정] localSearch 대신 훅의 상태와 핸들러 사용
-    searchQuery, setSearchQuery, handleKeyDown, 
+    searchQuery, setSearchQuery, handleKeyDown,
     showInactiveOnly, setShowInactiveOnly,
     itemTypeFilter, handleChangeItemType,
     isAddModalOpen, setIsAddModalOpen,
@@ -38,7 +39,7 @@ export default function InventoryPage() {
   const start = Math.floor(page / PAGE_WINDOW) * PAGE_WINDOW;
   const end = Math.min(start + PAGE_WINDOW - 1, Math.max(totalPages - 1, 0));
 
-  const renderCategoryLabel = (val?: string) => 
+  const renderCategoryLabel = (val?: string) =>
     INGREDIENT_CATEGORIES.find(c => c.value === val)?.label || val || "-";
 
   return (
@@ -51,7 +52,7 @@ export default function InventoryPage() {
         {mounted && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleExportExcel} disabled={isExporting}>
-              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />: <Upload className="mr-2 h-4 w-4" />}
               Excel 내보내기
             </Button>
             <Button onClick={openAddModal}>
@@ -101,15 +102,15 @@ export default function InventoryPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative w-64">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="품목 검색 (Enter)" 
+                <Input
+                  placeholder="품목 검색 (Enter)"
                   value={searchQuery}          // ✅ 훅의 상태 사용
                   onChange={setSearchQuery}    // ✅ 훅의 핸들러 사용
                   onKeyDown={handleKeyDown}    // ✅ 훅의 엔터키 핸들러 사용
                   className="pl-8"
                 />
               </div>
-              <select 
+              <select
                 className="h-9 rounded-md border bg-background px-2 text-sm"
                 value={itemTypeFilter ?? ""}
                 onChange={(e) => handleChangeItemType(e.target.value)}
@@ -121,7 +122,7 @@ export default function InventoryPage() {
                 <input type="checkbox" checked={showInactiveOnly} onChange={(e) => { setShowInactiveOnly(e.target.checked); goToPage(0); }} />
                 비활성만 보기
               </label>
-              <select 
+              <select
                 className="h-9 rounded-md border bg-background px-2 text-sm"
                 value={pageSize}
                 onChange={(e) => { setPageSize(Number(e.target.value)); goToPage(0); }}
@@ -155,13 +156,13 @@ export default function InventoryPage() {
                         <TableCell>{renderCategoryLabel(i.itemType)}</TableCell>
                         <TableCell>
                           {i.stockQty} {i.stockType}
-                          {status === "ACTIVE" && isLow && <div className="text-xs text-red-600 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>부족</div>}
+                          {status === "ACTIVE" && isLow && <div className="text-xs text-red-600 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />부족</div>}
                         </TableCell>
                         <TableCell>{i.safetyQty} {i.stockType}</TableCell>
                         <TableCell><Badge variant={status === "INACTIVE" ? "secondary" : isLow ? "destructive" : "default"}>{status === "INACTIVE" ? "비활성" : isLow ? "부족" : "정상"}</Badge></TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => openEditModal(i)} disabled={isDeactivating || isReactivating}><Edit className="h-4 w-4"/></Button>
+                            <Button variant="ghost" size="icon" onClick={() => openEditModal(i)} disabled={isDeactivating || isReactivating}><Edit className="h-4 w-4" /></Button>
                             {status === "ACTIVE" ? (
                               <Button variant="outline" size="sm" onClick={() => handleDeactivate(i.itemId)} disabled={isDeactivating}>비활성화</Button>
                             ) : (

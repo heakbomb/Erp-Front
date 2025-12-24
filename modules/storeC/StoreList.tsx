@@ -72,7 +72,7 @@ export default function StoreList({
 
   const [openEdit, setOpenEdit] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  
+
   // ✅ [수정] 업종 타입을 StoreIndustry로 변경
   const [editForm, setEditForm] = useState<{
     bizId: string;
@@ -113,7 +113,7 @@ export default function StoreList({
       if (status === 409) {
         alert(
           "이 사업장에는 근무배정(직원 연결) 정보가 있어 비활성화할 수 없습니다.\n" +
-            "근무 기록 보호를 위해 관리자에게 요청해 주세요.",
+          "근무 기록 보호를 위해 관리자에게 요청해 주세요.",
         )
         return
       }
@@ -184,38 +184,44 @@ export default function StoreList({
 
   return (
     <>
-      <div className="flex flex-col items-end gap-2 mb-6">
-        <Button
-          variant={showInactiveOnly ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowInactiveOnly((prev) => !prev)}
-        >
-          {showInactiveOnly ? "활성 사업장 보기" : "비활성화된 사업장 보기"}
-        </Button>
+      
+        {/* Right: Actions */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end md:flex-nowrap">
+          {/* Toggle button */}
+          <Button
+            variant={showInactiveOnly ? "default" : "outline"}
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={() => setShowInactiveOnly((prev) => !prev)}
+          >
+            {showInactiveOnly ? "활성 사업장 보기" : "비활성화된 사업장 보기"}
+          </Button>
 
-        <div className="flex gap-2">
-            <StoreVerifyDialog 
-                trigger={
-                    <Button variant="outline">
-                        <ShieldCheck className="mr-2 h-4 w-4" />
-                        사업자 인증
-                    </Button>
-                }
+          <div className="flex gap-2">
+            <StoreVerifyDialog
+              trigger={
+                <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  사업자 인증
+                </Button>
+              }
             />
-            <StoreAdd 
-                trigger={
-                    <Button>
-                        <Plus className="mr-2 h-4 w-4" />
-                        매장 추가
-                    </Button>
-                }
-                onCreatedAction={() => {
-                    reload();
-                    onChangedAction?.();
-                }}
+
+            <StoreAdd
+              trigger={
+                <Button size="sm" className="flex-1 sm:flex-none">
+                  <Plus className="mr-2 h-4 w-4" />
+                  매장 추가
+                </Button>
+              }
+              onCreatedAction={() => {
+                reload()
+                onChangedAction?.()
+              }}
             />
+          </div>
         </div>
-      </div>
+      
 
       <div className="grid gap-6 md:grid-cols-2">
         {hasVisible &&
@@ -244,8 +250,8 @@ export default function StoreList({
                       store.status === "APPROVED"
                         ? "bg-green-100 text-green-700 border-green-300"
                         : store.status === "REJECTED"
-                        ? "bg-red-100 text-red-700 border-red-300"
-                        : "bg-yellow-100 text-yellow-700 border-yellow-300"
+                          ? "bg-red-100 text-red-700 border-red-300"
+                          : "bg-yellow-100 text-yellow-700 border-yellow-300"
                     }
                   >
                     {formatStoreStatus(store.status)}
@@ -335,7 +341,7 @@ export default function StoreList({
         )}
         {loading && <div className="text-sm text-muted-foreground">불러오는 중…</div>}
       </div>
-      
+
       {/* 수정 다이얼로그 */}
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
         <DialogContent>
