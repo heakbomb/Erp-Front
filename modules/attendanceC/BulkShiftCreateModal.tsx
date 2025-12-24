@@ -32,6 +32,9 @@ export type BulkShiftFormValues = {
   startTime: string;
   endTime: string;
   breakMinutes?: number;
+
+  // ✅ 추가
+  isFixed?: boolean;
 };
 
 interface Props {
@@ -57,12 +60,14 @@ export default function BulkShiftCreateModal({
   const [endTime, setEndTime] = useState("18:00");
   const [breakMinutes, setBreakMinutes] = useState(60);
 
+  // ✅ 고정 스케줄
+  const [isFixed, setIsFixed] = useState(false);
+
   // 날짜 선택 상태
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
 
-  // 초기화
   useEffect(() => {
     if (open) {
       setEmployeeId("");
@@ -70,6 +75,7 @@ export default function BulkShiftCreateModal({
       setEndTime("18:00");
       setBreakMinutes(60);
       setSelectedWeekdays([]);
+      setIsFixed(false);
 
       const start = startOfMonth(targetMonth);
       const end = endOfMonth(targetMonth);
@@ -78,7 +84,6 @@ export default function BulkShiftCreateModal({
     }
   }, [open, targetMonth]);
 
-  // --- [날짜 보정 핸들러] ---
   const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newStart = e.target.value;
     setRangeStart(newStart);
@@ -91,31 +96,21 @@ export default function BulkShiftCreateModal({
     if (rangeStart && newEnd < rangeStart) setRangeStart(newEnd);
   };
 
-  // --- [✅ 시간 보정 핸들러 추가] ---
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newStart = e.target.value;
     setStartTime(newStart);
-    // 시작 시간이 종료 시간보다 늦으면 -> 종료 시간을 시작 시간으로 맞춤
-    if (endTime && newStart > endTime) {
-      setEndTime(newStart);
-    }
+    if (endTime && newStart > endTime) setEndTime(newStart);
   };
 
   const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newEnd = e.target.value;
     setEndTime(newEnd);
-    // 종료 시간이 시작 시간보다 빠르면 -> 시작 시간을 종료 시간으로 맞춤
-    if (startTime && newEnd < startTime) {
-      setStartTime(newEnd);
-    }
+    if (startTime && newEnd < startTime) setStartTime(newEnd);
   };
 
-  // 요일 토글
   const toggleWeekday = (dayIdx: number) => {
     setSelectedWeekdays((prev) =>
-      prev.includes(dayIdx)
-        ? prev.filter((d) => d !== dayIdx)
-        : [...prev, dayIdx].sort()
+      prev.includes(dayIdx) ? prev.filter((d) => d !== dayIdx) : [...prev, dayIdx].sort()
     );
   };
 
@@ -128,26 +123,25 @@ export default function BulkShiftCreateModal({
     const start = new Date(rangeStart);
     const end = new Date(rangeEnd);
     const allDays = eachDayOfInterval({ start, end });
-    
+
     let targetDates = allDays;
     if (selectedWeekdays.length > 0) {
-      targetDates = allDays.filter(d => selectedWeekdays.includes(d.getDay()));
+      targetDates = allDays.filter((d) => selectedWeekdays.includes(d.getDay()));
     }
-
     if (targetDates.length === 0) return alert("조건에 맞는 날짜가 없습니다.");
 
     setLoading(true);
     try {
       const dateStrings = targetDates.map((d) => format(d, "yyyy-MM-dd"));
+
       await onSubmit({
         employeeId: Number(employeeId),
         dates: dateStrings,
         startTime,
         endTime,
         breakMinutes,
+        isFixed, // ✅ 핵심: 고정 전달
       });
-    } catch (e) {
-      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -159,7 +153,9 @@ export default function BulkShiftCreateModal({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-[480px] gap-0 p-0 overflow-hidden border bg-background shadow-lg sm:rounded-lg">
         <DialogHeader className="px-6 py-4 border-b bg-muted/5">
-          <DialogTitle className="text-lg font-semibold tracking-tight">월간 근무 일괄 등록</DialogTitle>
+          <DialogTitle className="text-lg font-semibold tracking-tight">
+            월간 근무 일괄 등록
+          </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground mt-1">
             특정 기간 동안의 근무 일정을 한 번에 생성합니다.
           </DialogDescription>
@@ -185,26 +181,53 @@ export default function BulkShiftCreateModal({
               </Select>
             </div>
 
+            {/* ✅ 고정 스케줄 체크 */}
+            <div className="flex items-center gap-2">
+              <input
+                id="bulkIsFixed"
+                type="checkbox"
+                checked={isFixed}
+                onChange={(e) => setIsFixed(e.target.checked)}
+              />
+              <Label htmlFor="bulkIsFixed">고정 스케줄</Label>
+              {isFixed && (
+                <span className="text-xs text-muted-foreground">📌 고정으로 등록됩니다</span>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-primary" /> 시작 시간
                 </Label>
-                {/* ✅ 핸들러 교체 */}
-                <Input type="time" className="h-10" value={startTime} onChange={handleStartTimeChange} />
+                <Input
+                  type="time"
+                  className="h-10"
+                  value={startTime}
+                  onChange={handleStartTimeChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-primary" /> 종료 시간
                 </Label>
-                {/* ✅ 핸들러 교체 */}
-                <Input type="time" className="h-10" value={endTime} onChange={handleEndTimeChange} />
+                <Input
+                  type="time"
+                  className="h-10"
+                  value={endTime}
+                  onChange={handleEndTimeChange}
+                />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">휴게 시간 (분)</Label>
-              <Input type="number" className="h-10" value={breakMinutes} onChange={(e) => setBreakMinutes(Number(e.target.value))} />
+              <Input
+                type="number"
+                className="h-10"
+                value={breakMinutes}
+                onChange={(e) => setBreakMinutes(Number(e.target.value))}
+              />
             </div>
           </div>
 
@@ -229,24 +252,25 @@ export default function BulkShiftCreateModal({
                   <AlertCircle className="w-3 h-3" /> 선택 시 해당 요일만 등록
                 </span>
               </div>
+
               <div className="flex justify-between gap-1">
                 {WEEKDAYS.map((day, idx) => {
-                  const isSelected = selectedWeekdays.includes(idx);
+                  const selected = selectedWeekdays.includes(idx);
                   return (
                     <Button
                       key={day}
                       type="button"
-                      variant={isSelected ? "default" : "outline"}
+                      variant={selected ? "default" : "outline"}
                       className={cn(
                         "h-10 w-10 p-0 rounded-md font-medium transition-all text-sm shadow-sm",
-                        isSelected ? "ring-2 ring-primary ring-offset-1" : "hover:bg-muted",
-                        !isSelected && idx === 0 && "text-red-500",
-                        !isSelected && idx === 6 && "text-blue-500"
+                        selected ? "ring-2 ring-primary ring-offset-1" : "hover:bg-muted",
+                        !selected && idx === 0 && "text-red-500",
+                        !selected && idx === 6 && "text-blue-500"
                       )}
                       onClick={() => toggleWeekday(idx)}
                     >
                       {day}
-                      {isSelected && <span className="sr-only">(선택됨)</span>}
+                      {selected && <span className="sr-only">(선택됨)</span>}
                     </Button>
                   );
                 })}
@@ -256,11 +280,22 @@ export default function BulkShiftCreateModal({
         </div>
 
         <DialogFooter className="px-6 py-4 border-t bg-muted/5 gap-2">
-          <Button variant="outline" onClick={onClose} disabled={loading} className="w-full sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
             취소
           </Button>
-          <Button onClick={handleSubmit} disabled={loading} className="w-full sm:w-auto gap-2">
-            {loading ? "등록 중..." : (
+          <Button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full sm:w-auto gap-2"
+          >
+            {loading ? (
+              "등록 중..."
+            ) : (
               <>
                 <Check className="w-4 h-4" />
                 일괄 등록하기

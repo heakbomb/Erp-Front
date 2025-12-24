@@ -20,13 +20,16 @@ export type ShiftFormValues = {
   startTime: string;
   endTime: string;
   breakMinutes?: number | null;
+
+  // ✅ 고정 스케줄
+  isFixed?: boolean;
 };
 
 interface Props {
   open: boolean;
   onClose: () => void;
   date: string; // "YYYY-MM-DD"
-  employees: Employee[]; // 부모에서 전달받음
+  employees: Employee[];
   initialShift?: EmployeeShift | null;
   onSubmit: (payload: ShiftFormValues, shiftId?: number) => Promise<void>;
   onDelete?: (shiftId: number) => Promise<void>;
@@ -51,9 +54,9 @@ export default function ShiftCreateModal({
     startTime: "09:00",
     endTime: "18:00",
     breakMinutes: 0,
+    isFixed: false,
   });
 
-  // 모달이 열리거나 initialShift가 바뀔 때 폼 초기화
   useEffect(() => {
     if (initialShift) {
       setForm({
@@ -62,6 +65,7 @@ export default function ShiftCreateModal({
         startTime: initialShift.startTime,
         endTime: initialShift.endTime,
         breakMinutes: initialShift.breakMinutes ?? 0,
+        isFixed: !!initialShift.isFixed,
       });
     } else {
       setForm({
@@ -70,6 +74,7 @@ export default function ShiftCreateModal({
         startTime: "09:00",
         endTime: "18:00",
         breakMinutes: 0,
+        isFixed: false,
       });
     }
   }, [initialShift, date, open]);
@@ -111,13 +116,22 @@ export default function ShiftCreateModal({
     }
   };
 
+  // ✅ 월 전체 삭제: form.employeeId가 비어도(initialShift 수정모드 등) 동작하도록 보강
   const handleDeleteMonth = async () => {
-    if (!form.employeeId || !onDeleteMonthAll) return;
+    if (!onDeleteMonthAll) return;
+
+    const empId = Number(form.employeeId || initialShift?.employeeId);
+    if (!empId) return;
+
     if (confirm("이 직원의 이번 달 근무를 모두 삭제하시겠습니까?")) {
-      await onDeleteMonthAll(Number(form.employeeId));
+      await onDeleteMonthAll(empId);
       onClose();
     }
   };
+
+  // ✅ 버튼 노출 여부: 추가모드라도 직원 선택하면 보이게 / 수정모드면 무조건 보이게
+  const canShowDeleteMonth =
+    !!onDeleteMonthAll && (!!form.employeeId || !!initialShift?.employeeId);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -142,6 +156,25 @@ export default function ShiftCreateModal({
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* ✅ 고정 스케줄 체크 + 안내(추가/수정 모두 표시) */}
+          <div className="flex items-center gap-2">
+            <input
+              id="isFixed"
+              type="checkbox"
+              checked={!!form.isFixed}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, isFixed: e.target.checked }))
+              }
+            />
+            <Label htmlFor="isFixed">고정 스케줄</Label>
+
+            {form.isFixed && (
+              <span className="text-xs text-muted-foreground">
+                {isEditMode ? "📌 고정 스케줄입니다" : "📌 고정으로 등록됩니다"}
+              </span>
+            )}
           </div>
 
           {/* 날짜 */}
@@ -186,22 +219,30 @@ export default function ShiftCreateModal({
         </div>
 
         <DialogFooter className="flex justify-between sm:justify-between w-full">
-           <div className="flex gap-2">
+          {/* ✅ 좌측 버튼들 */}
+          <div className="flex gap-2">
             {isEditMode && onDelete && (
               <Button variant="destructive" onClick={handleDelete} type="button">
                 삭제
               </Button>
             )}
-            {onDeleteMonthAll && form.employeeId && (
+
+            {canShowDeleteMonth && (
               <Button variant="outline" onClick={handleDeleteMonth} type="button">
                 월 전체 삭제
               </Button>
             )}
-           </div>
-           <div className="flex gap-2">
-             <Button variant="outline" onClick={onClose} type="button">취소</Button>
-             <Button onClick={handleSubmit} type="button">저장</Button>
-           </div>
+          </div>
+
+          {/* 우측 버튼들 */}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} type="button">
+              취소
+            </Button>
+            <Button onClick={handleSubmit} type="button">
+              저장
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
