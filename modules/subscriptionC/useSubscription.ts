@@ -4,12 +4,30 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { subscriptionApi } from "./subscriptionApi";
-import { toast } from "sonner";
+import { toast } from "@/shared/ui/use-toast"; // sonner 대신 use-toast 사용 시 변경
 import { useAuth } from "@/contexts/AuthContext";
-import { Zap, Crown, Sparkles } from "lucide-react"; // 아이콘 추가
+import { Zap, Crown, Sparkles, Package } from "lucide-react"; // 기본 아이콘 Package 추가
 
-// ✅ features에서 사용하던 플랜 정보 (백엔드 데이터와 매핑용)
+// DB의 subName과 매칭될 UI 정보
+// 키값을 DB에 저장된 실제 subName과 정확히 일치시켜야 합니다.
 export const PLAN_DETAILS: Record<string, any> = {
+  "Basic": { // DB에 영어로 저장되어 있다면 영어 키 사용
+    icon: Zap,
+    description: "소규모 사업장에 적합한 기본 플랜",
+    features: ["사업장 1개 등록", "직원 5명까지", "기본 재고 관리", "매출/매입 관리"],
+  },
+  "Pro": {
+    icon: Crown,
+    description: "성장하는 사업장을 위한 프로 플랜",
+    features: ["사업장 3개 등록", "직원 무제한", "고급 재고 관리", "AI 수요 예측"],
+    popular: true,
+  },
+  "Enterprise": {
+    icon: Sparkles,
+    description: "대규모 사업장을 위한 프리미엄 플랜",
+    features: ["사업장 무제한", "직원 무제한", "모든 프로 기능", "전용 계정 매니저"],
+  },
+  // 한글 호환용 (DB가 한글일 경우)
   "베이직": {
     icon: Zap,
     description: "소규모 사업장에 적합한 기본 플랜",
@@ -32,7 +50,7 @@ export function useSubscription() {
   const router = useRouter();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isOwner = user?.role === 'OWNER' || true; // 테스트용 true
+  const isOwner = user?.role === 'OWNER' || true;
 
   // 현재 구독 조회
   const { data: currentSubscription, isLoading: isSubscriptionLoading } = useQuery({
@@ -47,11 +65,21 @@ export function useSubscription() {
     queryKey: ["publicPlans"],
     queryFn: async () => {
       const plans = await subscriptionApi.getPublicPlans();
-      // 백엔드 데이터에 UI 정보(아이콘, 특징 등) 매핑
-      return plans.map(p => ({
-        ...p,
-        ...PLAN_DETAILS[p.subName] // subName으로 매칭 ("베이직", "프로" 등)
-      }));
+      
+      return plans.map(p => {
+        // 이름으로 매칭 시도 (대소문자 무시 등 유연하게 처리 가능)
+        // 매칭되는 정보가 없을 경우 기본값(Package 아이콘) 제공하여 화면에서 사라지지 않게 함
+        const details = PLAN_DETAILS[p.subName] || PLAN_DETAILS[p.subName.trim()] || {
+          icon: Package,
+          description: "ERP 구독 서비스",
+          features: ["기본 기능 제공"],
+        };
+
+        return {
+          ...p,
+          ...details
+        };
+      });
     },
   });
 
@@ -60,11 +88,12 @@ export function useSubscription() {
     mutationFn: ({ subId, reason }: { subId: number; reason: string }) => 
       subscriptionApi.cancelSubscription(subId, { reason }),
     onSuccess: () => {
-      toast.success("구독이 해지되었습니다.");
+      toast({ title: "해지 완료", description: "구독이 정상적으로 해지되었습니다." });
       queryClient.invalidateQueries({ queryKey: ["currentSubscription"] });
     },
     onError: (e: any) => {
-      toast.error(e.response?.data?.message || "해지 실패");
+      const msg = e.response?.data?.message || e.message || "해지 실패";
+      toast({ variant: "destructive", title: "오류", description: msg });
     }
   });
 

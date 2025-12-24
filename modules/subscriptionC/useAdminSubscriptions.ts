@@ -49,6 +49,16 @@ export function useAdminSubscriptions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminPlans"] });
       toast({ title: "상품 수정 완료" });
+    },
+    // ✅ [추가] 에러가 발생하면 이유를 알려주는 코드
+    onError: (error: any) => {
+      console.error("수정 실패 에러 로그:", error);
+      const msg = error.response?.data?.message || "수정 중 오류가 발생했습니다."; // 백엔드 에러 메시지 표시
+      toast({ 
+        variant: "destructive", 
+        title: "수정 실패", 
+        description: msg 
+      });
     }
   });
 
