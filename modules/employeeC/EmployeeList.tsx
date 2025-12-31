@@ -12,13 +12,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
 import useEmployeeList from "./useEmployeeList";
 
-// ✅ 오늘 로그 API (attendanceApi.ts에서 추가한 Named Export)
 import { fetchOwnerTodayAttendanceLogs } from "@/modules/attendanceC/attendanceApi";
-
-// ✅ storeId 가져오기 (너 프로젝트에 StoreContext가 있으니 이게 가장 자연스러움)
 import { useStore } from "@/contexts/StoreContext";
 
-type WorkStatus = "WORKING" | "OFF";
+type WorkStatus = "WORKING" | "OFF" | "NONE";
+type FilterMode = "ALL" | "WORKING" | "OFF" | "NONE";
 
 function buildWorkStatusMap(params: {
   employeeIds: number[];
@@ -39,8 +37,17 @@ function buildWorkStatusMap(params: {
   const map: Record<number, WorkStatus> = {};
   for (const id of employeeIds) {
     const last = latestByEmp.get(id);
-    map[id] = last?.recordType === "IN" ? "WORKING" : "OFF";
+
+    // ✅ 오늘 기록이 아예 없으면 NONE (중요!)
+    if (!last) {
+      map[id] = "NONE";
+      continue;
+    }
+
+    // ✅ 마지막 로그 기준 상태 결정
+    map[id] = last.recordType === "IN" ? "WORKING" : "OFF";
   }
+
   return map;
 }
 
@@ -61,12 +68,14 @@ export default function EmployeeList() {
     formatDate,
   } = useEmployeeList();
 
-  const { currentStoreId } = useStore(); // ✅ 현재 선택된 사업장
+  const { currentStoreId } = useStore();
 
   const [workStatusMap, setWorkStatusMap] = useState<Record<number, WorkStatus>>({});
   const [workStatusLoading, setWorkStatusLoading] = useState(false);
 
-  // 직원 id 목록(의존성 최적화)
+  // ✅ 필터 (기본 ALL)
+  const [filterMode, setFilterMode] = useState<FilterMode>("ALL");
+
   const employeeIds = useMemo(() => employees.map((e) => e.employeeId), [employees]);
 
   useEffect(() => {
@@ -85,7 +94,7 @@ export default function EmployeeList() {
 
         const next = buildWorkStatusMap({
           employeeIds,
-          logs: logs as any, // OwnerAttendanceLogItem이 동일 구조라면 OK
+          logs: logs as any,
         });
 
         setWorkStatusMap(next);
@@ -101,22 +110,77 @@ export default function EmployeeList() {
     };
   }, [currentStoreId, employeeIds]);
 
-  const StatusDot = ({ status }: { status: WorkStatus }) => (
-    <span
-      className={
-        "inline-block h-2.5 w-2.5 rounded-full " +
-        (status === "WORKING" ? "bg-green-500" : "bg-slate-300")
-      }
-      title={status === "WORKING" ? "근무중" : "비근무"}
-    />
+  const StatusDot = ({ status }: { status: WorkStatus }) => {
+    const cls =
+      status === "WORKING"
+        ? "bg-green-500"
+        : status === "OFF"
+          ? "bg-red-500"
+          : "bg-slate-300";
+
+    const title = status === "WORKING" ? "근무중" : status === "OFF" ? "퇴근" : "기록없음";
+
+    return (
+      <span
+        className={"inline-block h-2.5 w-2.5 rounded-full " + cls}
+        title={title}
+      />
+    );
+  };
+
+  // ✅ 표시용: 검색 필터(filtered)에 + 상태 필터
+  const visibleEmployees = useMemo(() => {
+    if (filterMode === "ALL") return filtered;
+
+    return filtered.filter((e) => {
+      const status = workStatusMap[e.employeeId] ?? "NONE";
+      return status === filterMode;
+    });
+  }, [filtered, filterMode, workStatusMap]);
+
+  // ✅ 카운트도 동일 규칙으로 계산
+  const counts = useMemo(() => {
+    let working = 0;
+    let off = 0;
+    let none = 0;
+
+    for (const e of filtered) {
+      const s = workStatusMap[e.employeeId] ?? "NONE";
+      if (s === "WORKING") working += 1;
+      else if (s === "OFF") off += 1;
+      else none += 1;
+    }
+
+    return { working, off, none, total: filtered.length };
+  }, [filtered, workStatusMap]);
+
+  const FilterBtn = ({
+    mode,
+    label,
+  }: {
+    mode: FilterMode;
+    label: React.ReactNode;
+  }) => (
+    <Button
+      type="button"
+      variant={filterMode === mode ? "default" : "outline"}
+      size="sm"
+      className="h-7 px-2"
+      onClick={() => setFilterMode(mode)}
+    >
+      {label}
+    </Button>
   );
 
   return (
     <div className="space-y-6">
       {banner && (
         <div
-          className={`p-3 text-sm rounded border ${banner.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-            }`}
+          className={`p-3 text-sm rounded border ${
+            banner.type === "success"
+              ? "bg-green-50 text-green-700"
+              : "bg-red-50 text-red-700"
+          }`}
         >
           {banner.message}
         </div>
@@ -128,15 +192,37 @@ export default function EmployeeList() {
             <div>
               <CardTitle className="flex items-center gap-3">
                 직원 목록
-                <span className="ml-2 inline-flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
-                    근무중
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-                    퇴근
-                  </span>
+
+                {/* ✅ 필터/카운트 */}
+                <span className="ml-2 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                  <FilterBtn
+                    mode="WORKING"
+                    label={
+                      <span className="inline-flex items-center gap-1">
+                        <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                        근무중 {counts.working}
+                      </span>
+                    }
+                  />
+                  <FilterBtn
+                    mode="OFF"
+                    label={
+                      <span className="inline-flex items-center gap-1">
+                        <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                        퇴근 {counts.off}
+                      </span>
+                    }
+                  />
+                  <FilterBtn
+                    mode="NONE"
+                    label={
+                      <span className="inline-flex items-center gap-1">
+                        <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+                        기록없음 {counts.none}
+                      </span>
+                    }
+                  />
+                  <FilterBtn mode="ALL" label={<>전체 {counts.total}</>} />
                 </span>
 
                 {workStatusLoading && (
@@ -145,6 +231,7 @@ export default function EmployeeList() {
               </CardTitle>
               <CardDescription>{employees.length}명의 직원이 있습니다.</CardDescription>
             </div>
+
             <div className="relative w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -176,8 +263,9 @@ export default function EmployeeList() {
               </TableHeader>
 
               <TableBody>
-                {filtered.map((e, idx) => {
-                  const status = workStatusMap[e.employeeId] ?? "OFF";
+                {visibleEmployees.map((e, idx) => {
+                  const status = workStatusMap[e.employeeId] ?? "NONE";
+
                   return (
                     <TableRow key={e.employeeId || idx}>
                       <TableCell>
@@ -189,9 +277,28 @@ export default function EmployeeList() {
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           <span>{e.name || "-"}</span>
+
                           {status === "WORKING" && (
-                            <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
+                            <Badge
+                              variant="outline"
+                              className="bg-green-100 text-green-700 border-green-200"
+                            >
                               근무중
+                            </Badge>
+                          )}
+
+                          {status === "OFF" && (
+                            <Badge
+                              variant="outline"
+                              className="bg-red-100 text-red-700 border-red-200"
+                            >
+                              퇴근
+                            </Badge>
+                          )}
+
+                          {status === "NONE" && (
+                            <Badge variant="secondary" className="border">
+                              기록없음
                             </Badge>
                           )}
                         </div>
@@ -199,7 +306,9 @@ export default function EmployeeList() {
 
                       <TableCell>{e.email || "-"}</TableCell>
                       <TableCell>{e.phone || "-"}</TableCell>
-                      <TableCell>{e.provider ? <Badge variant="secondary">{e.provider}</Badge> : "-"}</TableCell>
+                      <TableCell>
+                        {e.provider ? <Badge variant="secondary">{e.provider}</Badge> : "-"}
+                      </TableCell>
                       <TableCell>{formatDate(e.createdAt)}</TableCell>
 
                       <TableCell className="text-right">
@@ -226,7 +335,7 @@ export default function EmployeeList() {
                   );
                 })}
 
-                {filtered.length === 0 && (
+                {visibleEmployees.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
                       데이터가 없습니다.

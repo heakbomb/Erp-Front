@@ -1,3 +1,4 @@
+// modules/payrollC/CurrentPayrollTab.tsx
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -65,7 +66,6 @@ export default function CurrentPayrollTab({
 
   const [runStatus, setRunStatus] = useState<PayrollRunStatusRes | null>(null)
 
-  // "2025년 11월" → "2025-11"
   const yearMonthKey = useMemo(() => {
     const match = monthLabel.match(/(\d{4})년\s*(\d{1,2})월/)
     if (!match) return ""
@@ -79,7 +79,6 @@ export default function CurrentPayrollTab({
     return yearMonthKey < currentYm
   }, [yearMonthKey])
 
-  // 마감 여부
   useEffect(() => {
     if (!storeId || !yearMonthKey) return
     fetchPayrollRunStatus({ storeId, yearMonth: yearMonthKey })
@@ -90,9 +89,6 @@ export default function CurrentPayrollTab({
   const isFinalized = runStatus?.status === "FINALIZED"
   const calcDisabled = isPastMonth || isFinalized
 
-  // ✅ 히스토리 가져와서
-  // - statusMap 채우고
-  // - (과거월일 때는) 테이블 row 데이터(historyRows)까지 생성
   useEffect(() => {
     if (!storeId || !yearMonthKey) return
 
@@ -101,17 +97,15 @@ export default function CurrentPayrollTab({
       try {
         const data = await fetchMonthlyPayrollHistory({ storeId, yearMonth: yearMonthKey })
 
-        // 1) statusMap 구성(토글용)
         const map: Record<number, { payrollId: number; status: string }> = {}
         data.forEach((h) => {
           map[h.employeeId] = { payrollId: h.payrollId, status: h.status }
         })
         setStatusMap(map)
 
-        // 2) 과거월이면 히스토리로 테이블 렌더링
         if (isPastMonth) {
           const rows: EmployeePayrollRow[] = data.map((h: PayrollHistoryDetail) => {
-            const workHours = Math.round(((h.workMinutes ?? 0) / 60) * 100) / 100 // 소수 2자리
+            const workHours = Math.round(((h.workMinutes ?? 0) / 60) * 100) / 100
             const basePay = h.baseWage ?? 0
             const grossPay = h.grossPay ?? 0
             const deductions = h.deductions ?? 0
@@ -123,7 +117,7 @@ export default function CurrentPayrollTab({
               role: h.role ?? "STAFF",
               workDays: h.workDays ?? 0,
               workHours,
-              basePay, // 화면 컬럼이 "기본급"이라 baseWage를 노출
+              basePay,
               bonus: Math.max(grossPay - basePay, 0),
               deductions,
               netPay,
@@ -131,7 +125,6 @@ export default function CurrentPayrollTab({
             }
           })
 
-          // 직원명 기준 정렬(원하면 id 정렬로 바꿔도 됨)
           rows.sort((a, b) => a.name.localeCompare(b.name, "ko"))
           setHistoryRows(rows)
         } else {
@@ -179,20 +172,14 @@ export default function CurrentPayrollTab({
         [employeeId]: { payrollId: info.payrollId, status: updated.status },
       }))
 
-      // ✅ 과거월 렌더링 중이면 row에도 반영
       if (isPastMonth) {
-        setHistoryRows((prev) =>
-          prev.map((r) => (r.id === employeeId ? { ...r, status: updated.status } : r)),
-        )
+        setHistoryRows((prev) => prev.map((r) => (r.id === employeeId ? { ...r, status: updated.status } : r)))
       }
     } catch {
       alert("상태 변경 실패")
     }
   }
 
-  // ✅ 실제 테이블에 뿌릴 데이터:
-  // - 과거월이면 historyRows(히스토리 기반)
-  // - 현재/미래월이면 filteredEmployees(기존 계산 기반)
   const tableRows = useMemo(() => {
     const source = isPastMonth ? historyRows : filteredEmployees
     if (!searchQuery.trim()) return source
@@ -200,8 +187,10 @@ export default function CurrentPayrollTab({
     return source.filter((r) => r.name.toLowerCase().includes(q))
   }, [isPastMonth, historyRows, filteredEmployees, searchQuery])
 
-  // ✅ 과거월은 이미 확정된 값이므로 실수령/공제는 항상 보여주기
   const effectiveShowNetPay = showNetPay || isPastMonth
+
+  // ✅ 안내문 조건 단순화: "현재/미래월 + 아직(실수령/공제) 숨김"이면 항상 노출
+  const showHintBanner = !isPastMonth && !effectiveShowNetPay
 
   return (
     <Card>
@@ -242,59 +231,63 @@ export default function CurrentPayrollTab({
         {loading ? (
           <p>로딩 중...</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>이름</TableHead>
-                <TableHead>역할</TableHead>
-                <TableHead>근무일수</TableHead>
-                <TableHead>근무시간</TableHead>
-                <TableHead>기본급</TableHead>
-                <TableHead>공제액</TableHead>
-                <TableHead>실수령액</TableHead>
-                <TableHead>급여지급상태</TableHead>
-              </TableRow>
-            </TableHeader>
+          <>
+            {showHintBanner && (
+              <div className="mb-3 rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                공제액/실수령액은 <span className="font-medium text-foreground">급여 자동 계산</span> 실행 후 표시됩니다.
+              </div>
+            )}
 
-            <TableBody>
-              {tableRows.map((employee) => {
-                const statusInfo = statusMap[employee.id]
-                const effectiveStatus = statusInfo?.status ?? employee.status
-                const paid = effectiveStatus === "PAID" || effectiveStatus === "지급완료"
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>이름</TableHead>
+                  <TableHead>역할</TableHead>
+                  <TableHead>근무일수</TableHead>
+                  <TableHead>근무시간</TableHead>
+                  <TableHead>기본급</TableHead>
+                  <TableHead>공제액</TableHead>
+                  <TableHead>실수령액</TableHead>
+                  <TableHead>급여지급상태</TableHead>
+                </TableRow>
+              </TableHeader>
 
-                return (
-                  <TableRow key={employee.id}>
-                    <TableCell>{employee.name}</TableCell>
-                    <TableCell>{employee.role}</TableCell>
+              <TableBody>
+                {tableRows.map((employee) => {
+                  const statusInfo = statusMap[employee.id]
+                  const effectiveStatus = statusInfo?.status ?? employee.status
+                  const paid = effectiveStatus === "PAID" || effectiveStatus === "지급완료"
 
-                    <TableCell>{employee.workDays}일</TableCell>
-                    <TableCell>{employee.workHours}시간</TableCell>
+                  return (
+                    <TableRow key={employee.id}>
+                      <TableCell>{employee.name}</TableCell>
+                      <TableCell>{employee.role}</TableCell>
 
-                    <TableCell>₩{employee.basePay.toLocaleString()}</TableCell>
+                      <TableCell>{employee.workDays}일</TableCell>
+                      <TableCell>{employee.workHours}시간</TableCell>
 
-                    <TableCell className="text-red-600">
-                      {effectiveShowNetPay ? `-₩${employee.deductions.toLocaleString()}` : "-₩0"}
-                    </TableCell>
+                      <TableCell>₩{employee.basePay.toLocaleString()}</TableCell>
 
-                    <TableCell className="font-medium">
-                      {effectiveShowNetPay ? `₩${employee.netPay.toLocaleString()}` : "₩0"}
-                    </TableCell>
+                      <TableCell className="text-red-600">
+                        {effectiveShowNetPay ? `-₩${employee.deductions.toLocaleString()}` : "-₩0"}
+                      </TableCell>
 
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={paid}
-                          disabled={historyLoading}
-                          onCheckedChange={() => handleToggleStatus(employee.id)}
-                        />
-                        <span className="text-xs text-muted-foreground">{paid ? "지급완료" : "예정"}</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+                      <TableCell className="font-medium">
+                        {effectiveShowNetPay ? `₩${employee.netPay.toLocaleString()}` : "₩0"}
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={paid} disabled={historyLoading} onCheckedChange={() => handleToggleStatus(employee.id)} />
+                          <span className="text-xs text-muted-foreground">{paid ? "지급완료" : "예정"}</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </>
         )}
       </CardContent>
     </Card>
