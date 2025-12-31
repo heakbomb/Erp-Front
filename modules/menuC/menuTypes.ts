@@ -9,6 +9,8 @@ export interface MenuItem {
   price: number;
   calculatedCost?: number; // 레시피 기반 산출 원가
   status: ActiveStatus;
+  categoryName?: string;
+  subCategoryName?: string;
 }
 
 export interface InventoryItem {
@@ -51,6 +53,8 @@ export interface MenuUpsertRequest {
   storeId: number;
   menuName: string;
   price: number;
+  categoryName: string;
+  subCategoryName: string;
 }
 
 // 레시피 추가 요청 DTO

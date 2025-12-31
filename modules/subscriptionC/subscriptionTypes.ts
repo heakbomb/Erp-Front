@@ -9,6 +9,7 @@ export interface SubscriptionPlan {
   features?: string[];    // UI 표시용
   description?: string;   // UI 표시용
   popular?: boolean;      // UI 표시용
+  icon?: any;             // UI 표시용 (아이콘 컴포넌트)
 }
 
 /* --- 사장님용 (User Side) --- */
@@ -23,6 +24,10 @@ export interface CurrentSubscription {
   subName: string;
   monthlyPrice: number;
   isActive: boolean;
+
+  // [중요] 해지 상태 필드 추가
+  canceled: boolean;
+  cancelReason?: string;
 }
 
 export interface PaymentMethod {

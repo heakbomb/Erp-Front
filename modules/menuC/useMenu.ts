@@ -11,6 +11,10 @@ import { usePagination } from "@/shared/hooks/usePagination";
 export type MenuFormValues = {
   menuName: string;
   price: number | "";
+
+  // ✅ 카테고리 추가
+  categoryName: string;
+  subCategoryName: string;
 };
 
 export function useMenu() {
@@ -26,7 +30,7 @@ export function useMenu() {
   const [invOptions, setInvOptions] = useState<InventoryItem[]>([]);
   const [recipeMap, setRecipeMap] = useState<Record<number, RecipeIngredient[]>>({});
 
-  // 모달 상태 (생략 없이 유지)
+  // 모달 상태
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingMenu, setEditingMenu] = useState<MenuItem | null>(null);
@@ -39,24 +43,24 @@ export function useMenu() {
   }, [currentStoreId]);
 
   const status: ActiveStatus | undefined = showInactiveOnly ? "INACTIVE" : "ACTIVE";
-  
+
   const { data: menuPage, isLoading: loading, error } = useQuery({
-    queryKey: ["menus", currentStoreId, search.activeKeyword, status, pagination.page, pagination.size], // activeKeyword
-    queryFn: () => menuApi.fetchMenus({
-      storeId: currentStoreId!,
-      q: search.activeKeyword || undefined,
-      status,
-      page: pagination.page,
-      size: pagination.size,
-      sort: "menuName,asc",
-    }),
+    queryKey: ["menus", currentStoreId, search.activeKeyword, status, pagination.page, pagination.size],
+    queryFn: () =>
+      menuApi.fetchMenus({
+        storeId: currentStoreId!,
+        q: search.activeKeyword || undefined,
+        status,
+        page: pagination.page,
+        size: pagination.size,
+        sort: "menuName,asc",
+      }),
     enabled: !!currentStoreId,
   });
 
   const items = menuPage?.content ?? [];
   const totalPages = menuPage?.totalPages ?? 0;
 
-  // 통계 및 계산
   const { data: statsData } = useQuery({
     queryKey: ["menuStats", currentStoreId],
     queryFn: () => menuApi.fetchMenuStats(currentStoreId!),
@@ -74,7 +78,7 @@ export function useMenu() {
     const inactive = statsData?.inactiveMenus ?? 0;
     if (!items.length) return { total, avgMargin: 0, inactive };
 
-    const margins = items.map(m => {
+    const margins = items.map((m) => {
       const price = Number(m.price || 0);
       const cost = Number(m.calculatedCost ?? 0);
       return price > 0 ? ((price - cost) / price) * 100 : 0;
@@ -89,37 +93,62 @@ export function useMenu() {
     queryClient.invalidateQueries({ queryKey: ["menuStats"] });
   }, [queryClient]);
 
-  // Handlers (Create, Update, ToggleStatus, RecipeUpdate 등)
+  // ✅ 메뉴 생성
   const handleCreate = async (values: MenuFormValues) => {
     if (!values.menuName.trim() || values.price === "") return alert("입력 확인 필요");
     try {
-      await menuApi.createMenu({ storeId: currentStoreId!, menuName: values.menuName, price: Number(values.price) });
+      await menuApi.createMenu({
+        storeId: currentStoreId!,
+        menuName: values.menuName,
+        price: Number(values.price),
+
+        // ✅ 카테고리 포함
+        categoryName: values.categoryName,
+        subCategoryName: values.subCategoryName,
+      });
       setIsAddModalOpen(false);
       pagination.resetPage();
       invalidateMenus();
-    } catch (e: any) { alert(e.response?.data?.message || "오류"); }
+    } catch (e: any) {
+      alert(e.response?.data?.message || "오류");
+    }
   };
 
+  // ✅ 메뉴 수정
   const handleUpdate = async (values: MenuFormValues) => {
     if (!editingMenu) return;
     try {
-      await menuApi.updateMenu(editingMenu.menuId, { storeId: currentStoreId!, menuName: values.menuName, price: Number(values.price) });
+      await menuApi.updateMenu(editingMenu.menuId, {
+        storeId: currentStoreId!,
+        menuName: values.menuName,
+        price: Number(values.price),
+
+        // ✅ 카테고리 포함
+        categoryName: values.categoryName,
+        subCategoryName: values.subCategoryName,
+      });
       setIsEditModalOpen(false);
       invalidateMenus();
-    } catch (e: any) { alert(e.response?.data?.message || "오류"); }
+    } catch (e: any) {
+      alert(e.response?.data?.message || "오류");
+    }
   };
 
   const toggleStatus = async (row: MenuItem) => {
     const isActive = row.status === "ACTIVE";
     if (!confirm(isActive ? "비활성화?" : "활성화?")) return;
     try {
-      isActive ? await menuApi.deactivateMenu(row.menuId, currentStoreId!) : await menuApi.reactivateMenu(row.menuId, currentStoreId!);
+      isActive
+        ? await menuApi.deactivateMenu(row.menuId, currentStoreId!)
+        : await menuApi.reactivateMenu(row.menuId, currentStoreId!);
       invalidateMenus();
-    } catch (e: any) { alert("상태 변경 실패"); }
+    } catch {
+      alert("상태 변경 실패");
+    }
   };
 
   const handleRecipeUpdated = (menuId: number, list: RecipeIngredient[]) => {
-    setRecipeMap(prev => ({ ...prev, [menuId]: list }));
+    setRecipeMap((prev) => ({ ...prev, [menuId]: list }));
     invalidateMenus();
   };
 
@@ -128,27 +157,53 @@ export function useMenu() {
   };
 
   return {
-    items, loading, error: error ? (error as Error).message : null,
-    calculatedCostMap, stats,
+    items,
+    loading,
+    error: error ? (error as Error).message : null,
+    calculatedCostMap,
+    stats,
+
     searchQuery: search.keyword,
     setSearchQuery: search.handleChange,
-    handleKeyDown: search.handleKeyDown, // Enter
-    
+    handleKeyDown: search.handleKeyDown,
+
     page: pagination.page,
     pageSize: pagination.size,
     setPageSize: pagination.handleSizeChange,
-    totalPages, goToPage,
+    totalPages,
+    goToPage,
 
-    showInactiveOnly, setShowInactiveOnly,
-    invOptions, recipeMap, onRecipeUpdated: handleRecipeUpdated,
-    
-    isAddModalOpen, setIsAddModalOpen,
-    isEditModalOpen, setIsEditModalOpen,
+    showInactiveOnly,
+    setShowInactiveOnly,
+    invOptions,
+    recipeMap,
+    onRecipeUpdated: handleRecipeUpdated,
+
+    isAddModalOpen,
+    setIsAddModalOpen,
+    isEditModalOpen,
+    setIsEditModalOpen,
     editingMenu,
-    openAddModal: () => { setEditingMenu(null); setIsAddModalOpen(true); },
-    openEditModal: (row: MenuItem) => { setEditingMenu(row); setIsEditModalOpen(true); },
-    handleCreate, handleUpdate, toggleStatus,
-    isRecipeModalOpen, setIsRecipeModalOpen, selectedMenuForRecipe,
-    openRecipeModal: (row: MenuItem) => { setSelectedMenuForRecipe(row); setIsRecipeModalOpen(true); },
+
+    openAddModal: () => {
+      setEditingMenu(null);
+      setIsAddModalOpen(true);
+    },
+    openEditModal: (row: MenuItem) => {
+      setEditingMenu(row);
+      setIsEditModalOpen(true);
+    },
+
+    handleCreate,
+    handleUpdate,
+    toggleStatus,
+
+    isRecipeModalOpen,
+    setIsRecipeModalOpen,
+    selectedMenuForRecipe,
+    openRecipeModal: (row: MenuItem) => {
+      setSelectedMenuForRecipe(row);
+      setIsRecipeModalOpen(true);
+    },
   };
 }

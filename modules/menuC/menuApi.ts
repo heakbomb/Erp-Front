@@ -85,4 +85,23 @@ export const menuApi = {
     });
     return res.data;
   },
+
+  // ✅ [추가] 중분류 목록
+  fetchMenuCategories: async (industry: "KOREAN" | "CHICKEN") => {
+    const res = await apiClient.get<string[]>(`/owner/menu/categories`, {
+      params: { industry },
+    });
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  // ✅ [추가] 소분류 목록
+  fetchMenuSubCategories: async (
+    industry: "KOREAN" | "CHICKEN",
+    categoryName: string
+  ) => {
+    const res = await apiClient.get<string[]>(`/owner/menu/categories/sub`, {
+      params: { industry, categoryName },
+    });
+    return Array.isArray(res.data) ? res.data : [];
+  },
 };

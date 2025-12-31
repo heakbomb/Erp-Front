@@ -41,6 +41,13 @@ const RateBadge = ({ rate }: { rate: number | undefined }) => {
 
 const periodLabel: Record<Period, string> = { DAY: "일", WEEK: "주", MONTH: "월", YEAR: "년" };
 
+const REFUND_REASONS = [
+  "결제 실수",
+  "단순 변심",
+  "주문 입력 오류",
+  "시스템 오류",
+];
+
 export default function SalesDashboard() {
   const {
     summary, salesPeriod, setSalesPeriod, chartData,
@@ -83,13 +90,18 @@ export default function SalesDashboard() {
     return String(time);
   };
 
+  // [수정] 2. 모달 열 때 기본 사유 선택 (빈 값 방지)
   const openRefundModal = (id: number) => {
-    setSelectedTxId(id); setRefundReason(""); setIsWaste(false); setRefundModalOpen(true);
+    setSelectedTxId(id);
+    setRefundReason(REFUND_REASONS[0]); // "결제 실수"를 기본값으로 설정
+    setIsWaste(false);
+    setRefundModalOpen(true);
   };
 
   const submitRefund = async () => {
     if (!selectedTxId) return;
-    if (!refundReason.trim()) return alert("취소 사유 입력 필요");
+    // 직접 입력이 사라졌으므로 빈 값 체크는 사실상 불필요하지만 안전을 위해 유지
+    if (!refundReason.trim()) return alert("취소 사유 선택 필요");
     await handleRefund(selectedTxId, isWaste, refundReason);
     setRefundModalOpen(false);
   };
@@ -233,17 +245,47 @@ export default function SalesDashboard() {
         </TabsContent>
       </Tabs>
 
+      {/* 결제 취소 다이얼로그 부분 */}
       <Dialog open={refundModalOpen} onOpenChange={setRefundModalOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>결제 취소</DialogTitle><DialogDescription>취소 사유와 폐기 여부를 입력하세요.</DialogDescription></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>결제 취소</DialogTitle>
+            <DialogDescription>취소 사유와 폐기 여부를 선택하세요.</DialogDescription>
+          </DialogHeader>
+          
           <div className="grid gap-4 py-2">
-            <div className="grid gap-2"><Label>취소 사유</Label><Input value={refundReason} onChange={e => setRefundReason(e.target.value)} placeholder="예: 고객 요청" /></div>
+            {/* [수정] 3. Input을 버튼형 토글 선택으로 변경 */}
+            <div className="grid gap-2">
+              <Label>취소 사유</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {REFUND_REASONS.map((reason) => (
+                  <Button
+                    key={reason}
+                    type="button"
+                    // 선택된 항목은 색상을 채우고(default), 아니면 외곽선(outline) 처리
+                    variant={refundReason === reason ? "default" : "outline"}
+                    onClick={() => setRefundReason(reason)}
+                    className="w-full"
+                  >
+                    {reason}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex items-center space-x-2 border p-3 rounded-md">
               <Checkbox id="isWaste" checked={isWaste} onCheckedChange={(c) => setIsWaste(!!c)} />
-              <div className="grid gap-1.5"><label htmlFor="isWaste" className="text-sm font-medium">폐기 처리 (재고 복구 X)</label><p className="text-xs text-muted-foreground">이미 조리된 경우 체크</p></div>
+              <div className="grid gap-1.5">
+                <label htmlFor="isWaste" className="text-sm font-medium">폐기 처리 (재고 복구 X)</label>
+                <p className="text-xs text-muted-foreground">이미 조리된 경우 체크</p>
+              </div>
             </div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setRefundModalOpen(false)}>닫기</Button><Button variant="destructive" onClick={submitRefund}>취소 확정</Button></DialogFooter>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundModalOpen(false)}>닫기</Button>
+            <Button variant="destructive" onClick={submitRefund}>취소 확정</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
