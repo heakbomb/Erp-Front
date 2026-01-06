@@ -189,9 +189,20 @@ export function useMenu() {
       setEditingMenu(null);
       setIsAddModalOpen(true);
     },
+
+    // ✅ [수정] edit 모달 열 때 단건조회로 카테고리까지 포함된 상세 데이터 세팅
+    // ✅ [수정] edit 모달 열 때: detail 먼저 받고 -> editingMenu 세팅 -> 모달 open
     openEditModal: (row: MenuItem) => {
-      setEditingMenu(row);
-      setIsEditModalOpen(true);
+      (async () => {
+        try {
+          const detail = await menuApi.fetchMenu(row.menuId, currentStoreId!);
+          setEditingMenu(detail);
+        } catch {
+          setEditingMenu(row);
+        } finally {
+          setIsEditModalOpen(true);
+        }
+      })();
     },
 
     handleCreate,

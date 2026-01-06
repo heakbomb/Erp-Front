@@ -41,34 +41,28 @@ export default function MenuModal({
   defaultValues,
   onSubmit,
 }: MenuModalProps) {
-  /* =========================
-     Store / Industry
-     ========================= */
   const { currentStore } = useStore();
   const currentStoreIndustry = currentStore?.industry;
 
-  // ✅ enum(StoreIndustry) → string literal 변환 (타입 에러 해결용)
   const industryParam =
     currentStoreIndustry === "KOREAN"
       ? "KOREAN"
       : currentStoreIndustry === "CHICKEN"
-      ? "CHICKEN"
-      : undefined;
+        ? "CHICKEN"
+        : undefined;
 
-  /* =========================
-     State
-     ========================= */
   const [menuName, setMenuName] = useState("");
   const [price, setPrice] = useState<string>("");
 
   const [menuNameError, setMenuNameError] = useState<string | null>(null);
   const [priceError, setPriceError] = useState<string | null>(null);
 
-  // 카테고리
   const [categoryName, setCategoryName] = useState("");
   const [subCategoryName, setSubCategoryName] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [subCategories, setSubCategories] = useState<string[]>([]);
+
+  const [needRestoreSubCategory, setNeedRestoreSubCategory] = useState(false);
 
   /* =========================
      초기화 (모달 열릴 때)
@@ -76,21 +70,53 @@ export default function MenuModal({
   useEffect(() => {
     if (!open) return;
 
-    if (mode === "edit" && defaultValues) {
-      setMenuName(defaultValues.menuName ?? "");
-      setPrice(defaultValues.price !== undefined ? String(defaultValues.price) : "");
-      setCategoryName(defaultValues.categoryName ?? "");
-      setSubCategoryName(defaultValues.subCategoryName ?? "");
+    if (mode === "edit") {
+      setMenuName(defaultValues?.menuName ?? "");
+      setPrice(defaultValues?.price !== undefined ? String(defaultValues.price) : "");
+
+      // ✅ edit 초기에는 defaultValues가 늦게 올 수 있으니 일단 값 주입(없으면 "")
+      const dvCat = (defaultValues?.categoryName ?? "").trim();
+      const dvSub = (defaultValues?.subCategoryName ?? "").trim();
+
+      setCategoryName(dvCat);
+      setSubCategoryName(dvSub);
+
+      // ✅ category가 있으면 sub 목록 로딩 후 복원 필요
+      setNeedRestoreSubCategory(!!dvCat);
     } else {
       setMenuName("");
       setPrice("");
       setCategoryName("");
       setSubCategoryName("");
+      setNeedRestoreSubCategory(false);
     }
 
     setMenuNameError(null);
     setPriceError(null);
-  }, [open, mode, defaultValues]);
+  }, [open, mode]); // ✅ defaultValues는 여기 의존성에서 빼서 "늦게 들어오는 값"은 아래 useEffect에서 처리
+
+  /* ==========================================================
+     ✅ [핵심] open된 상태에서 defaultValues가 늦게 들어오면 다시 주입
+     ========================================================== */
+  useEffect(() => {
+    if (!open) return;
+    if (mode !== "edit") return;
+    if (!defaultValues) return;
+
+    const dvCat = (defaultValues.categoryName ?? "").trim();
+    const dvSub = (defaultValues.subCategoryName ?? "").trim();
+
+    // ✅ 현재 state가 비어있을 때만 "뒤늦게" 들어온 defaultValues로 채움
+    if (!categoryName && dvCat) {
+      setCategoryName(dvCat);
+      setNeedRestoreSubCategory(true);
+    }
+
+    // subCategory는 목록 로딩 후 includes 체크하고 세팅해야 안정적
+    if (dvSub && categoryName && !subCategoryName) {
+      setNeedRestoreSubCategory(true);
+    }
+  }, [open, mode, defaultValues, categoryName, subCategoryName]);
 
   /* =========================
      중분류 조회
@@ -110,15 +136,28 @@ export default function MenuModal({
   useEffect(() => {
     if (!categoryName || !industryParam) {
       setSubCategories([]);
-      setSubCategoryName("");
+      // edit 복원 단계가 아니면 소분류 선택 초기화
+      if (!needRestoreSubCategory) setSubCategoryName("");
       return;
     }
 
     menuApi
       .fetchMenuSubCategories(industryParam, categoryName)
-      .then(setSubCategories)
-      .catch(() => setSubCategories([]));
-  }, [categoryName, industryParam]);
+      .then((list) => {
+        setSubCategories(list);
+
+        if (needRestoreSubCategory) {
+          const dv = (defaultValues?.subCategoryName ?? "").trim();
+          if (dv && list.includes(dv)) setSubCategoryName(dv);
+          else setSubCategoryName("");
+          setNeedRestoreSubCategory(false);
+        }
+      })
+      .catch(() => {
+        setSubCategories([]);
+        setNeedRestoreSubCategory(false);
+      });
+  }, [categoryName, industryParam, needRestoreSubCategory, defaultValues?.subCategoryName]);
 
   /* =========================
      Handlers
@@ -193,9 +232,6 @@ export default function MenuModal({
     });
   };
 
-  /* =========================
-     Render
-     ========================= */
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -233,7 +269,11 @@ export default function MenuModal({
             <Label>중분류</Label>
             <select
               value={categoryName}
-              onChange={(e) => setCategoryName(e.target.value)}
+              onChange={(e) => {
+                setCategoryName(e.target.value);
+                setSubCategoryName("");
+                setNeedRestoreSubCategory(false);
+              }}
               className="h-10 w-full rounded-md border px-3 text-sm"
             >
               <option value="">선택</option>
