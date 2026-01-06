@@ -1,6 +1,6 @@
 // modules/inventoryC/InventoryModal.tsx
 "use client";
-
+//테스트
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

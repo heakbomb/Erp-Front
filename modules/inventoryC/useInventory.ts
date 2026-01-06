@@ -1,6 +1,6 @@
 // modules/inventoryC/useInventory.ts
 "use client";
-
+//테스트
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/contexts/StoreContext";

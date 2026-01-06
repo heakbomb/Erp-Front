@@ -1,6 +1,6 @@
 // modules/inventoryC/InventoryPage.tsx
 "use client";
-
+// 테스트
 import React, { useState, useEffect } from "react";
 import { useInventory } from "./useInventory";
 import InventoryModal from "./InventoryModal";
