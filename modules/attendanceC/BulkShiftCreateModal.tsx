@@ -32,8 +32,6 @@ export type BulkShiftFormValues = {
   startTime: string;
   endTime: string;
   breakMinutes?: number;
-
-  // ✅ 추가
   isFixed?: boolean;
 };
 
@@ -54,16 +52,13 @@ export default function BulkShiftCreateModal({
 }: Props) {
   const [loading, setLoading] = useState(false);
 
-  // 폼 상태
   const [employeeId, setEmployeeId] = useState<string>("");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("18:00");
   const [breakMinutes, setBreakMinutes] = useState(60);
 
-  // ✅ 고정 스케줄
   const [isFixed, setIsFixed] = useState(false);
 
-  // 날짜 선택 상태
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
@@ -96,16 +91,26 @@ export default function BulkShiftCreateModal({
     if (rangeStart && newEnd < rangeStart) setRangeStart(newEnd);
   };
 
+  /**
+   * ✅ [수정] 야간근무 테스트를 막는 "자동 보정" 제거
+   * - start > end 이어도 그대로 둔다 (야간근무 케이스)
+   */
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newStart = e.target.value;
-    setStartTime(newStart);
-    if (endTime && newStart > endTime) setEndTime(newStart);
+    setStartTime(e.target.value);
   };
 
   const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newEnd = e.target.value;
-    setEndTime(newEnd);
-    if (startTime && newEnd < startTime) setStartTime(newEnd);
+    setEndTime(e.target.value);
+  };
+
+  // ✅ [추가] 휴게시간 0~120으로 강제
+  const handleBreakMinutesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    let num = raw === "" ? 0 : Number(raw);
+    if (!Number.isFinite(num)) num = 0;
+    if (num < 0) num = 0;
+    if (num > 120) num = 120;
+    setBreakMinutes(num);
   };
 
   const toggleWeekday = (dayIdx: number) => {
@@ -114,11 +119,32 @@ export default function BulkShiftCreateModal({
     );
   };
 
+  // ✅ 에러 메시지 추출 (axios error + 일반 Error 모두)
+  const extractErrorMessage = (err: any) => {
+    if (err instanceof Error && err.message) return err.message;
+
+    const status = err?.response?.status;
+    const data = err?.response?.data;
+
+    if (status === 409) return "중복근무 신청입니다.";
+    if (data?.message) return data.message;
+    if (typeof data === "string" && data.trim()) return data;
+
+    return err?.message || "요청 처리 중 오류가 발생했습니다.";
+  };
+
   const handleSubmit = async () => {
     if (!employeeId) return alert("직원을 선택해주세요.");
     if (!rangeStart || !rangeEnd) return alert("기간을 설정해주세요.");
     if (rangeStart > rangeEnd) return alert("종료일이 시작일보다 빠를 수 없습니다.");
-    if (startTime > endTime) return alert("종료 시간이 시작 시간보다 빠를 수 없습니다.");
+
+    /**
+     * ✅ [수정] "startTime > endTime" 야간근무는 허용
+     * ✅ "startTime === endTime" (06:00~06:00)만 차단
+     */
+    if (startTime === endTime) {
+      return alert("시작/종료 시간이 같을 수 없습니다.");
+    }
 
     const start = new Date(rangeStart);
     const end = new Date(rangeEnd);
@@ -139,9 +165,13 @@ export default function BulkShiftCreateModal({
         dates: dateStrings,
         startTime,
         endTime,
-        breakMinutes,
-        isFixed, // ✅ 핵심: 고정 전달
+        breakMinutes, // ✅ 0~120 강제된 값
+        isFixed,
       });
+
+      onClose();
+    } catch (err: any) {
+      alert(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -181,7 +211,6 @@ export default function BulkShiftCreateModal({
               </Select>
             </div>
 
-            {/* ✅ 고정 스케줄 체크 */}
             <div className="flex items-center gap-2">
               <input
                 id="bulkIsFixed"
@@ -220,13 +249,18 @@ export default function BulkShiftCreateModal({
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label className="text-sm font-medium">휴게 시간 (분)</Label>
+              <p className="text-xs text-muted-foreground">최대 120분까지 입력할 수 있습니다.</p>
               <Input
                 type="number"
                 className="h-10"
+                inputMode="numeric"
+                min={0}
+                max={120}
+                step={1}
                 value={breakMinutes}
-                onChange={(e) => setBreakMinutes(Number(e.target.value))}
+                onChange={handleBreakMinutesChange}
               />
             </div>
           </div>

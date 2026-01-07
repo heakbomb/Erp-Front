@@ -45,7 +45,7 @@ export default function MonthScheduleGrid({
   };
 
   const shiftMap: Record<string, EmployeeShift[]> = {};
-  shifts.forEach((s) => {
+  shifts.forEach((s: any) => {
     if (!s.shiftDate) return;
     const key = s.shiftDate.length > 10 ? s.shiftDate.slice(0, 10) : s.shiftDate;
     if (!shiftMap[key]) shiftMap[key] = [];
@@ -91,10 +91,7 @@ export default function MonthScheduleGrid({
             a.startTime.localeCompare(b.startTime)
           );
 
-          const isOtherMonth = !isSameMonth(
-            d,
-            new Date(d.getFullYear(), currentMonth, 1)
-          );
+          const isOtherMonth = !isSameMonth(d, new Date(d.getFullYear(), currentMonth, 1));
           const isSat = idx % 7 === 5;
           const isSun = idx % 7 === 6;
 
@@ -125,26 +122,37 @@ export default function MonthScheduleGrid({
               </div>
 
               <div className="flex flex-col gap-1 max-h-24 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
-                {sortedShifts.map((s) => {
+                {sortedShifts.map((s: any) => {
                   const emp = employeeMap.get(s.employeeId);
                   const label = emp?.name ?? s.employeeName ?? `직원 #${s.employeeId}`;
                   const empColor = getEmpColor(s.employeeId);
+
+                  const isContinue = !!s.isNightContinue;
 
                   return (
                     <div
                       key={s.shiftId}
                       className={cn(
-                        "cursor-pointer rounded border px-1 py-0.5 text-[10px] sm:text-[11px] hover:opacity-80 transition-all",
-                        empColor
+                        "rounded border px-1 py-0.5 text-[10px] sm:text-[11px] transition-all",
+                        empColor,
+                        !readOnly && !isContinue && "cursor-pointer hover:opacity-80",
+                        isContinue && "opacity-70"
                       )}
                       onClick={() => {
-                        if (!readOnly) onShiftClick?.(s);
+                        if (readOnly) return;
+                        if (isContinue) return;
+                        onShiftClick?.(s);
                       }}
                     >
-                      {/* ✅ 고정일 때만 📌 */}
                       <div className="flex items-center justify-between gap-2 leading-tight">
-                        <div className="font-semibold truncate">{label}</div>
-                        {s.isFixed && <span className="text-[10px]">📌</span>}
+                        <div className="font-semibold truncate">
+                          {label}
+                          {isContinue && <span className="font-normal opacity-80"> ↪ (이어짐)</span>}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {s.isFixed && <span className="text-[10px]">📌</span>}
+                          {s.isNight && <span className="text-[10px]">🌙</span>}
+                        </div>
                       </div>
 
                       <div className="text-[9px] opacity-80 leading-none mt-0.5">
