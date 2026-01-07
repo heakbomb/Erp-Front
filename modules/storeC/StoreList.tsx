@@ -105,6 +105,8 @@ export default function StoreList({
     try {
       await softDelete(id)
       alert("사업장이 비활성화되었습니다.")
+      window.location.reload() 
+      
       onChangedAction?.()
     } catch (err: any) {
       console.error("사업장 비활성화 실패:", err)
@@ -127,6 +129,7 @@ export default function StoreList({
     try {
       await reactivate(id)
       alert("사업장이 다시 활성화되었습니다.")
+      window.location.reload() 
       onChangedAction?.()
     } catch (err: any) {
       console.error("사업장 활성화 실패:", err)
