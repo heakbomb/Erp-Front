@@ -1,10 +1,10 @@
 // modules/menuC/menuApi.ts
 import { apiClient } from "@/shared/api/apiClient";
-import type { PageResponse } from "@/shared/types/api"; 
-import type { 
-  MenuItem, 
-  InventoryItem, 
-  RecipeIngredient, 
+import type { PageResponse } from "@/shared/types/api";
+import type {
+  MenuItem,
+  InventoryItem,
+  RecipeIngredient,
   MenuStats,
   MenuListParams,
   MenuUpsertRequest,
@@ -103,5 +103,13 @@ export const menuApi = {
       params: { industry, categoryName },
     });
     return Array.isArray(res.data) ? res.data : [];
+  },
+
+  // ✅ [추가] 메뉴 단건 조회 (수정 모달 기본값 세팅용)
+  fetchMenu: async (menuId: number, storeId: number) => {
+    const res = await apiClient.get<MenuItem>(`/owner/menu/${menuId}`, {
+      params: { storeId },
+    });
+    return res.data;
   },
 };

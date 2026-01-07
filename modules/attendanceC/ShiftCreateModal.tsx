@@ -25,7 +25,7 @@ export type ShiftFormValues = {
 interface Props {
   open: boolean;
   onClose: () => void;
-  date: string;
+  date: string; // "YYYY-MM-DD"
   employees: Employee[];
   initialShift?: EmployeeShift | null;
   onSubmit: (payload: ShiftFormValues, shiftId?: number) => Promise<void>;
@@ -52,8 +52,6 @@ export default function ShiftCreateModal({
     endTime: "18:00",
     breakMinutes: 0,
   });
-
-  const [isBreakTimeLimitReached, setIsBreakTimeLimitReached] = useState(false);
 
   useEffect(() => {
     if (initialShift) {
@@ -84,22 +82,33 @@ export default function ShiftCreateModal({
       }));
       return;
     }
-    
-    // ✅ 3자리 제한 로직 적용
+
     if (field === "breakMinutes") {
-      if (value.length > 3) {
-        setIsBreakTimeLimitReached(true);
-        return;
-      } else {
-        setIsBreakTimeLimitReached(false);
-      }
+      // ✅ 0~120으로 강제
       let num = value === "" ? 0 : Number(value);
+      if (!Number.isFinite(num)) num = 0;
       if (num < 0) num = 0;
+      if (num > 120) num = 120;
+
       setForm((prev) => ({ ...prev, breakMinutes: num }));
       return;
     }
 
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const extractErrorMessage = (err: any) => {
+    // ✅ Error("중복근무 신청입니다") 형태 지원
+    if (err?.message) return err.message;
+
+    const status = err?.response?.status;
+    const data = err?.response?.data;
+
+    if (status === 409) return "중복근무 신청입니다.";
+    if (typeof data === "string" && data.trim()) return data;
+    if (data?.message) return data.message;
+
+    return "요청 처리 중 오류가 발생했습니다.";
   };
 
   const handleSubmit = async () => {
@@ -111,7 +120,13 @@ export default function ShiftCreateModal({
       alert("시작/종료 시간을 입력해주세요.");
       return;
     }
-    await onSubmit(form, initialShift?.shiftId);
+
+    try {
+      await onSubmit(form, initialShift?.shiftId);
+      onClose();
+    } catch (err: any) {
+      alert(extractErrorMessage(err));
+    }
   };
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -146,7 +161,6 @@ export default function ShiftCreateModal({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* 직원 선택 */}
           <div className="space-y-2">
             <Label>직원</Label>
             <select
@@ -163,7 +177,6 @@ export default function ShiftCreateModal({
             </select>
           </div>
 
-          {/* 날짜 */}
           <div className="space-y-2">
             <Label>날짜</Label>
             <Input
@@ -173,7 +186,6 @@ export default function ShiftCreateModal({
             />
           </div>
 
-          {/* 시간 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>시작</Label>
@@ -193,11 +205,16 @@ export default function ShiftCreateModal({
             </div>
           </div>
 
-          {/* 휴게시간 */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label>휴게시간 (분)</Label>
+            {/* ✅ 안내 문구만 추가 (다른 UI 영향 최소) */}
+            <p className="text-xs text-muted-foreground">최대 120분까지 입력할 수 있습니다.</p>
             <Input
               type="number"
+              inputMode="numeric"
+              min={0}
+              max={120}
+              step={1}
               value={form.breakMinutes ?? 0}
               onChange={(e) => handleChange("breakMinutes", e.target.value)}
             />
@@ -224,8 +241,12 @@ export default function ShiftCreateModal({
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} type="button">취소</Button>
-            <Button onClick={handleSubmit} type="button">저장</Button>
+            <Button variant="outline" onClick={onClose} type="button">
+              취소
+            </Button>
+            <Button onClick={handleSubmit} type="button">
+              저장
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>
