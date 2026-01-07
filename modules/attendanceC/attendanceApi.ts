@@ -39,6 +39,26 @@ function getLocalTodayYMD(d = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
+/* =========================
+   ✅ [핵심] ShiftApiResult 언랩
+   - 백엔드가 200으로 내려줘도 success=false면 throw
+========================= */
+type ShiftApiResult<T> = {
+  success: boolean;
+  code?: string | null;
+  message?: string | null;
+  data?: T | null;
+};
+
+function unwrapShiftResult<T>(res: ShiftApiResult<T>): T {
+  if (res?.success) {
+    if (res.data == null) throw new Error("요청 처리 중 오류가 발생했습니다.");
+    return res.data as T;
+  }
+  const msg = res?.message || "요청 처리 중 오류가 발생했습니다.";
+  throw new Error(msg);
+}
+
 /* ----------------------------------
    기존 attendanceApi 객체 (Employee/Shared 기능)
 ---------------------------------- */
@@ -100,6 +120,7 @@ export const attendanceApi = {
     return uniqueShifts;
   },
 
+  // ✅ 단건 생성: ShiftApiResult 언랩
   createShift: async (payload: SaveShiftPayload) => {
     const normalize = (t: string) => (t.length === 5 ? `${t}:00` : t);
     const body = {
@@ -111,11 +132,12 @@ export const attendanceApi = {
       breakMinutes: payload.breakMinutes ?? 0,
       isFixed: payload.isFixed ?? false,
     };
-    const res = await apiClient.post<EmployeeShift>(`/shift`, body);
-    return res.data;
+
+    const res = await apiClient.post<ShiftApiResult<EmployeeShift>>(`/shift`, body);
+    return unwrapShiftResult(res.data);
   },
 
-  // ✅ updateShift: isFixed를 "전달했을 때만" 업데이트하도록 개선
+  // ✅ 수정: ShiftApiResult 언랩
   updateShift: async (storeId: number, shiftId: number, body: Partial<SaveShiftPayload>) => {
     const normalize = (t?: string) => (!t ? undefined : t.length === 5 ? `${t}:00` : t);
 
@@ -131,10 +153,11 @@ export const attendanceApi = {
     if (typeof body.breakMinutes === "number") payload.breakMinutes = body.breakMinutes;
     if (typeof body.isFixed === "boolean") payload.isFixed = body.isFixed;
 
-    const res = await apiClient.post<EmployeeShift>(`/shift`, payload);
-    return res.data;
+    const res = await apiClient.post<ShiftApiResult<EmployeeShift>>(`/shift`, payload);
+    return unwrapShiftResult(res.data);
   },
 
+  // ✅ 월간/기간 일괄: ShiftApiResult 언랩
   createShiftBulk: async (payload: BulkShiftPayload) => {
     const normalize = (t: string) => (t.length === 5 ? `${t}:00` : t);
     const body = {
@@ -143,8 +166,9 @@ export const attendanceApi = {
       endTime: normalize(payload.endTime),
       isFixed: payload.isFixed ?? false,
     };
-    const res = await apiClient.post<EmployeeShift[]>("/shift/bulk", body);
-    return res.data;
+
+    const res = await apiClient.post<ShiftApiResult<EmployeeShift[]>>("/shift/bulk", body);
+    return unwrapShiftResult(res.data);
   },
 
   deleteShift: async (storeId: number, shiftId: number) => {
