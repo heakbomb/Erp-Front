@@ -27,7 +27,7 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
 
   // 로그인 붙이기 전 임시값
   const [employeeId] = useState<number>(opts?.employeeId ?? 3);
-  const [storeId] = useState<number>(opts?.storeId ?? 11);
+  const [storeId] = useState<number>(opts?.storeId ?? 1);
 
   // QR / 위치
   const [qrCode, setQrCode] = useState("");

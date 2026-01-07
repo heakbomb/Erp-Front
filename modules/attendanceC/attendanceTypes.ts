@@ -30,13 +30,20 @@ export interface EmployeeShift {
   shiftId: number;
   storeId: number;
   employeeId: number;
-  shiftDate: string; // "YYYY-MM-DD"
-  startTime: string; // "HH:mm" (or "HH:mm:ss" 올 수도 있음)
-  endTime: string; // "HH:mm" (or "HH:mm:ss" 올 수도 있음)
+  shiftDate: string;
+  startTime: string;
+  endTime: string;
   breakMinutes?: number;
   isFixed?: boolean;
-  employeeName?: string; // 조인 결과
-  color?: string; // 프론트 표시용
+  employeeName?: string;
+  color?: string;
+
+  // ✅ 프론트 전용 메타
+  isNight?: boolean;
+  groupShiftIds?: number[];       // [part1Id, part2Id]
+  nightStartDate?: string;        // 시작일(1/5)
+  nightSecondDate?: string;       // 다음날(1/6)
+  isNightContinuation?: boolean;  // ✅ [추가] 다음날 “이어짐 표시”(클릭 불가)
 }
 
 /* --- API 요청 파라미터 --- */
