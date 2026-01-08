@@ -246,6 +246,21 @@ export default function OwnerSalesReportView() {
             </CardContent>
           </Card>
         </div>
+
+        {/* ✅ 인쇄용(페이지 분할 허용 + 스크롤/고정높이 강제 해제) */}
+        <div className="hidden print:block print:mt-4">
+          <Card className="print-table-card">
+            <CardHeader>
+              <CardTitle>주간 매출 상세</CardTitle>
+            </CardHeader>
+            <CardContent className="print-table-content">
+              {/* ★ 이 wrapper 기준으로 인쇄에서 overflow/height를 강제 해제 */}
+              <div className="print-table-wrapper">
+                <WeeklyTable data={data.weeklySales} />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <style jsx global>{`
