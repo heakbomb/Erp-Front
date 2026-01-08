@@ -181,7 +181,7 @@ export function usePurchases() {
           itemName: values.newItemName.trim(),
           itemType: values.newItemType.trim(),
           stockType: values.newStockType.trim(),
-          stockQty: Number(values.formQty),
+          stockQty: 0,
           safetyQty: 0,
           status: "ACTIVE",
         });
