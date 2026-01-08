@@ -1,6 +1,8 @@
 // modules/salesC/salesApi.ts
 import { apiClient } from "@/shared/api/apiClient";
 import type { PageResponse } from "@/shared/types/api";
+import type { WeeklyAreaAvgResponse } from "./salesTypes"
+
 import type {
   SalesSummaryResponse,
   DailySalesDatum,
@@ -76,5 +78,12 @@ export const salesApi = {
       params: { year, month },
     });
     return res.data;
+  },
+
+   getWeeklyAreaAvg: async (storeId: number, year: number, month: number, radiusM = 2000) => {
+    const res = await apiClient.get<WeeklyAreaAvgResponse>("/owner/sales/weekly-area-avg", {
+      params: { storeId, year, month, radiusM },
+    })
+    return res.data
   },
 };

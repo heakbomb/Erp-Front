@@ -27,6 +27,8 @@ type MenuModalProps = {
     categoryName?: string;
     subCategoryName?: string;
   };
+  serverMenuNameError?: string | null;
+  onClearServerMenuNameError?: () => void;
   onSubmit: (values: MenuFormValues) => void;
 };
 
@@ -40,6 +42,8 @@ export default function MenuModal({
   onOpenChange,
   defaultValues,
   onSubmit,
+  serverMenuNameError,
+  onClearServerMenuNameError,
 }: MenuModalProps) {
   const { currentStore } = useStore();
   const currentStoreIndustry = currentStore?.industry;
@@ -61,6 +65,7 @@ export default function MenuModal({
   const [subCategoryName, setSubCategoryName] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [subCategories, setSubCategories] = useState<string[]>([]);
+  const shownMenuNameError = serverMenuNameError ?? menuNameError;
 
   const [needRestoreSubCategory, setNeedRestoreSubCategory] = useState(false);
 
@@ -164,6 +169,7 @@ export default function MenuModal({
      ========================= */
   const handleMenuNameChange = (e: any) => {
     const value = e.target.value;
+    onClearServerMenuNameError?.();
 
     if (value.length > MENU_NAME_MAX_LENGTH) {
       setMenuName(value.slice(0, MENU_NAME_MAX_LENGTH));
@@ -246,8 +252,8 @@ export default function MenuModal({
             <Label>메뉴명</Label>
             <Input value={menuName} onChange={handleMenuNameChange} />
             <div className="flex justify-between mt-1">
-              {menuNameError ? (
-                <p className="text-xs text-red-500">{menuNameError}</p>
+              {shownMenuNameError ? (
+                <p className="text-xs text-red-500">{shownMenuNameError}</p>
               ) : (
                 <span />
               )}

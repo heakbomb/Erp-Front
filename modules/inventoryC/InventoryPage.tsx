@@ -1,9 +1,13 @@
-// modules/inventoryC/InventoryPage.tsx
 "use client";
-// 테스트
-import React, { useState, useEffect } from "react";
+
+import React, { useEffect, useState } from "react";
 import { useInventory } from "./useInventory";
 import InventoryModal from "./InventoryModal";
+
+// ✅ 매입 모달로 “재고 추가(=매입 등록)” 연결
+import { usePurchases } from "@/modules/purchasesC/usePurchases";
+import PurchaseModal from "@/modules/purchasesC/PurchaseModal";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -16,22 +20,60 @@ const PAGE_WINDOW = 5;
 
 export default function InventoryPage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true) }, []);
+  useEffect(() => setMounted(true), []);
 
+  // ✅ 재고 훅 (수정은 기존 InventoryModal 사용)
   const {
-    inventoryData, isInventoryLoading, inventoryError,
-    lowStockItems, isLowStockLoading,
-    page, pageSize, setPageSize, goToPage,
-    // ✅ [수정] localSearch 대신 훅의 상태와 핸들러 사용
-    searchQuery, setSearchQuery, handleKeyDown,
-    showInactiveOnly, setShowInactiveOnly,
-    itemTypeFilter, handleChangeItemType,
-    isAddModalOpen, setIsAddModalOpen,
-    isEditModalOpen, setIsEditModalOpen,
-    editingItem, openAddModal, openEditModal,
-    handleCreate, handleUpdate, handleDeactivate, handleReactivate, handleExportExcel,
-    isCreating, isUpdating, isDeactivating, isReactivating, isExporting
+    inventoryData,
+    isInventoryLoading,
+    inventoryError,
+    lowStockItems,
+    isLowStockLoading,
+    page,
+    pageSize,
+    setPageSize,
+    goToPage,
+    searchQuery,
+    setSearchQuery,
+    handleKeyDown,
+    showInactiveOnly,
+    setShowInactiveOnly,
+    itemTypeFilter,
+    handleChangeItemType,
+
+    // ✅ 재고 수정 모달 관련
+    isEditModalOpen,
+    setIsEditModalOpen,
+    editingItem,
+    openEditModal,
+    handleUpdate,
+    isUpdating,
+
+    // 활성/비활성
+    handleDeactivate,
+    handleReactivate,
+    isDeactivating,
+    isReactivating,
+
+    // 엑셀
+    handleExportExcel,
+    isExporting,
+
+    // (혹시 중복에러 표시 쓰고 있으면 유지)
+    serverItemNameError,
+    clearServerItemNameError,
   } = useInventory();
+
+  // ✅ 매입 훅 (재고 추가 버튼 누르면 매입 모달 열기)
+  const {
+    inventoryOpts,
+    isAddOpen,
+    setIsAddOpen,
+    editingPurchase,     // null이면 “추가”, 값 있으면 “수정”
+    handleModalClose,    // open 상태 변경 핸들러(닫을 때 editingPurchase 초기화 포함)
+    handleSubmit,        // PurchaseModal submit
+    isSubmitting,
+  } = usePurchases();
 
   const items = inventoryData?.content ?? [];
   const totalPages = inventoryData?.totalPages ?? 0;
@@ -39,28 +81,47 @@ export default function InventoryPage() {
   const end = Math.min(start + PAGE_WINDOW - 1, Math.max(totalPages - 1, 0));
 
   const renderCategoryLabel = (val?: string) =>
-    INGREDIENT_CATEGORIES.find(c => c.value === val)?.label || val || "-";
+    INGREDIENT_CATEGORIES.find((c) => c.value === val)?.label || val || "-";
+
+  // ✅ 재고 수정 모달 닫을 때 서버에러 초기화(UX)
+  const handleEditOpenChange = (o: boolean) => {
+    if (!o) clearServerItemNameError?.();
+    setIsEditModalOpen(o);
+  };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">재고 관리</h1>
+
+          {/* (디버그/에러 표시 필요하면 유지) */}
+          {/* {serverItemNameError && (
+            <div className="p-2 rounded bg-red-50 text-red-700 text-sm">
+              DEBUG serverItemNameError: {serverItemNameError}
+            </div>
+          )} */}
+
           <p className="text-muted-foreground">재고 현황을 확인하고 관리하세요</p>
         </div>
+
         {mounted && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleExportExcel} disabled={isExporting}>
               {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
               Excel 내보내기
             </Button>
-            <Button onClick={openAddModal}>
+
+            {/* ✅ 재고 추가 버튼 => 매입 등록 모달 */}
+            <Button onClick={() => setIsAddOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> 재고 추가
             </Button>
           </div>
         )}
       </div>
 
+      {/* Low Stock */}
       {(isLowStockLoading || lowStockItems.length > 0) && (
         <Card className="border-amber-200 bg-amber-50">
           <CardHeader>
@@ -91,6 +152,7 @@ export default function InventoryPage() {
         </Card>
       )}
 
+      {/* Table */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center flex-wrap gap-4">
@@ -98,41 +160,58 @@ export default function InventoryPage() {
               <CardTitle>재고 목록</CardTitle>
               <CardDescription>페이지 {page + 1} / {Math.max(totalPages, 1)}</CardDescription>
             </div>
+
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative w-64">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="품목 검색 (Enter)"
-                  value={searchQuery}          // ✅ 훅의 상태 사용
-                  onChange={setSearchQuery}    // ✅ 훅의 핸들러 사용
-                  onKeyDown={handleKeyDown}    // ✅ 훅의 엔터키 핸들러 사용
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  onKeyDown={handleKeyDown}
                   className="pl-8"
                 />
               </div>
+
               <select
                 className="h-9 rounded-md border bg-background px-2 text-sm"
                 value={itemTypeFilter ?? ""}
                 onChange={(e) => handleChangeItemType(e.target.value)}
               >
                 <option value="">전체 타입</option>
-                {INGREDIENT_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                {INGREDIENT_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
               </select>
+
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                <input type="checkbox" checked={showInactiveOnly} onChange={(e) => { setShowInactiveOnly(e.target.checked); goToPage(0); }} />
+                <input
+                  type="checkbox"
+                  checked={showInactiveOnly}
+                  onChange={(e) => { setShowInactiveOnly(e.target.checked); goToPage(0); }}
+                />
                 비활성만 보기
               </label>
+
               <select
                 className="h-9 rounded-md border bg-background px-2 text-sm"
                 value={pageSize}
                 onChange={(e) => { setPageSize(Number(e.target.value)); goToPage(0); }}
               >
-                {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}/페이지</option>)}
+                {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}/페이지</option>)}
               </select>
             </div>
           </div>
+
+          {inventoryError && <p className="text-sm text-red-500 mt-2">{String(inventoryError)}</p>}
         </CardHeader>
+
         <CardContent>
-          {isInventoryLoading ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
+          {isInventoryLoading ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : (
             <>
               <Table>
                 <TableHeader>
@@ -145,43 +224,93 @@ export default function InventoryPage() {
                     <TableHead className="text-right">작업</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
-                  {items.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center py-8">데이터가 없습니다.</TableCell></TableRow> : items.map((i) => {
-                    const isLow = Number(i.stockQty) < Number(i.safetyQty);
-                    const status = i.status ?? (showInactiveOnly ? "INACTIVE" : "ACTIVE");
-                    return (
-                      <TableRow key={i.itemId} className={status === "INACTIVE" ? "opacity-50" : (isLow ? "bg-red-50" : "")}>
-                        <TableCell className="font-medium">{i.itemName}</TableCell>
-                        <TableCell>{renderCategoryLabel(i.itemType)}</TableCell>
-                        <TableCell>
-                          {i.stockQty} {i.stockType}
-                          {status === "ACTIVE" && isLow && <div className="text-xs text-red-600 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />부족</div>}
-                        </TableCell>
-                        <TableCell>{i.safetyQty} {i.stockType}</TableCell>
-                        <TableCell><Badge variant={status === "INACTIVE" ? "secondary" : isLow ? "destructive" : "default"}>{status === "INACTIVE" ? "비활성" : isLow ? "부족" : "정상"}</Badge></TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => openEditModal(i)} disabled={isDeactivating || isReactivating}><Edit className="h-4 w-4" /></Button>
-                            {status === "ACTIVE" ? (
-                              <Button variant="outline" size="sm" onClick={() => handleDeactivate(i.itemId)} disabled={isDeactivating}>비활성화</Button>
-                            ) : (
-                              <Button variant="default" size="sm" onClick={() => handleReactivate(i.itemId)} disabled={isReactivating}>해제</Button>
+                  {items.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">데이터가 없습니다.</TableCell>
+                    </TableRow>
+                  ) : (
+                    items.map((i) => {
+                      const isLow = Number(i.stockQty) < Number(i.safetyQty);
+                      const status = i.status ?? (showInactiveOnly ? "INACTIVE" : "ACTIVE");
+
+                      return (
+                        <TableRow
+                          key={i.itemId}
+                          className={status === "INACTIVE" ? "opacity-50" : (isLow ? "bg-red-50" : "")}
+                        >
+                          <TableCell className="font-medium">{i.itemName}</TableCell>
+                          <TableCell>{renderCategoryLabel(i.itemType)}</TableCell>
+
+                          <TableCell>
+                            {i.stockQty} {i.stockType}
+                            {status === "ACTIVE" && isLow && (
+                              <div className="text-xs text-red-600 flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" /> 부족
+                              </div>
                             )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                          </TableCell>
+
+                          <TableCell>{i.safetyQty} {i.stockType}</TableCell>
+
+                          <TableCell>
+                            <Badge variant={status === "INACTIVE" ? "secondary" : (isLow ? "destructive" : "default")}>
+                              {status === "INACTIVE" ? "비활성" : (isLow ? "부족" : "정상")}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {/* ✅ 재고 수정은 기존 InventoryModal */}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditModal(i)}
+                                disabled={isDeactivating || isReactivating}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+
+                              {status === "ACTIVE" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeactivate(i.itemId)}
+                                  disabled={isDeactivating}
+                                >
+                                  비활성화
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => handleReactivate(i.itemId)}
+                                  disabled={isReactivating}
+                                >
+                                  해제
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
+
+              {/* Pagination */}
               {totalPages > 0 && (
                 <div className="flex justify-between items-center mt-4">
                   <div className="text-sm text-muted-foreground">{page + 1} / {totalPages}</div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={page === 0} onClick={() => goToPage(0)}>«</Button>
                     <Button variant="outline" size="sm" disabled={page === 0} onClick={() => goToPage(page - 1)}>‹</Button>
-                    {Array.from({ length: end - start + 1 }, (_, i) => start + i).map(p => (
-                      <Button key={p} variant={p === page ? "default" : "outline"} size="sm" onClick={() => goToPage(p)}>{p + 1}</Button>
+                    {Array.from({ length: end - start + 1 }, (_, idx) => start + idx).map((p) => (
+                      <Button key={p} variant={p === page ? "default" : "outline"} size="sm" onClick={() => goToPage(p)}>
+                        {p + 1}
+                      </Button>
                     ))}
                     <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => goToPage(page + 1)}>›</Button>
                     <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => goToPage(totalPages - 1)}>»</Button>
@@ -195,8 +324,27 @@ export default function InventoryPage() {
 
       {mounted && (
         <>
-          <InventoryModal mode="add" open={isAddModalOpen} onOpenChange={setIsAddModalOpen} onSubmit={handleCreate} isPending={isCreating} />
-          <InventoryModal mode="edit" open={isEditModalOpen} onOpenChange={setIsEditModalOpen} onSubmit={handleUpdate} isPending={isUpdating} defaultValues={editingItem} />
+          {/* ✅ 재고 수정 모달(기존 그대로) */}
+          <InventoryModal
+            mode="edit"
+            open={isEditModalOpen}
+            onOpenChange={handleEditOpenChange}
+            onSubmit={handleUpdate}
+            isPending={isUpdating}
+            defaultValues={editingItem}
+            serverItemNameError={serverItemNameError}
+            onClearServerItemNameError={clearServerItemNameError}
+          />
+
+          {/* ✅ 재고 추가(=매입 등록) 모달 */}
+          <PurchaseModal
+            open={isAddOpen}
+            onOpenChange={handleModalClose}
+            onSubmit={handleSubmit}
+            isPending={isSubmitting}
+            inventoryOpts={inventoryOpts ?? []}   // ✅ map 에러 방지
+            initialData={editingPurchase ?? null} // ✅ edit이면 수정, 아니면 추가
+          />
         </>
       )}
     </div>

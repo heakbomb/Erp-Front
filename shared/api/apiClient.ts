@@ -16,6 +16,8 @@ export const apiClient = axios.create({
     "Content-Type": "application/json",
   },
   withCredentials: true, // 쿠키 포함
+
+   validateStatus: (status) => status >= 200 && status < 300,
 });
 
 /**

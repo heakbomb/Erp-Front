@@ -48,6 +48,8 @@ export default function MenuPage() {
     isRecipeModalOpen,
     setIsRecipeModalOpen,
     selectedMenuForRecipe,
+    serverMenuNameError,
+    clearServerMenuNameError,
     openRecipeModal,
     handleKeyDown, // ✅ [추가] 엔터키 검색 핸들러 추가
   } = useMenu();
@@ -159,7 +161,7 @@ export default function MenuPage() {
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">원가</span>
-                              <span className="font-medium">₩{formatKR.format(cost)}</span>
+                              <span className="font-medium">₩{formatKR.format(Math.floor(cost))}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">마진율</span>
@@ -267,7 +269,8 @@ export default function MenuPage() {
 
       {mounted && (
         <>
-          <MenuModal mode="add" open={isAddModalOpen} onOpenChange={setIsAddModalOpen} onSubmit={handleCreate} />
+          <MenuModal mode="add" open={isAddModalOpen} onOpenChange={setIsAddModalOpen} onSubmit={handleCreate} serverMenuNameError={serverMenuNameError}
+            onClearServerMenuNameError={clearServerMenuNameError} />
 
           {/* ✅ [핵심 수정] edit 모달 defaultValues에 category/subCategory 포함 */}
           <MenuModal
@@ -275,14 +278,16 @@ export default function MenuPage() {
             open={isEditModalOpen}
             onOpenChange={setIsEditModalOpen}
             onSubmit={handleUpdate}
+            serverMenuNameError={serverMenuNameError}
+            onClearServerMenuNameError={clearServerMenuNameError}
             defaultValues={
               editingMenu
                 ? {
-                    menuName: editingMenu.menuName,
-                    price: editingMenu.price,
-                    categoryName: editingMenu.categoryName ?? "",
-                    subCategoryName: editingMenu.subCategoryName ?? "",
-                  }
+                  menuName: editingMenu.menuName,
+                  price: editingMenu.price,
+                  categoryName: editingMenu.categoryName ?? "",
+                  subCategoryName: editingMenu.subCategoryName ?? "",
+                }
                 : undefined
             }
           />

@@ -126,3 +126,17 @@ export interface MonthlyReport {
   topMenus: MonthlyTopMenu[];
   weeklySales: WeeklyPoint[];
 }
+
+export type WeeklyAreaAvgPoint = {
+  weekIndex: number
+  areaAvgSales: number
+  nearStoreCount: number
+}
+
+export type WeeklyAreaAvgResponse = {
+  storeId: number
+  radiusM: number
+  year: number
+  month: number
+  data: WeeklyAreaAvgPoint[]
+}
