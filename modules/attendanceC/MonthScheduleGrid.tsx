@@ -64,16 +64,16 @@ export default function MonthScheduleGrid({
   return (
     <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
       <div className="grid grid-cols-7 bg-muted text-xs sm:text-sm">
-        {["월", "화", "수", "목", "금", "토", "일"].map((label, idx) => {
-          const isSat = idx === 5;
+        {["일", "월", "화", "수", "목", "금", "토"].map((label, idx) => {
+          const isSat = idx === 0;
           const isSun = idx === 6;
           return (
             <div
               key={label}
               className={cn(
                 "px-2 py-2 text-center border-b font-medium",
-                isSat && "bg-blue-50 text-blue-700",
-                isSun && "bg-red-50 text-red-700"
+                isSun && "bg-blue-50 text-blue-700",
+                isSat && "bg-red-50 text-red-700"
               )}
             >
               {label}

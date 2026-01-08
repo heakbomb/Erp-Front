@@ -71,7 +71,6 @@ export default function ShiftCreateModal({
         breakMinutes: 0,
       });
     }
-    setIsBreakTimeLimitReached(false);
   }, [initialShift, date, open]);
 
   const handleChange = (field: keyof ShiftFormValues, value: string) => {
@@ -129,11 +128,7 @@ export default function ShiftCreateModal({
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    // ✅ 이벤트 전파 방지
-    e.preventDefault();
-    e.stopPropagation();
-    
+  const handleDelete = async () => {
     if (!initialShift || !onDelete) return;
     if (confirm("정말 삭제하시겠습니까?")) {
       await onDelete(initialShift.shiftId);
@@ -141,11 +136,7 @@ export default function ShiftCreateModal({
     }
   };
 
-  const handleDeleteMonth = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    // ✅ 이벤트 전파 방지
-    e.preventDefault();
-    e.stopPropagation();
-
+  const handleDeleteMonth = async () => {
     if (!form.employeeId || !onDeleteMonthAll) return;
     if (confirm("이 직원의 이번 달 근무를 모두 삭제하시겠습니까?")) {
       await onDeleteMonthAll(Number(form.employeeId));
@@ -218,12 +209,6 @@ export default function ShiftCreateModal({
               value={form.breakMinutes ?? 0}
               onChange={(e) => handleChange("breakMinutes", e.target.value)}
             />
-            {/* ✅ 경고 문구 추가 */}
-            {isBreakTimeLimitReached && (
-              <p className="text-xs text-red-500 mt-1">
-                휴게시간은 최대 3자리(999분)까지 입력 가능합니다.
-              </p>
-            )}
           </div>
         </div>
 
