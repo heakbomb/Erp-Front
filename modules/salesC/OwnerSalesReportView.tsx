@@ -65,7 +65,31 @@ function PrintWeeklyTable({ data }: { data: any[] }) {
     row?.avgSales ??
     row?.mean;
 
-  const gap = (row: any) => row?.gap ?? row?.diff ?? row?.difference ?? row?.delta ?? row?.variance;
+  // ✅ FIX: 인쇄에서 gap이 '-'로 나오는 문제 해결
+  // - 서버가 gap을 안 내려주면: mySales - regionAvg 로 직접 계산
+  const gap = (row: any) => {
+    const raw =
+      row?.gap ??
+      row?.diff ??
+      row?.difference ??
+      row?.delta ??
+      row?.variance ??
+      row?.gapSales ??
+      row?.salesGap;
+
+    // 값이 있으면 그대로 사용(문자열이어도 Number 변환은 money/num에서 처리)
+    if (raw !== undefined && raw !== null && raw !== "") return raw;
+
+    // 없으면 계산
+    const a = mySales(row);
+    const b = regionAvg(row);
+
+    const na = typeof a === "number" ? a : Number(a);
+    const nb = typeof b === "number" ? b : Number(b);
+
+    if (!Number.isFinite(na) || !Number.isFinite(nb)) return null;
+    return na - nb;
+  };
 
   return (
     <div className="w-full">
@@ -89,7 +113,9 @@ function PrintWeeklyTable({ data }: { data: any[] }) {
                 <td className="py-2 border-b">{weekLabel(row, idx)}</td>
                 <td className="py-2 border-b text-right">{money(a)}</td>
                 <td className="py-2 border-b text-right">{money(b)}</td>
-                <td className="py-2 border-b text-right">{num(g)}</td>
+
+                {/* ✅ 격차도 매출 단위(원)로 보여주는 게 자연스러워서 money로 통일 */}
+                <td className="py-2 border-b text-right">{money(g)}</td>
               </tr>
             );
           })}
@@ -184,9 +210,7 @@ export default function OwnerSalesReportView() {
           <h1 className="text-2xl font-semibold">
             {year}년 {month}월 매출 리포트
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            지점 매출 현황 · 인기 메뉴 · 주간 추이
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">지점 매출 현황 · 인기 메뉴 · 주간 추이</p>
         </div>
 
         <div className="space-y-4">
@@ -208,7 +232,10 @@ export default function OwnerSalesReportView() {
             </CardContent>
           </Card>
         </div>
-          <div className="hidden print:block" style={{ breakBefore: "page" }} />
+
+        {/* ✅ 다음 페이지로 넘기고 싶은 의도라면 이 라인이 더 안전 */}
+        <div className="hidden print:block" style={{ breakBefore: "page" }} />
+
         <div className="space-y-4">
           <Card>
             <CardHeader>
@@ -233,7 +260,7 @@ export default function OwnerSalesReportView() {
         </div>
 
         {/* ✅ 인쇄에서는 다음 페이지부터 테이블 시작(절대 안 잘리게) */}
-        <div className="hidden print:block"  />
+        <div className="hidden print:block" />
 
         {/* ✅ 인쇄에서만 "순수 table"로 렌더링 (잘림 방지) */}
         <div className="hidden print:block">
@@ -243,21 +270,6 @@ export default function OwnerSalesReportView() {
             </CardHeader>
             <CardContent>
               <PrintWeeklyTable data={data.weeklySales} />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ✅ 인쇄용(페이지 분할 허용 + 스크롤/고정높이 강제 해제) */}
-        <div className="hidden print:block print:mt-4">
-          <Card className="print-table-card">
-            <CardHeader>
-              <CardTitle>주간 매출 상세</CardTitle>
-            </CardHeader>
-            <CardContent className="print-table-content">
-              {/* ★ 이 wrapper 기준으로 인쇄에서 overflow/height를 강제 해제 */}
-              <div className="print-table-wrapper">
-                <WeeklyTable data={data.weeklySales} />
-              </div>
             </CardContent>
           </Card>
         </div>
