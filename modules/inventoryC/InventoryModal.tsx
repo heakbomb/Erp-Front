@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+
 import {
   Dialog,
   DialogContent,
@@ -15,12 +16,27 @@ import {
 } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/shared/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/shared/utils/commonUtils";
-import { InventoryFormValues } from "./useInventory";
-import { Inventory, INGREDIENT_CATEGORIES } from "./inventoryTypes";
+
+import type { InventoryFormValues } from "./useInventory";
+import type { Inventory } from "./inventoryTypes";
+import { INGREDIENT_CATEGORIES } from "./inventoryTypes";
 
 const ITEM_NAME_MAX_LENGTH = 20;
 const STOCK_TYPE_MAX_LENGTH = 10;
@@ -31,27 +47,17 @@ const validateQtyDigits = (val: number) => {
   if (!Number.isFinite(val)) return false;
   const [integerPartRaw, fractionPart = ""] = val.toString().split(".");
   const integerPart = integerPartRaw.replace("-", "");
-  return integerPart.length <= QTY_MAX_INTEGER_DIGITS && fractionPart.length <= QTY_MAX_FRACTION_DIGITS;
+  return (
+    integerPart.length <= QTY_MAX_INTEGER_DIGITS &&
+    fractionPart.length <= QTY_MAX_FRACTION_DIGITS
+  );
 };
 
-/**
- * ✅ 숫자 입력을 "자리수 제한"에 맞게 필터링
- * - Input type="number"는 브라우저마다 문자열 입력이 애매해서
- *   일단 문자열로 받고, 허용되는 패턴만 form에 반영한다.
- *
- * 규칙:
- * - 빈값 "" 허용
- * - 숫자 + (소수점 한 번) 허용
- * - 정수부 최대 7자리, 소수부 최대 3자리
- * - 음수는 허용 안 함(0 이상)
- */
 const filterQtyInput = (raw: string) => {
   if (raw === "") return "";
 
-  // 숫자/점 외 문자 제거(안전)
   let s = raw.replace(/[^\d.]/g, "");
 
-  // 점이 여러 개면 첫 번째만 남김
   const firstDot = s.indexOf(".");
   if (firstDot !== -1) {
     const before = s.slice(0, firstDot + 1);
@@ -60,29 +66,22 @@ const filterQtyInput = (raw: string) => {
   }
 
   const [intPartRaw, fracPartRaw = ""] = s.split(".");
-  // 앞 0 처리(예: 00012 -> 12) 단, "0" 단독은 유지
   let intPart = intPartRaw.replace(/^0+(?=\d)/, "");
 
-  // 정수부 자리수 제한
   if (intPart.length > QTY_MAX_INTEGER_DIGITS) {
     intPart = intPart.slice(0, QTY_MAX_INTEGER_DIGITS);
   }
 
-  // 소수부 자리수 제한
   let fracPart = fracPartRaw;
   if (fracPart.length > QTY_MAX_FRACTION_DIGITS) {
     fracPart = fracPart.slice(0, QTY_MAX_FRACTION_DIGITS);
   }
 
-  // 사용자가 "."만 입력한 경우 -> "0."
   if (intPart === "" && firstDot !== -1) {
     intPart = "0";
   }
 
-  // 최종 문자열 조립
-  if (firstDot !== -1) {
-    return `${intPart}.${fracPart}`;
-  }
+  if (firstDot !== -1) return `${intPart}.${fracPart}`;
   return intPart;
 };
 
@@ -93,7 +92,6 @@ const getQtyDigitsInfo = (raw: string) => {
 };
 
 const toNumberOrUndefined = (val: unknown) => {
-  // react-hook-form에서 input 값은 보통 string으로 들어옴
   if (val === "" || val === null || val === undefined) return undefined;
   if (typeof val === "number") return val;
   if (typeof val === "string") {
@@ -110,14 +108,16 @@ const inventorySchema = z.object({
 
   stockQty: z.preprocess(
     toNumberOrUndefined,
-    z.number({ required_error: "현재 재고 필수", invalid_type_error: "숫자만 입력" })
+    z
+      .number({ required_error: "현재 재고 필수", invalid_type_error: "숫자만 입력" })
       .min(0, "0 이상 입력")
       .refine(validateQtyDigits, "자리수 초과")
   ),
 
   safetyQty: z.preprocess(
     toNumberOrUndefined,
-    z.number({ required_error: "안전 재고 필수", invalid_type_error: "숫자만 입력" })
+    z
+      .number({ required_error: "안전 재고 필수", invalid_type_error: "숫자만 입력" })
       .min(0, "0 이상 입력")
       .refine(validateQtyDigits, "자리수 초과")
   ),
@@ -130,6 +130,9 @@ interface Props {
   onSubmit: (values: InventoryFormValues) => void;
   isPending: boolean;
   defaultValues?: Inventory | null;
+
+  serverItemNameError?: string | null;
+  onClearServerItemNameError?: () => void;
 }
 
 export default function InventoryModal({
@@ -139,6 +142,8 @@ export default function InventoryModal({
   onSubmit,
   isPending,
   defaultValues,
+  serverItemNameError,
+  onClearServerItemNameError,
 }: Props) {
   const form = useForm<InventoryFormValues>({
     resolver: zodResolver(inventorySchema),
@@ -152,23 +157,55 @@ export default function InventoryModal({
     },
   });
 
+  // 모달 열릴 때 reset + 서버 에러 초기화
   useEffect(() => {
     if (!open) return;
+
+    onClearServerItemNameError?.();
+    form.clearErrors("itemName");
+
     if (mode === "edit" && defaultValues) {
       form.reset({
         itemName: defaultValues.itemName,
         itemType: defaultValues.itemType,
         stockType: defaultValues.stockType,
-        stockQty: defaultValues.stockQty,
-        safetyQty: defaultValues.safetyQty,
+        stockQty: defaultValues.stockQty as any,
+        safetyQty: defaultValues.safetyQty as any,
       });
     } else {
-      form.reset({ itemName: "", itemType: "", stockType: "", stockQty: "", safetyQty: "" });
+      form.reset({
+        itemName: "",
+        itemType: "",
+        stockType: "",
+        stockQty: "",
+        safetyQty: "",
+      });
     }
-  }, [open, mode, defaultValues, form]);
+  }, [open, mode, defaultValues, form, onClearServerItemNameError]);
+
+  // 서버 에러 -> RHF 에러에도 주입(FormMessage용)
+  useEffect(() => {
+    if (!open) return;
+    if (!serverItemNameError) return;
+
+    form.setError("itemName", {
+      type: "server",
+      message: serverItemNameError,
+    });
+  }, [open, serverItemNameError, form]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) {
+          // 닫을 때도 서버 에러 정리
+          onClearServerItemNameError?.();
+          form.clearErrors("itemName");
+        }
+        onOpenChange(v);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{mode === "add" ? "재고 추가" : "재고 수정"}</DialogTitle>
@@ -188,7 +225,11 @@ export default function InventoryModal({
                     <Input
                       placeholder="예) 아라비카 원두"
                       {...field}
-                      onChange={(e) => field.onChange(e.target.value.slice(0, ITEM_NAME_MAX_LENGTH))}
+                      onChange={(e) => {
+                        onClearServerItemNameError?.();
+                        form.clearErrors("itemName");
+                        field.onChange(e.target.value.slice(0, ITEM_NAME_MAX_LENGTH));
+                      }}
                     />
                   </FormControl>
 
@@ -203,6 +244,13 @@ export default function InventoryModal({
                       {field.value?.length || 0} / {ITEM_NAME_MAX_LENGTH}
                     </span>
                   </div>
+
+                  {/* ✅ 안전빵: 서버 에러는 UI에 직접도 표시 */}
+                  {serverItemNameError && (
+                    <p className="text-sm font-medium text-red-600">{serverItemNameError}</p>
+                  )}
+
+                  {/* RHF 에러 메시지 */}
                   <FormMessage />
                 </FormItem>
               )}
@@ -246,7 +294,9 @@ export default function InventoryModal({
                       <Input
                         placeholder="예) kg, ea"
                         {...field}
-                        onChange={(e) => field.onChange(e.target.value.slice(0, STOCK_TYPE_MAX_LENGTH))}
+                        onChange={(e) =>
+                          field.onChange(e.target.value.slice(0, STOCK_TYPE_MAX_LENGTH))
+                        }
                       />
                     </FormControl>
 
@@ -261,6 +311,7 @@ export default function InventoryModal({
                         {field.value?.length || 0} / {STOCK_TYPE_MAX_LENGTH}
                       </span>
                     </div>
+
                     <FormMessage />
                   </FormItem>
                 )}
@@ -284,22 +335,21 @@ export default function InventoryModal({
                           inputMode="decimal"
                           placeholder="예) 12.5"
                           value={raw}
-                          onChange={(e) => {
-                            const filtered = filterQtyInput(e.target.value);
-                            field.onChange(filtered);
-                          }}
+                          onChange={(e) => field.onChange(filterQtyInput(e.target.value))}
                         />
                       </FormControl>
 
                       <div className="text-right text-xs">
                         <span
                           className={cn(
-                            intDigits >= QTY_MAX_INTEGER_DIGITS || fracDigits >= QTY_MAX_FRACTION_DIGITS
+                            intDigits >= QTY_MAX_INTEGER_DIGITS ||
+                              fracDigits >= QTY_MAX_FRACTION_DIGITS
                               ? "text-red-500 font-bold"
                               : "text-muted-foreground"
                           )}
                         >
-                          정수 {intDigits}/{QTY_MAX_INTEGER_DIGITS} · 소수 {fracDigits}/{QTY_MAX_FRACTION_DIGITS}
+                          정수 {intDigits}/{QTY_MAX_INTEGER_DIGITS} · 소수 {fracDigits}/
+                          {QTY_MAX_FRACTION_DIGITS}
                         </span>
                       </div>
 
@@ -325,22 +375,21 @@ export default function InventoryModal({
                           inputMode="decimal"
                           placeholder="예) 5"
                           value={raw}
-                          onChange={(e) => {
-                            const filtered = filterQtyInput(e.target.value);
-                            field.onChange(filtered);
-                          }}
+                          onChange={(e) => field.onChange(filterQtyInput(e.target.value))}
                         />
                       </FormControl>
 
                       <div className="text-right text-xs">
                         <span
                           className={cn(
-                            intDigits >= QTY_MAX_INTEGER_DIGITS || fracDigits >= QTY_MAX_FRACTION_DIGITS
+                            intDigits >= QTY_MAX_INTEGER_DIGITS ||
+                              fracDigits >= QTY_MAX_FRACTION_DIGITS
                               ? "text-red-500 font-bold"
                               : "text-muted-foreground"
                           )}
                         >
-                          정수 {intDigits}/{QTY_MAX_INTEGER_DIGITS} · 소수 {fracDigits}/{QTY_MAX_FRACTION_DIGITS}
+                          정수 {intDigits}/{QTY_MAX_INTEGER_DIGITS} · 소수 {fracDigits}/
+                          {QTY_MAX_FRACTION_DIGITS}
                         </span>
                       </div>
 
@@ -352,7 +401,12 @@ export default function InventoryModal({
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isPending}
+              >
                 취소
               </Button>
               <Button type="submit" disabled={isPending}>
