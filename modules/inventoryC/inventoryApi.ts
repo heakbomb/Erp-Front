@@ -8,7 +8,7 @@ import type {
 } from "./inventoryTypes";
 
 export const inventoryApi = {
-  // 재고 목록 조회
+  // 재고 목록 조회 테스트
   getInventory: async (params: InventoryParams) => {
     const res = await apiClient.get<PageResponse<Inventory>>("/owner/inventory", {
       params,

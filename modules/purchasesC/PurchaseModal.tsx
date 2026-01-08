@@ -77,6 +77,7 @@ interface Props {
 }
 
 export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending, inventoryOpts, initialData }: Props) {
+  const safeInventoryOpts = inventoryOpts ?? [];
   const form = useForm<PurchaseFormValues>({
     resolver: zodResolver(purchaseSchema),
     mode: "onChange",
@@ -132,7 +133,11 @@ export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending,
                   <FormControl>
                     <select {...field} disabled={isEditMode} className="w-full h-9 rounded-md border px-3 text-sm bg-background disabled:opacity-50">
                       <option value="">품목 선택</option>
-                      {inventoryOpts.map(opt => <option key={opt.itemId} value={opt.itemId}>{opt.itemName} ({opt.stockType})</option>)}
+                      {safeInventoryOpts.map((opt) => (
+                        <option key={opt.itemId} value={opt.itemId}>
+                          {opt.itemName} ({opt.stockType})
+                        </option>
+                      ))}
                     </select>
                   </FormControl>
                   <FormMessage />
@@ -144,16 +149,16 @@ export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending,
                   <FormItem>
                     <FormLabel>새 품목명</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="예: 원두" 
+                      <Input
+                        placeholder="예: 원두"
                         {...field}
                         onChange={(e) => field.onChange(e.target.value.slice(0, ITEM_NAME_MAX_LENGTH))}
                       />
                     </FormControl>
                     <div className="text-right text-xs">
-                       <span className={cn((field.value?.length || 0) >= ITEM_NAME_MAX_LENGTH ? "text-red-500 font-bold" : "text-muted-foreground")}>
-                         {field.value?.length || 0} / {ITEM_NAME_MAX_LENGTH}
-                       </span>
+                      <span className={cn((field.value?.length || 0) >= ITEM_NAME_MAX_LENGTH ? "text-red-500 font-bold" : "text-muted-foreground")}>
+                        {field.value?.length || 0} / {ITEM_NAME_MAX_LENGTH}
+                      </span>
                     </div>
                     <FormMessage />
                   </FormItem>
@@ -173,8 +178,8 @@ export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending,
                     <FormItem>
                       <FormLabel>단위</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="예: kg" 
+                        <Input
+                          placeholder="예: kg"
                           {...field}
                           onChange={(e) => field.onChange(e.target.value.slice(0, STOCK_TYPE_MAX_LENGTH))}
                         />
@@ -197,16 +202,16 @@ export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending,
                 <FormItem>
                   <FormLabel>수량</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      step="any" 
-                      {...field} 
+                    <Input
+                      type="number"
+                      step="any"
+                      {...field}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (checkDigitLimit(val, QTY_MAX_INTEGER_DIGITS, QTY_MAX_FRACTION_DIGITS)) {
                           field.onChange(val);
                         }
-                      }} 
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -217,16 +222,16 @@ export default function PurchaseModal({ open, onOpenChange, onSubmit, isPending,
                 <FormItem>
                   <FormLabel>단가</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      step="any" 
-                      {...field} 
+                    <Input
+                      type="number"
+                      step="any"
+                      {...field}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (checkDigitLimit(val, PRICE_MAX_INTEGER_DIGITS, PRICE_MAX_FRACTION_DIGITS)) {
                           field.onChange(val);
                         }
-                      }} 
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
