@@ -2,7 +2,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
+import {
+  format,
+  startOfWeek as dfStartOfWeek,
+  endOfWeek as dfEndOfWeek,
+  startOfMonth as dfStartOfMonth,
+  endOfMonth as dfEndOfMonth,
+  addDays as dfAddDays,
+} from "date-fns";
 import {
   Card,
   CardContent,
@@ -27,32 +34,29 @@ import type { Employee, EmployeeShift } from "./attendanceTypes";
 import WeekScheduleGrid from "./WeekScheduleGrid";
 import MonthScheduleGrid from "./MonthScheduleGrid";
 
-/* --- 날짜 유틸 --- */
+/* --- 날짜 유틸 (사장페이지와 동일 기준: weekStartsOn=0(일요일)) --- */
 function toDateOnlyString(d: Date): string {
   return format(d, "yyyy-MM-dd");
 }
 
 function startOfWeek(d: Date): Date {
-  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const day = date.getDay(); 
-  const diff = (day + 6) % 7; 
-  date.setDate(date.getDate() - diff);
-  date.setHours(0, 0, 0, 0);
-  return date;
+  return dfStartOfWeek(d, { weekStartsOn: 0 });
+}
+
+function endOfWeek(d: Date): Date {
+  return dfEndOfWeek(d, { weekStartsOn: 0 });
 }
 
 function addDays(d: Date, n: number): Date {
-  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  date.setDate(date.getDate() + n);
-  return date;
+  return dfAddDays(d, n);
 }
 
 function startOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
+  return dfStartOfMonth(d);
 }
 
 function endOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return dfEndOfMonth(d);
 }
 
 export default function AttendanceDesktop() {
@@ -77,11 +81,11 @@ export default function AttendanceDesktop() {
   const [scheduleShifts, setScheduleShifts] = useState<EmployeeShift[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
-  // 주간/월간 범위 계산
+  // 주간/월간 범위 계산 (사장페이지 로직과 동일하게 통일)
   const { rangeLabel, weekDays, monthDates } = useMemo(() => {
     if (mode === "WEEK") {
       const start = startOfWeek(anchorDate);
-      const end = addDays(start, 6);
+      const end = endOfWeek(anchorDate);
       const days = Array.from({ length: 7 }).map((_, i) => addDays(start, i));
       return {
         rangeLabel: `${toDateOnlyString(start)} ~ ${toDateOnlyString(end)}`,
@@ -92,25 +96,17 @@ export default function AttendanceDesktop() {
       const start = startOfMonth(anchorDate);
       const end = endOfMonth(anchorDate);
 
-      // 달력 채우기
-      const firstWeekStart = startOfWeek(start);
+      // 달력 채우기 (사장페이지와 동일: 월의 첫 주 시작~월의 마지막 주 끝)
+      const startGrid = startOfWeek(start);
+      const endGrid = endOfWeek(end);
+
       const dates: Date[] = [];
-      for (
-        let d = new Date(firstWeekStart);
-        ;
-        d = addDays(d, 1)
-      ) {
-        dates.push(new Date(d));
-        if (
-          d.getFullYear() === end.getFullYear() &&
-          d.getMonth() === end.getMonth() &&
-          d.getDate() === end.getDate() &&
-          d.getDay() === 0
-        ) {
-          break;
-        }
-        if (dates.length >= 42) break;
+      let current = startGrid;
+      while (current <= endGrid) {
+        dates.push(current);
+        current = addDays(current, 1);
       }
+
       return {
         rangeLabel: `${toDateOnlyString(start)} ~ ${toDateOnlyString(end)}`,
         weekDays: [] as Date[],
@@ -135,11 +131,12 @@ export default function AttendanceDesktop() {
     const fromStr = toDateOnlyString(monthStart);
 
     setScheduleLoading(true);
-    attendanceApi.fetchShifts({
-      storeId: storeIdNum,
-      from: fromStr,
-      to: fromStr,
-    })
+    attendanceApi
+      .fetchShifts({
+        storeId: storeIdNum,
+        from: fromStr,
+        to: fromStr,
+      })
       .then((data) => {
         setScheduleShifts(data ?? []);
       })
@@ -182,6 +179,7 @@ export default function AttendanceDesktop() {
     );
   };
   const handleToday = () => {
+    // ✅ 사장페이지와 동일: 이번 주(일요일 시작)로 이동
     setAnchorDate(startOfWeek(new Date()));
   };
 

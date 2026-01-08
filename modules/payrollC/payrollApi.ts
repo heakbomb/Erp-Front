@@ -169,7 +169,7 @@ export async function fetchPayrollRunStatus(params: {
    ========================================= */
 
 // TODO: 실제 구현 시 Context 등에서 가져와야 함
-const MOCK_STORE_ID = 11
+const MOCK_STORE_ID = 1
 const MOCK_EMPLOYEE_ID = 3
 
 const formatCurrency = (value: number) => `₩${value.toLocaleString()}`

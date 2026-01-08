@@ -117,7 +117,8 @@ export default function OwnerSalesReportView() {
             </CardContent>
           </Card>
 
-          <Card className="print-avoid-break">
+          {/* ✅ 화면용(그대로) - 인쇄에서는 숨김 */}
+          <Card className="print-avoid-break print:hidden">
             <CardHeader>
               <CardTitle>주간 매출 상세</CardTitle>
             </CardHeader>
@@ -126,7 +127,58 @@ export default function OwnerSalesReportView() {
             </CardContent>
           </Card>
         </div>
+
+        {/* ✅ 인쇄용(페이지 분할 허용 + 스크롤/고정높이 강제 해제) */}
+        <div className="hidden print:block print:mt-4">
+          <Card className="print-table-card">
+            <CardHeader>
+              <CardTitle>주간 매출 상세</CardTitle>
+            </CardHeader>
+            <CardContent className="print-table-content">
+              {/* ★ 이 wrapper 기준으로 인쇄에서 overflow/height를 강제 해제 */}
+              <div className="print-table-wrapper">
+                <WeeklyTable data={data.weeklySales} />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
+      {/* ✅ 인쇄에서만 WeeklyTable "스크롤/고정높이/overflow" 제거 */}
+      <style jsx global>{`
+        @media print {
+          .print-table-card {
+            break-inside: auto !important;
+            page-break-inside: auto !important;
+          }
+
+          /* WeeklyTable 내부가 max-height/overflow-auto 구조면 인쇄에서 무조건 잘림 → 강제 해제 */
+          .print-table-wrapper,
+          .print-table-wrapper * {
+            overflow: visible !important;
+            max-height: none !important;
+            height: auto !important;
+          }
+
+          /* 테이블이 있으면 페이지 넘어가도 헤더 유지 */
+          .print-table-wrapper table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          .print-table-wrapper thead {
+            display: table-header-group !important;
+          }
+          .print-table-wrapper tfoot {
+            display: table-footer-group !important;
+          }
+
+          /* 행 단위로 쪼개지지 않게(너무 긴 행만 예외적으로 쪼개짐) */
+          .print-table-wrapper tr {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
