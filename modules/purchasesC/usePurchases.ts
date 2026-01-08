@@ -6,10 +6,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@/contexts/StoreContext";
 import { purchasesApi } from "./purchasesApi";
 import { useSearch } from "@/shared/hooks/useSearch"; // ✅ useSearch import
-import type { 
-  PurchaseHistoryResponse, 
-  InventoryOption, 
-  CreateInventoryBody 
+import type {
+  PurchaseHistoryResponse,
+  InventoryOption,
+  CreateInventoryBody
 } from "./purchasesTypes";
 
 // 날짜 유틸
@@ -43,16 +43,16 @@ export function usePurchases() {
   const [endDate, setEndDate] = useState<string>("");
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
-  
+
   // ✅ [수정] useSearch 훅 올바르게 사용
   // 1. 인자를 객체 { onSearch: ... } 형태로 전달
   // 2. 반환값을 컴포넌트에서 사용하는 이름으로 매핑 (keyword -> searchQuery 등)
-  const { 
-    keyword: searchQuery, 
-    setKeyword: setSearchQuery, 
-    activeKeyword, 
-    handleKeyDown, 
-    submitSearch: handleSearch 
+  const {
+    keyword: searchQuery,
+    setKeyword: setSearchQuery,
+    activeKeyword,
+    handleKeyDown,
+    submitSearch: handleSearch
   } = useSearch({
     onSearch: () => setPage(0), // 검색 실행 시 페이지 초기화
   });
@@ -163,27 +163,31 @@ export function usePurchases() {
     }
 
     let itemIdToUse: number | null = null;
-    
+
     if (values.newItemMode) {
-      // 새 품목 생성 로직
       const norm = (s: string) => s.trim().toLowerCase();
       const exist = inventoryOpts.find(i => norm(i.itemName) === norm(values.newItemName));
-      
+
+      // ✅ 중복이면 막기
       if (exist) {
-        itemIdToUse = exist.itemId;
-      } else {
-        try {
-          const newInv = await createInventoryMutation.mutateAsync({
-            storeId: currentStoreId,
-            itemName: values.newItemName.trim(),
-            itemType: values.newItemType.trim(),
-            stockType: values.newStockType.trim(),
-            stockQty: Number(values.formQty),
-            safetyQty: 0,
-            status: "ACTIVE",
-          });
-          itemIdToUse = newInv.itemId;
-        } catch (e) { return; }
+        alert("이미 존재하는 품목명입니다. 기존 품목을 선택해주세요.");
+        return;
+      }
+
+      // ✅ 없으면 새 품목 생성
+      try {
+        const newInv = await createInventoryMutation.mutateAsync({
+          storeId: currentStoreId,
+          itemName: values.newItemName.trim(),
+          itemType: values.newItemType.trim(),
+          stockType: values.newStockType.trim(),
+          stockQty: 0,
+          safetyQty: 0,
+          status: "ACTIVE",
+        });
+        itemIdToUse = newInv.itemId;
+      } catch (e) {
+        return;
       }
     } else {
       itemIdToUse = Number(values.formItemId);
@@ -202,7 +206,7 @@ export function usePurchases() {
 
   // 파생 상태
   const rows = purchasesQuery.data?.content ?? [];
-  
+
   const totalAmount = useMemo(() => {
     return rows.reduce((sum, r) => sum + Number(r.purchaseQty) * Number(r.unitPrice), 0);
   }, [rows]);
@@ -230,24 +234,24 @@ export function usePurchases() {
     inventoryOpts,
     isLoading: purchasesQuery.isLoading,
     error: purchasesQuery.error as Error | null,
-    
+
     selectedItemId, setSelectedItemId,
     startDate, setStartDate,
     endDate, setEndDate,
-    
+
     // ✅ 반환값 유지 (useSearch에서 매핑함)
     searchQuery,    // input value
     setSearchQuery, // state setter
     handleSearch,   // 검색 실행 함수
     handleKeyDown,  // 엔터 키 핸들러
-    
+
     size, setSize,
-    
+
     page,
     totalPages: purchasesQuery.data?.totalPages ?? 0,
     totalElements: purchasesQuery.data?.totalElements ?? 0,
     handlePageChange,
-    
+
     totalAmount,
     isAddOpen, setIsAddOpen,
     editingPurchase,

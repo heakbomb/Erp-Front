@@ -1,5 +1,5 @@
 // modules/inventoryC/inventoryTypes.ts
-
+// 테스트
 // features/inventory/constants/itemCategory.ts 내용 포함
 export const INGREDIENT_CATEGORIES = [
   { value: "VEGETABLE", label: "농산물" },

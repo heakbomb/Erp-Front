@@ -36,6 +36,7 @@ export function useMenu() {
   const [editingMenu, setEditingMenu] = useState<MenuItem | null>(null);
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [selectedMenuForRecipe, setSelectedMenuForRecipe] = useState<MenuItem | null>(null);
+  const [serverMenuNameError, setServerMenuNameError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentStoreId) return;
@@ -97,6 +98,8 @@ export function useMenu() {
   const handleCreate = async (values: MenuFormValues) => {
     if (!values.menuName.trim() || values.price === "") return alert("입력 확인 필요");
     try {
+      setServerMenuNameError(null);
+
       await menuApi.createMenu({
         storeId: currentStoreId!,
         menuName: values.menuName,
@@ -118,6 +121,8 @@ export function useMenu() {
   const handleUpdate = async (values: MenuFormValues) => {
     if (!editingMenu) return;
     try {
+      setServerMenuNameError(null);
+
       await menuApi.updateMenu(editingMenu.menuId, {
         storeId: currentStoreId!,
         menuName: values.menuName,
@@ -186,6 +191,7 @@ export function useMenu() {
     editingMenu,
 
     openAddModal: () => {
+      setServerMenuNameError(null);
       setEditingMenu(null);
       setIsAddModalOpen(true);
     },
@@ -193,6 +199,7 @@ export function useMenu() {
     // ✅ [수정] edit 모달 열 때 단건조회로 카테고리까지 포함된 상세 데이터 세팅
     // ✅ [수정] edit 모달 열 때: detail 먼저 받고 -> editingMenu 세팅 -> 모달 open
     openEditModal: (row: MenuItem) => {
+      setServerMenuNameError(null);
       (async () => {
         try {
           const detail = await menuApi.fetchMenu(row.menuId, currentStoreId!);
@@ -208,6 +215,8 @@ export function useMenu() {
     handleCreate,
     handleUpdate,
     toggleStatus,
+    serverMenuNameError,
+    clearServerMenuNameError: () => setServerMenuNameError(null),
 
     isRecipeModalOpen,
     setIsRecipeModalOpen,
