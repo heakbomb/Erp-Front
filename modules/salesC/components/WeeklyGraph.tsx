@@ -22,8 +22,9 @@ export function WeeklyGraph({ data }: { data: MonthlyReport["weeklySales"] }) {
         <YAxis />
         <Tooltip formatter={(val: number) => `₩${val.toLocaleString()}`} />
         <Legend />
+         <Bar dataKey="areaAvgSales" name=" 구 평균 매출" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
         <Bar dataKey="mySales" name="내 매출" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="areaAvgSales" name="지역 평균" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
+       
       </BarChart>
     </ResponsiveContainer>
   );

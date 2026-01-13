@@ -3,8 +3,17 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useStore } from "@/contexts/StoreContext";
-import { toast } from "sonner"; // 또는 사용중인 toast
-import { format, startOfWeek, endOfWeek, startOfMonth, parseISO, startOfYear } from "date-fns";
+import { toast } from "sonner";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+  parseISO,
+} from "date-fns";
 import { salesApi } from "./salesApi";
 import type {
   SalesSummaryUI,
@@ -12,7 +21,7 @@ import type {
   DailySalesDatum,
   ChartData,
   TopMenu,
-  TransactionSummary
+  TransactionSummary,
 } from "./salesTypes";
 
 const getRange = (period: Period) => {
@@ -33,20 +42,30 @@ const getRange = (period: Period) => {
   return { from: toDateString(start), to: toDateString(end) };
 };
 
+// ✅ 메뉴 범위: 기간 끝까지 포함되도록 보정 (월간 리포트 기준과 일치시키기 쉬움)
 const getMenuRange = (period: Period) => {
   const today = new Date();
   let start = new Date(today);
-  const end = new Date(today);
+  let end = new Date(today);
 
   const toDateString = (date: Date) => {
     const offset = date.getTimezoneOffset() * 60000;
     return new Date(date.getTime() - offset).toISOString().slice(0, 10);
   };
 
-  if (period === "WEEK") start = startOfWeek(today, { weekStartsOn: 1 });
-  else if (period === "MONTH") start = startOfMonth(today);
-  else if (period === "YEAR") start = startOfYear(today);
-  // DAY는 오늘 하루
+  if (period === "DAY") {
+    start = new Date(today);
+    end = new Date(today);
+  } else if (period === "WEEK") {
+    start = startOfWeek(today, { weekStartsOn: 1 });
+    end = endOfWeek(today, { weekStartsOn: 1 });
+  } else if (period === "MONTH") {
+    start = startOfMonth(today);
+    end = endOfMonth(today);
+  } else if (period === "YEAR") {
+    start = startOfYear(today);
+    end = endOfYear(today);
+  }
 
   return { from: toDateString(start), to: toDateString(end) };
 };
@@ -99,10 +118,19 @@ export function useOwnerSales() {
         const salesRange = getRange(salesPeriod);
         const menuRange = getMenuRange(menuPeriod);
 
-        const [sumRes, dailyRes, menuRes] = await Promise.all([
+        // ✅ 월간 리포트 재사용용: 현재 월
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+
+        const [sumRes, dailyRes, menuSource] = await Promise.all([
           salesApi.fetchSalesSummary(currentStoreId),
           salesApi.fetchDailySales(currentStoreId, salesRange.from, salesRange.to),
-          salesApi.fetchTopMenus(currentStoreId, menuRange.from, menuRange.to),
+
+          // ✅ 핵심: 메뉴별 분석이 MONTH면 월간 리포트 API 결과로 동일 값 사용
+          menuPeriod === "MONTH"
+            ? salesApi.getMonthlyReport(currentStoreId, year, month)
+            : salesApi.fetchTopMenus(currentStoreId, menuRange.from, menuRange.to),
         ]);
 
         setSummary({
@@ -118,18 +146,42 @@ export function useOwnerSales() {
 
         setRawDailySales(dailyRes);
 
-        const totalRevenue = menuRes.reduce((sum, item) => sum + (item.revenue || 0), 0);
-        setTopMenus(menuRes.map((item: any) => ({
-          menuId: item.menuId,
-          name: item.menuName || item.name || "이름 없음",
-          quantity: item.quantity,
-          revenue: item.revenue,
-          share: totalRevenue > 0 ? (item.revenue / totalRevenue) * 100 : 0
-        })));
+        // ✅ MONTH면 리포트 내부의 메뉴 통계 배열을 재사용
+        const menuRows =
+          menuPeriod === "MONTH"
+            ? (
+              (menuSource as any)?.topMenus ||
+              (menuSource as any)?.menuStats ||
+              (menuSource as any)?.topMenuStats ||
+              (menuSource as any)?.menus ||
+              []
+            )
+            : (menuSource as any);
+
+        // ✅ 응답 필드명 차이 흡수
+        const normalized = (menuRows as any[]).map((item) => ({
+          menuId: item.menuId ?? item.id,
+          name: item.menuName ?? item.name ?? "이름 없음",
+          quantity: item.quantity ?? item.qty ?? 0,
+          revenue: item.revenue ?? item.sales ?? item.totalSales ?? 0,
+        }));
+
+        const totalRevenue = normalized.reduce((sum, item) => sum + (item.revenue || 0), 0);
+
+        setTopMenus(
+          normalized
+            .map((item) => ({
+              ...item,
+              share: totalRevenue > 0 ? (item.revenue / totalRevenue) * 100 : 0,
+            }))
+            .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
+            .slice(0, 5)
+        );
       } catch (e) {
         console.error("Dashboard Data Error", e);
       }
     };
+
     fetchData();
   }, [currentStoreId, salesPeriod, menuPeriod]);
 
@@ -149,7 +201,9 @@ export function useOwnerSales() {
     }
   }, [currentStoreId, txFrom, txTo, txPage, txSize]);
 
-  useEffect(() => { loadTransactions(); }, [loadTransactions]);
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
 
   const handleRefund = async (txId: number, isWaste: boolean, reason: string) => {
     try {
@@ -163,10 +217,21 @@ export function useOwnerSales() {
 
   return {
     summary,
-    salesPeriod, setSalesPeriod, chartData,
-    menuPeriod, setMenuPeriod, topMenus,
-    txFrom, setTxFrom, txTo, setTxTo,
-    transactions, txPage, setTxPage, txTotalPages, txLoading,
-    handleRefund
+    salesPeriod,
+    setSalesPeriod,
+    chartData,
+    menuPeriod,
+    setMenuPeriod,
+    topMenus,
+    txFrom,
+    setTxFrom,
+    txTo,
+    setTxTo,
+    transactions,
+    txPage,
+    setTxPage,
+    txTotalPages,
+    txLoading,
+    handleRefund,
   };
 }
