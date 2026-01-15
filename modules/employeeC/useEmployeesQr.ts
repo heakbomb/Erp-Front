@@ -8,7 +8,7 @@ import type { Banner } from "./employeeTypes";
 export default function useEmployeesQr() {
   const [banner, setBanner] = useState<Banner>(null);
   const [openQr, setOpenQr] = useState(false);
-  const [qrStoreId, setQrStoreId] = useState<string>("11");
+  const [qrStoreId, setQrStoreId] = useState<string>("101");
   const [qrToken, setQrToken] = useState<string>("");
   const [qrLoading, setQrLoading] = useState(false);
   const [qrExpireAt, setQrExpireAt] = useState<string | null>(null);

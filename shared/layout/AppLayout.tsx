@@ -24,7 +24,8 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/shared/ui/breadcrumb";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, LogOut } from "lucide-react";
+import { Button } from "@/shared/ui/button"; // ✅ 추가
 
 // ✅ 네비게이션 아이템 타입
 export interface NavItem {
@@ -46,6 +47,11 @@ interface AppLayoutProps {
   headerActions?: React.ReactNode;
   logoIcon?: LucideIcon;
   logoText?: string;
+
+  // ✅ [추가] 선택적 로그아웃 버튼 (기본 false라 기존 화면 변화 없음)
+  enableLogout?: boolean;
+  onLogout?: () => void;
+  logoutLabel?: string;
 }
 
 export function AppLayout({
@@ -56,6 +62,11 @@ export function AppLayout({
   headerActions,
   logoIcon: LogoIcon,
   logoText,
+
+  // ✅ 기본값 지정 (기존 사용처 영향 0)
+  enableLogout = false,
+  onLogout,
+  logoutLabel = "로그아웃",
 }: AppLayoutProps) {
   const pathname = usePathname();
 
@@ -68,6 +79,8 @@ export function AppLayout({
 
   const currentTitle =
     navigation.find((nav) => isActive(nav.href))?.name || "Dashboard";
+
+  const canShowLogout = enableLogout && typeof onLogout === "function";
 
   return (
     <SidebarProvider>
@@ -148,9 +161,20 @@ export function AppLayout({
             </Breadcrumb>
           </div>
 
-          {headerActions && (
+          {/* ✅ 우측 액션 영역 (기존 headerActions 유지 + 옵션 로그아웃 추가) */}
+          {(headerActions || canShowLogout) && (
             <div className="ml-auto flex items-center gap-2 px-2">
               {headerActions}
+              {canShowLogout && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onLogout}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {logoutLabel}
+                </Button>
+              )}
             </div>
           )}
         </header>

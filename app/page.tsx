@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation"
+// app/page.tsx
+import MarketingHome from "@/modules/marketingC/MarketingHome";
 
 export default function Home() {
-  redirect("/login")
+  return <MarketingHome />;
 }

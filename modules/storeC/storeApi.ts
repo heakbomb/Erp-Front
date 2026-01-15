@@ -34,7 +34,7 @@ export const storeApi = {
   },
 
   /* --- 사장님 (Owner) 기능 --- */
-  fetchMyStores: async (ownerId: number = 1) => {
+  fetchMyStores: async (ownerId: number) => {
     const res = await apiClient.get<StoreResponse[]>(`/store/by-owner/${ownerId}`);
     return res.data;
   },
