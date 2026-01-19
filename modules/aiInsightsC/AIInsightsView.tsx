@@ -109,10 +109,14 @@ export default function AIInsightsView() {
                   <YAxis yAxisId="right" orientation="right" />
                   
                   <Tooltip 
-                    formatter={(value: number, name: string) => [
-                      name === "예상 매출" ? `₩${value.toLocaleString()}` : `${value}명`,
-                      name
-                    ]} 
+                    formatter={(value: number | undefined, name: string | undefined) => {
+                      const safeName = name ?? "";
+                      if (value === undefined) return ["-", safeName];
+                      return [
+                        safeName === "예상 매출" ? `₩${value.toLocaleString()}` : `${value}명`,
+                        safeName
+                      ];
+                    }} 
                   />
                   <Line yAxisId="left" type="monotone" dataKey="predicted" stroke="hsl(var(--primary))" strokeWidth={2} name="예상 매출" activeDot={{ r: 6 }} />
                   <Line yAxisId="right" type="monotone" dataKey="visitors" stroke="#82ca9d" strokeWidth={2} name="예상 방문객" activeDot={{ r: 6 }} />
@@ -161,7 +165,9 @@ export default function AIInsightsView() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => `₩${value.toLocaleString()}`} />
+                    <Tooltip 
+                      formatter={(value: number | undefined) => `₩${(value ?? 0).toLocaleString()}`} 
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
