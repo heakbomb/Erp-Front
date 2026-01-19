@@ -7,7 +7,7 @@ import type { PendingRequest, Banner } from "./employeeTypes";
 export default function useEmployeePending() {
   const [pending, setPending] = useState<PendingRequest[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
-  const [storeIdForPending, setStoreIdForPending] = useState<string>("11"); // 기본값 유지
+  const [storeIdForPending, setStoreIdForPending] = useState<string>("101"); // 기본값 유지
   const [banner, setBanner] = useState<Banner>(null);
 
   const bannerShow = useCallback((b: Banner) => {

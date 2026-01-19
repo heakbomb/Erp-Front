@@ -2,55 +2,121 @@
 import { apiClient } from "@/shared/api/apiClient";
 import type { LoginRequest, LoginResponse, SignUpRequest, SignUpResponse } from "./authTypes";
 
+export type SendEmailCodeRequest = { email: string };
+export type SendEmailCodeResponse = { verificationId: string };
+
+export type ConfirmEmailCodeRequest = { verificationId: string; code: string };
+export type ConfirmEmailCodeResponse = { verified: boolean };
+
+export type OwnerEmailExistsResponse = { exists: boolean };
+
+export type OwnerLoginResponse = {
+  ownerId: number;
+  email: string;
+  username: string;
+  accessToken: string;
+  refreshToken?: string;
+};
+
+export type RefreshTokenResponse = {
+  accessToken: string;
+  refreshToken?: string;
+};
+
+export type LogoutResponse = { success?: boolean };
+
 export const authApi = {
-  /**
-   * (사장) 로그인
-   * Path: /api/auth/login/owner
-   */
-  loginOwner: async (data: LoginRequest): Promise<LoginResponse> => {
-    const res = await apiClient.post<LoginResponse>("/api/auth/login/owner", {
+  loginOwner: async (data: LoginRequest): Promise<OwnerLoginResponse> => {
+    const res = await apiClient.post<OwnerLoginResponse>("/auth/login/owner", {
       email: data.email,
       password: data.password,
     });
     return res.data;
   },
 
-  /**
-   * (관리자) 로그인
-   * Path: /api/auth/login/admin
-   */
   loginAdmin: async (data: LoginRequest): Promise<LoginResponse> => {
-    const res = await apiClient.post<LoginResponse>("/api/auth/login/admin", {
+    const res = await apiClient.post<LoginResponse>("/auth/login/admin", {
       username: data.username,
       password: data.password,
     });
     return res.data;
   },
 
-  /**
-   * (사장) 회원가입 (Owner + BusinessNumber + Store Transaction)
-   */
   signUp: async (data: SignUpRequest): Promise<SignUpResponse> => {
-    const res = await apiClient.post<SignUpResponse>("/api/auth/register/owner", data);
+    const res = await apiClient.post<SignUpResponse>("/auth/register/owner", data);
     return res.data;
   },
 
-  /**
-   * 비밀번호 재설정 요청
-   */
+  checkOwnerEmailExists: async (email: string): Promise<OwnerEmailExistsResponse> => {
+    const res = await apiClient.get<OwnerEmailExistsResponse>(
+      "/auth/register/owner/exists",
+      { params: { email } }
+    );
+    return res.data;
+  },
+
   requestPasswordReset: async (email: string): Promise<void> => {
-    // 실제 API 연동
-    await apiClient.post("/api/auth/reset-password", { email });
+    await apiClient.post("/auth/reset-password", { email });
   },
 
   /**
-   * (직원) 소셜 로그인 리다이렉트
-   * OAuth2 Authorization Code Flow 시작
+   * ✅ 직원 소셜 로그인 진입
+   * - 반드시 "백엔드 OAuth2 엔드포인트"로 직접 이동해야 함
+   * - Next.js rewrite(/api → backend) 경로를 타게 구성
    */
   handleSocialLogin: (provider: "google" | "kakao" | "naver") => {
-    if (typeof window !== "undefined") {
-      // 백엔드 Spring Security OAuth2 엔드포인트 기준
-      window.location.href = `/api/oauth2/authorization/${provider}`;
+    if (typeof window === "undefined") return;
+
+    // ❗ 현재 백엔드에 google/kakao만 구현되어 있으므로 방어
+    if (provider === "naver") {
+      alert("네이버 로그인은 아직 준비 중입니다.");
+      return;
     }
+
+    // ✅ OAuth2 시작점 (백엔드로 바로 진입)
+    window.location.href = `/api/oauth2/authorization/${provider}`;
+  },
+
+  sendEmailVerificationCode: async (
+    data: SendEmailCodeRequest
+  ): Promise<SendEmailCodeResponse> => {
+    const res = await apiClient.post<SendEmailCodeResponse>(
+      "/auth/email-verifications",
+      data
+    );
+    return res.data;
+  },
+
+  resendEmailVerificationCode: async (verificationId: string): Promise<void> => {
+    await apiClient.post(
+      `/auth/email-verifications/${encodeURIComponent(verificationId)}/resend`
+    );
+  },
+
+  confirmEmailVerificationCode: async (
+    data: ConfirmEmailCodeRequest
+  ): Promise<ConfirmEmailCodeResponse> => {
+    const res = await apiClient.post<ConfirmEmailCodeResponse>(
+      "/auth/email-verifications/confirm",
+      data
+    );
+    return res.data;
+  },
+
+  refreshAccessToken: async (
+    refreshToken: string
+  ): Promise<RefreshTokenResponse> => {
+    const res = await apiClient.post<RefreshTokenResponse>(
+      "/auth/token/refresh",
+      { refreshToken }
+    );
+    return res.data;
+  },
+
+  logout: async (refreshToken?: string): Promise<LogoutResponse> => {
+    const res = await apiClient.post<LogoutResponse>("/auth/logout", {
+      refreshToken,
+    });
+    return res.data;
   },
 };
