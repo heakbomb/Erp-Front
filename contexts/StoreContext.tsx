@@ -1,4 +1,3 @@
-// contexts/StoreContext.tsx
 "use client";
 
 import {
@@ -10,7 +9,6 @@ import {
   useMemo,
 } from "react";
 
-// ✅ [수정] features -> modules로 경로 변경
 import { Store } from "@/modules/storeC/storeTypes";
 import { storeApi } from "@/modules/storeC/storeApi";
 import { useAuth } from "./AuthContext";
@@ -21,7 +19,7 @@ interface StoreContextType {
   stores: Store[];
   isLoading: boolean;
 
-  // 예전 코드와 호환용 필드
+  // 호환용
   currentStore: Store | null;
   setCurrentStore: (store: Store | null) => void;
   loading: boolean;
@@ -29,46 +27,59 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-// 🔹 localStorage key 통일
 const STORAGE_KEY = "currentStoreId";
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth(); // isLoggedIn 제거 (사용 안 함)
+  const { user } = useAuth();
 
   const [stores, setStores] = useState<Store[]>([]);
-  const [currentStoreIdState, _setCurrentStoreIdState] = useState<number | null>(null);
+  const [currentStoreIdState, _setCurrentStoreIdState] = useState<number | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(true);
 
-  // ✅ setter 래핑: state + localStorage 동기화
   const setCurrentStoreId = (id: number | null) => {
     _setCurrentStoreIdState(id);
 
     if (typeof window !== "undefined") {
-      if (id == null) {
-        window.localStorage.removeItem(STORAGE_KEY);
-      } else {
-        window.localStorage.setItem(STORAGE_KEY, String(id));
-      }
+      if (id == null) window.localStorage.removeItem(STORAGE_KEY);
+      else window.localStorage.setItem(STORAGE_KEY, String(id));
     }
   };
 
   useEffect(() => {
+    // ✅ OWNER가 아니거나 user가 없으면 조회하지 않음 + 상태 초기화
+    if (!user || user.role !== "OWNER") {
+      setStores([]);
+      setCurrentStoreId(null);
+      setIsLoading(false);
+      return;
+    }
+
+    // ✅ 핵심: id 말고 ownerId 사용 (AuthContext에서 정규화됨)
+    const ownerId = (user as any).ownerId;
+
+    // ✅ ownerId가 없으면 무한로딩 방지: 로딩 끄고 종료
+    if (!ownerId) {
+      setStores([]);
+      setCurrentStoreId(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
 
-    // ✅ [수정] storeApi.fetchMyStores 사용
-    // user.id가 있으면 사용하고, 없으면 기본값 1 (또는 로직에 맞게 수정)
-    // 여기서는 기존 동작 유지를 위해 인자 없이 호출 (기본값 1 사용)하거나 user?.id를 전달
-    storeApi.fetchMyStores((user as any)?.id)
+    storeApi
+      .fetchMyStores(ownerId)
       .then((data) => {
         setStores(data);
 
         if (data.length === 0) {
-          // 사업장이 하나도 없으면 선택도 없음
           setCurrentStoreId(null);
           return;
         }
 
-        // ✅ 1) localStorage 에 저장된 선택값 우선 적용
+        // 1) localStorage 우선
         let restoredId: number | null = null;
         if (typeof window !== "undefined") {
           const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -85,7 +96,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // ✅ 2) state 에 남아있던 값이 리스트에 존재하면 그 값 유지
+        // 2) 기존 state 유지
         if (
           currentStoreIdState != null &&
           data.some((s) => s.storeId === currentStoreIdState)
@@ -94,37 +105,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // ✅ 3) 위 두 가지 모두 아니면 첫 번째 사업장으로 기본 설정
+        // 3) 기본값 첫 번째
         setCurrentStoreId(data[0].storeId);
       })
       .catch((err) => {
         console.error("StoreContext: 가게 목록 조회 실패", err);
         setStores([]);
         setCurrentStoreId(null);
+
+        // ✅ 사용자 알림(콘솔 오류만 나고 끝나는 것 방지)
+        if (typeof window !== "undefined") {
+          alert("사업장 목록을 불러오지 못했습니다. 로그인 상태를 확인해주세요.");
+        }
       })
       .finally(() => {
         setIsLoading(false);
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
 
-  // ✅ 현재 선택된 store 객체
+    // ✅ 로그인 직후 ownerId가 세팅되는 타이밍을 잡기 위해 deps에 ownerId/role
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(user as any)?.ownerId, user?.role]);
+
   const currentStore = useMemo(
     () =>
       currentStoreIdState != null
         ? stores.find((s) => s.storeId === currentStoreIdState) ?? null
         : null,
-    [stores, currentStoreIdState],
+    [stores, currentStoreIdState]
   );
 
-  // ✅ 예전 setCurrentStore 형태를 currentStoreId 로 연결
   const setCurrentStore = (store: Store | null) => {
     setCurrentStoreId(store ? store.storeId : null);
   };
 
-  if (user?.role === "OWNER" && isLoading) {
-    return null; // 필요하면 로딩 스피너로 교체 가능
-  }
+  // 기존 동작 유지
+  if (user?.role === "OWNER" && isLoading) return null;
 
   return (
     <StoreContext.Provider
@@ -133,7 +148,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setCurrentStoreId,
         stores,
         isLoading,
-        // 호환용
         currentStore,
         setCurrentStore,
         loading: isLoading,

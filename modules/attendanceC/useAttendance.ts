@@ -12,7 +12,7 @@ const ymdLocal = (d: Date) =>
 
 const isoDate = (d: Date) => ymdLocal(d);
 
-export function useAttendance(initialEmployeeId = "3", initialStoreId = "1") {
+export function useAttendance(initialEmployeeId = "3", initialStoreId = "101") {
   // 테스트용(로그인 전): 직원/사업장 ID
   const [employeeId, setEmployeeId] = useState(initialEmployeeId);
   const [storeId, setStoreId] = useState(initialStoreId);

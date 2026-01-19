@@ -6,8 +6,9 @@ import { OWNER_NAV_ITEMS } from "@/shared/utils/navigation";
 import { StoreProvider, useStore } from "@/contexts/StoreContext";
 import { useAuth } from "@/contexts/AuthContext";
 
-import { Store as StoreIcon, ChevronDown } from "lucide-react"; // MessageCircleQuestion 제거 가능
+import { Store as StoreIcon, ChevronDown } from "lucide-react";
 import { OwnerStoreGuard } from "@/shared/layout/OwnerStoreGuard";
+import { usePathname, useRouter } from "next/navigation";
 
 function OwnerInfo() {
   const { user } = useAuth();
@@ -38,14 +39,10 @@ function OwnerInfo() {
         className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-muted focus:outline-none"
       >
         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-          <span className="text-sm font-medium">
-            {displayName.charAt(0)}
-          </span>
+          <span className="text-sm font-medium">{displayName.charAt(0)}</span>
         </div>
         <div className="flex-1 min-w-0 text-left">
-          <p className="text-sm font-medium truncate">
-            {displayName} 사장님
-          </p>
+          <p className="text-sm font-medium truncate">{displayName} 사장님</p>
           <p className="text-xs text-muted-foreground truncate">
             {isLoading
               ? "사업장 불러오는 중..."
@@ -81,19 +78,34 @@ function OwnerInfo() {
   );
 }
 
-export default function OwnerLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function OwnerLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // ✅ AuthContext logout 사용 (로컬스토리지 토큰 삭제 + /login 이동)
+  const { logout } = useAuth();
+
+  // ✅ URL 직접 접근 차단 (토큰 없으면 /login)
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [router, pathname]);
+
   return (
     <StoreProvider>
       <OwnerStoreGuard>
         <AppLayout
-          navigation={OWNER_NAV_ITEMS} // ⭐️ 배열을 합칠 필요 없이 바로 사용
+          navigation={OWNER_NAV_ITEMS}
           sidebarHeader={<OwnerInfo />}
           logoIcon={StoreIcon}
           logoText="요식업 ERP"
+          // ✅ 여기만 추가하면 우상단에 로그아웃 버튼 1개가 생김(OwnerLayout에서만)
+          enableLogout
+          onLogout={logout}
+          logoutLabel="로그아웃"
         >
           {children}
         </AppLayout>
