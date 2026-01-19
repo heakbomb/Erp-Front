@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 type User = any;
@@ -10,10 +10,8 @@ interface AuthContextType {
   isLoggedIn: boolean;
   isLoading: boolean;
 
-  // ✅ 기존 시그니처 유지 (팀 영향 최소화)
   login: (user: User, token: string) => void;
 
-  // ✅ 추가: 토큰 접근/갱신/정리
   getAccessToken: () => string | null;
   refreshAccessToken: () => Promise<string | null>;
   logout: () => Promise<void>;
@@ -25,13 +23,31 @@ const ACCESS_KEY = "accessToken";
 const REFRESH_KEY = "refreshToken";
 const USER_KEY = "user";
 
-function normalizeOwnerUser(userData: any) {
+function normalizeUser(userData: any) {
   if (!userData) return userData;
 
-  const ownerId = userData.ownerId ?? userData.owner_id ?? userData.id ?? null;
   const role = userData.role ?? "OWNER";
 
-  return { ...userData, ownerId, role };
+  if (role === "OWNER") {
+    const ownerId = userData.ownerId ?? userData.owner_id ?? userData.id ?? null;
+    return { ...userData, ownerId, role };
+  }
+
+  if (role === "EMPLOYEE") {
+    const employeeId = userData.employeeId ?? userData.employee_id ?? userData.id ?? null;
+    return { ...userData, employeeId, role };
+  }
+
+  if (role === "ADMIN") {
+    const adminId = userData.adminId ?? userData.admin_id ?? userData.id ?? null;
+    return { ...userData, adminId, role };
+  }
+
+  return { ...userData, role };
+}
+
+function normalizeOwnerUser(userData: any) {
+  return normalizeUser(userData);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -39,8 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // ✅ authApi는 여기서 직접 import 하지 않음(순환 의존 방지)
-  // refresh는 apiClient가 담당하고, AuthContext는 localStorage만 다룸
   const getAccessToken = () => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(ACCESS_KEY);
@@ -70,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token && storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
-        setUser(normalizeOwnerUser(parsed));
+        setUser(normalizeUser(parsed));
       } catch {
         clearStorage();
       }
@@ -88,37 +102,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(ACCESS_KEY, accessToken);
       localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
 
-      // ✅ userData에 refreshToken이 있으면 같이 저장(없으면 무시)
       if (normalizedUser?.refreshToken) {
         localStorage.setItem(REFRESH_KEY, String(normalizedUser.refreshToken));
       }
     }
   };
 
-  // ✅ apiClient 인터셉터에서 호출할 수 있도록 전역 함수 형태로도 접근 가능하게 유지(필요 시)
   const refreshAccessToken = async (): Promise<string | null> => {
-    // 실제 refresh 로직은 apiClient에서 처리하므로
-    // 여기서는 "스토리지에 새 accessToken이 써졌는지" 기준으로 반환만 지원
-    // (팀 코드 영향 최소화)
-    const token = getAccessToken();
-    return token;
+    return getAccessToken();
   };
 
   const logout = async () => {
-    // 서버 로그아웃은 apiClient에서 401 처리/redirect와 충돌 날 수 있어
-    // 여기서는 "스토리지 정리 + 라우팅"만 1차 보장
+    // ✅ user/provider/role은 스토리지 지우기 전에 잡아둬야 함
+    const currentUser = user;
+    const role = String(currentUser?.role ?? "").toUpperCase();
+    const provider = String(currentUser?.provider ?? "").toLowerCase();
+
     const refreshToken = getRefreshToken();
 
     try {
-      // ✅ 동적 import로 순환 의존 방지
-      const { authApi } = await import("@/modules/authC/authApi");
-      await authApi.logout(refreshToken ?? undefined);
+      // ✅ 기존 사장 로그아웃 흐름 유지: OWNER만 서버 로그아웃 호출
+      if (role === "OWNER") {
+        const { authApi } = await import("@/modules/authC/authApi");
+        await authApi.logout(refreshToken ?? undefined);
+      }
     } catch {
-      // 서버 호출 실패해도 클라이언트 로그아웃은 수행
+      // ignore
     } finally {
       setUser(null);
       clearStorage();
-      router.push("/login");
+
+      // ✅ 직원 + 카카오: 카카오 세션까지 끊어야 “자동로그인”이 사라짐
+      if (typeof window !== "undefined" && role === "EMPLOYEE" && provider === "kakao") {
+        const kakaoClientId = process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY;
+        const logoutRedirectUri = "http://localhost:3000/login"; // 카카오 콘솔에 등록한 값과 동일해야 함
+
+        if (kakaoClientId) {
+          const url =
+            "https://kauth.kakao.com/oauth/logout" +
+            `?client_id=${encodeURIComponent(kakaoClientId)}` +
+            `&logout_redirect_uri=${encodeURIComponent(logoutRedirectUri)}`;
+
+          window.location.replace(url);
+          return;
+        }
+        // client id 없으면 fallback
+      }
+
+      router.replace("/login");
     }
   };
 

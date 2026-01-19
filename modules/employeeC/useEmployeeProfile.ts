@@ -2,23 +2,24 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-// ✅ 같은 폴더 내의 api 파일로 경로 수정
 import { getEmployeeProfile, getEmployeeStores, updateEmployeePhone } from "./employeeProfileApi";
 import { toast } from "sonner";
 
-export function useEmployeeProfile(employeeId: number) {
+export function useEmployeeProfile(employeeId: number | null) {
   const queryClient = useQueryClient();
+
+  const enabled = typeof employeeId === "number" && employeeId > 0;
 
   // 프로필 조회
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["employeeProfile", employeeId],
-    queryFn: () => getEmployeeProfile(employeeId),
-    enabled: !!employeeId,
+    queryFn: () => getEmployeeProfile(employeeId as number),
+    enabled,
   });
 
   // 전화번호 수정
   const updateMutation = useMutation({
-    mutationFn: (phone: string) => updateEmployeePhone(employeeId, phone),
+    mutationFn: (phone: string) => updateEmployeePhone(employeeId as number, phone),
     onSuccess: () => {
       toast.success("정보가 수정되었습니다.");
       queryClient.invalidateQueries({ queryKey: ["employeeProfile", employeeId] });
@@ -36,12 +37,13 @@ export function useEmployeeProfile(employeeId: number) {
   };
 }
 
-// 직원 소속 사업장 목록 조회 훅
-export function useEmployeeStores(employeeId: number) {
+export function useEmployeeStores(employeeId: number | null) {
+  const enabled = typeof employeeId === "number" && employeeId > 0;
+
   const { data: stores, isLoading } = useQuery({
     queryKey: ["employeeStores", employeeId],
-    queryFn: () => getEmployeeStores(employeeId),
-    enabled: !!employeeId,
+    queryFn: () => getEmployeeStores(employeeId as number),
+    enabled,
   });
 
   return {

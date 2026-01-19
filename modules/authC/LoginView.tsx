@@ -85,7 +85,6 @@ export default function LoginView() {
             <div className="mt-6 hidden md:block">
               <div className="relative overflow-hidden rounded-2xl border bg-background">
                 <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.08),transparent_55%)]" />
-                {/* public/Maindashboard.png 있으면 표시 */}
                 <Image
                   src="/Maindashboard.png"
                   alt="대시보드 미리보기"
@@ -189,29 +188,32 @@ export default function LoginView() {
                   <div className="rounded-xl border bg-muted/20 p-4">
                     <div className="mb-3">
                       <p className="text-sm font-semibold">직원 로그인</p>
+                      <p className="text-xs text-muted-foreground">소셜 계정으로 간편 로그인</p>
                     </div>
 
                     <div className="space-y-3">
-                      <Button variant="outline" className="w-full justify-start gap-2" onClick={() => handleSocialLogin("google")}>
+                      {/* ✅ Google Primary */}
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-2"
+                        onClick={() => handleSocialLogin("google")}
+                        disabled={isLoading}
+                      >
                         <Google className="h-4 w-4" />
-                        Google로 계속하기
+                        Google 계정으로 로그인
                       </Button>
 
+                      {/* ✅ Kakao Secondary (기능 유지) */}
                       <Button
                         variant="outline"
                         className="w-full justify-start gap-2 bg-[#FEE500] text-black hover:bg-[#FEE500]/90 border-none"
                         onClick={() => handleSocialLogin("kakao")}
+                        disabled={isLoading}
                       >
-                        카카오로 계속하기
+                        카카오로 로그인
                       </Button>
 
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start gap-2 bg-[#03C75A] text-white hover:bg-[#03C75A]/90 border-none"
-                        onClick={() => handleSocialLogin("naver")}
-                      >
-                        네이버로 계속하기
-                      </Button>
+                      {/* ✅ 네이버 로그인 삭제 */}
 
                       <div className="mt-4 rounded-xl border bg-background p-3 text-xs text-muted-foreground">
                         <p className="font-medium text-foreground">안내</p>

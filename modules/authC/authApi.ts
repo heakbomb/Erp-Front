@@ -10,22 +10,19 @@ export type ConfirmEmailCodeResponse = { verified: boolean };
 
 export type OwnerEmailExistsResponse = { exists: boolean };
 
-// ✅ refreshToken 추가(백엔드가 아직 안 내려주면 undefined로 유지)
 export type OwnerLoginResponse = {
   ownerId: number;
   email: string;
   username: string;
   accessToken: string;
-  refreshToken?: string; // ✅ 추가
+  refreshToken?: string;
 };
 
-// ✅ refresh 요청/응답 타입(백엔드 스펙에 맞춰 키만 맞추면 됨)
 export type RefreshTokenResponse = {
   accessToken: string;
-  refreshToken?: string; // rotation 설계면 내려올 수 있음
+  refreshToken?: string;
 };
 
-// ✅ 로그아웃 (서버 refreshToken 무효화 등)
 export type LogoutResponse = { success?: boolean };
 
 export const authApi = {
@@ -51,9 +48,10 @@ export const authApi = {
   },
 
   checkOwnerEmailExists: async (email: string): Promise<OwnerEmailExistsResponse> => {
-    const res = await apiClient.get<OwnerEmailExistsResponse>("/auth/register/owner/exists", {
-      params: { email },
-    });
+    const res = await apiClient.get<OwnerEmailExistsResponse>(
+      "/auth/register/owner/exists",
+      { params: { email } }
+    );
     return res.data;
   },
 
@@ -61,37 +59,64 @@ export const authApi = {
     await apiClient.post("/auth/reset-password", { email });
   },
 
+  /**
+   * ✅ 직원 소셜 로그인 진입
+   * - 반드시 "백엔드 OAuth2 엔드포인트"로 직접 이동해야 함
+   * - Next.js rewrite(/api → backend) 경로를 타게 구성
+   */
   handleSocialLogin: (provider: "google" | "kakao" | "naver") => {
-    if (typeof window !== "undefined") {
-      window.location.href = `/oauth2/authorization/${provider}`;
+    if (typeof window === "undefined") return;
+
+    // ❗ 현재 백엔드에 google/kakao만 구현되어 있으므로 방어
+    if (provider === "naver") {
+      alert("네이버 로그인은 아직 준비 중입니다.");
+      return;
     }
+
+    // ✅ OAuth2 시작점 (백엔드로 바로 진입)
+    window.location.href = `/api/oauth2/authorization/${provider}`;
   },
 
-  sendEmailVerificationCode: async (data: SendEmailCodeRequest): Promise<SendEmailCodeResponse> => {
-    const res = await apiClient.post<SendEmailCodeResponse>("/auth/email-verifications", data);
+  sendEmailVerificationCode: async (
+    data: SendEmailCodeRequest
+  ): Promise<SendEmailCodeResponse> => {
+    const res = await apiClient.post<SendEmailCodeResponse>(
+      "/auth/email-verifications",
+      data
+    );
     return res.data;
   },
 
   resendEmailVerificationCode: async (verificationId: string): Promise<void> => {
-    await apiClient.post(`/auth/email-verifications/${encodeURIComponent(verificationId)}/resend`);
+    await apiClient.post(
+      `/auth/email-verifications/${encodeURIComponent(verificationId)}/resend`
+    );
   },
 
-  confirmEmailVerificationCode: async (data: ConfirmEmailCodeRequest): Promise<ConfirmEmailCodeResponse> => {
-    const res = await apiClient.post<ConfirmEmailCodeResponse>("/auth/email-verifications/confirm", data);
+  confirmEmailVerificationCode: async (
+    data: ConfirmEmailCodeRequest
+  ): Promise<ConfirmEmailCodeResponse> => {
+    const res = await apiClient.post<ConfirmEmailCodeResponse>(
+      "/auth/email-verifications/confirm",
+      data
+    );
     return res.data;
   },
 
-  // ✅ 추가: Refresh Token으로 AccessToken 재발급
-  refreshAccessToken: async (refreshToken: string): Promise<RefreshTokenResponse> => {
-    // 백엔드가 쿠키 기반이면 body 없이 호출할 수도 있음.
-    // 지금은 "refreshToken을 저장하는 구조" 가정 -> body로 전달.
-    const res = await apiClient.post<RefreshTokenResponse>("/auth/token/refresh", { refreshToken });
+  refreshAccessToken: async (
+    refreshToken: string
+  ): Promise<RefreshTokenResponse> => {
+    const res = await apiClient.post<RefreshTokenResponse>(
+      "/auth/token/refresh",
+      { refreshToken }
+    );
     return res.data;
   },
 
-  // ✅ 추가: 서버 로그아웃 (refreshToken 무효화)
   logout: async (refreshToken?: string): Promise<LogoutResponse> => {
-    const res = await apiClient.post<LogoutResponse>("/auth/logout", { refreshToken });
+    const res = await apiClient.post<LogoutResponse>("/auth/logout", {
+      refreshToken,
+    });
     return res.data;
   },
 };
