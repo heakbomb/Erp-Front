@@ -1,25 +1,38 @@
-// src/modules/aiInsights/AIInsightsView.tsx
+// src/modules/aiInsightsC/AIInsightsView.tsx
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import { TrendingUp, TrendingDown, Lightbulb, AlertTriangle, DollarSign, Users, Package, Target, ArrowRight } from "lucide-react";
+import { TrendingUp, Target, Package, Users, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
+import { 
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell 
+} from "recharts";
 import useAiInsights from "./useAiInsights";
 
 export default function AIInsightsView() {
-  const { demandForecast, menuPerformance, priceOptimization, categoryData, inventoryAlerts } = useAiInsights();
+  // 실제 storeId를 props나 Context에서 가져와야 하지만, 편의상 Hook 기본값(101) 사용
+  const { 
+    demandForecast, 
+    menuPerformance, 
+    priceOptimization, 
+    categoryData, 
+    inventoryAlerts,
+    totalPredictedVisitors,
+    expectedWeekendSales
+  } = useAiInsights();
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">AI 인사이트</h1>
-        <p className="text-muted-foreground">AI 기반 예측과 추천을 확인하세요</p>
+        <p className="text-muted-foreground">AI 기반 수요 예측과 운영 제안을 확인하세요</p>
       </div>
 
+      {/* 상단 요약 카드 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -27,10 +40,12 @@ export default function AIInsightsView() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₩2,830,000</div>
-            <p className="text-xs text-muted-foreground"><span className="text-green-600">+20%</span> 평소 대비</p>
+            {/* 실제 데이터 연결 (7일 예측 기반 추정치) */}
+            <div className="text-2xl font-bold">₩{expectedWeekendSales.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground"><span className="text-green-600">+15%</span> 지난주 대비</p>
           </CardContent>
         </Card>
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">최적화 가능 마진</CardTitle>
@@ -41,6 +56,7 @@ export default function AIInsightsView() {
             <p className="text-xs text-muted-foreground">가격 조정 시</p>
           </CardContent>
         </Card>
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">재고 최적화</CardTitle>
@@ -51,14 +67,16 @@ export default function AIInsightsView() {
             <p className="text-xs text-muted-foreground">절감 가능 금액</p>
           </CardContent>
         </Card>
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">예상 방문객</CardTitle>
+            <CardTitle className="text-sm font-medium">내일 예상 방문객</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">245명</div>
-            <p className="text-xs text-muted-foreground">내일 예상</p>
+            {/* ✅ 실제 AI 예측 데이터 연결 */}
+            <div className="text-2xl font-bold">{totalPredictedVisitors.toLocaleString()}명</div>
+            <p className="text-xs text-muted-foreground">AI 예측 기반</p>
           </CardContent>
         </Card>
       </div>
@@ -75,16 +93,29 @@ export default function AIInsightsView() {
           <Card>
             <CardHeader>
               <CardTitle>7일 매출 예측</CardTitle>
-              <CardDescription>AI 모델 기반 매출 예측 (날씨, 이벤트, 과거 데이터 반영)</CardDescription>
+              <CardDescription>AI 모델이 분석한 향후 7일간의 예상 매출과 방문객 추이입니다.</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={demandForecast}>
+                {/* ✅ [수정] margin 속성 추가 */}
+                <LineChart 
+                  data={demandForecast}
+                  margin={{ top: 10, right: 30, left: 10, bottom: 5 }} // 여백 확보
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => `₩${value.toLocaleString()}`} />
-                  <Line type="monotone" dataKey="predicted" stroke="hsl(var(--primary))" strokeWidth={2} name="예상 매출" />
+                  {/* padding을 주어 첫 데이터와 마지막 데이터가 벽에 붙지 않게 함 */}
+                  <XAxis dataKey="date" padding={{ left: 20, right: 20 }} />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  
+                  <Tooltip 
+                    formatter={(value: number, name: string) => [
+                      name === "예상 매출" ? `₩${value.toLocaleString()}` : `${value}명`,
+                      name
+                    ]} 
+                  />
+                  <Line yAxisId="left" type="monotone" dataKey="predicted" stroke="hsl(var(--primary))" strokeWidth={2} name="예상 매출" activeDot={{ r: 6 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="visitors" stroke="#82ca9d" strokeWidth={2} name="예상 방문객" activeDot={{ r: 6 }} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -126,7 +157,7 @@ export default function AIInsightsView() {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {categoryData.map((entry, index) => (
+                      {categoryData.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -155,7 +186,7 @@ export default function AIInsightsView() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {priceOptimization.map((item, i) => (
+                {priceOptimization.map((item: any, i: number) => (
                   <div key={i} className="p-4 rounded-lg border flex justify-between items-center">
                     <div>
                       <h3 className="font-medium">{item.menu}</h3>
@@ -179,7 +210,7 @@ export default function AIInsightsView() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {inventoryAlerts.map((alert, i) => (
+                {inventoryAlerts.map((alert: any, i: number) => (
                   <div key={i} className={`p-4 rounded-lg border ${alert.urgency === 'high' ? 'border-red-200 bg-red-50' : 'border-blue-200 bg-blue-50'}`}>
                     <div className="flex justify-between items-center">
                       <div>
