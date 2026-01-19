@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -15,12 +16,23 @@ import { Label } from "@/shared/ui/label";
 
 import { useStoreVerify } from "./useStoreVerify";
 
-// ✅ [수정] trigger prop 추가
 type Props = {
   onVerifiedAction?: (info: any) => void;
   showInlineCard?: boolean;
-  trigger?: React.ReactNode; 
+  trigger?: React.ReactNode;
 };
+
+// ✅ 유효시간(초) - 필요하면 바꾸세요
+const CODE_EXPIRE_SECONDS = 300;
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+function formatMMSS(totalSec: number) {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${pad2(m)}:${pad2(s)}`;
+}
 
 export default function StoreVerifyDialog({
   onVerifiedAction,
@@ -42,17 +54,46 @@ export default function StoreVerifyDialog({
     handleClose,
   } = useStoreVerify(onVerifiedAction);
 
+  // ✅ 타이머 상태
+  const [leftSec, setLeftSec] = useState<number>(CODE_EXPIRE_SECONDS);
+  const expired = phoneStep === "CODE" && leftSec <= 0;
+
+  // ✅ CODE 단계 진입 시 타이머 리셋
+  useEffect(() => {
+    if (phoneStep === "CODE") setLeftSec(CODE_EXPIRE_SECONDS);
+  }, [phoneStep]);
+
+  // ✅ CODE 단계에서만 카운트다운
+  useEffect(() => {
+    if (phoneStep !== "CODE") return;
+    if (!authCode) return; // authCode가 생성된 뒤에만 시작
+
+    const id = window.setInterval(() => {
+      setLeftSec((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [phoneStep, authCode]);
+
+  // ✅ 다이얼로그 닫히거나 인증 완료되면 정리(원하면 유지해도 됨)
+  useEffect(() => {
+    if (!open || phoneStep === "VERIFIED") {
+      setLeftSec(CODE_EXPIRE_SECONDS);
+    }
+  }, [open, phoneStep]);
+
+  const timeText = useMemo(() => formatMMSS(leftSec), [leftSec]);
+
   return (
     <div className="inline-flex flex-wrap items-start gap-3 align-top max-w-full">
-      <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : handleClose(true))}>
+      <Dialog
+        open={open}
+        onOpenChange={(o) => (o ? setOpen(true) : handleClose(true))}
+      >
         <DialogTrigger asChild>
-          {/* ✅ 외부 trigger가 있으면 사용, 없으면 기본 버튼 */}
-          {trigger ? (
-            trigger
-          ) : (
-            <Button variant="outline">사업자 인증</Button>
-          )}
+          {trigger ? trigger : <Button variant="outline">사업자 인증</Button>}
         </DialogTrigger>
+
         <DialogContent>
           <DialogHeader>
             <DialogTitle>사업자 번호 인증</DialogTitle>
@@ -79,7 +120,9 @@ export default function StoreVerifyDialog({
                 disabled={phoneStep === "CODE" || phoneStep === "VERIFIED"}
               />
               {phoneStep === "VERIFIED" && (
-                <p className="text-xs text-green-600">전화번호 인증이 완료되었습니다.</p>
+                <p className="text-xs text-green-600">
+                  전화번호 인증이 완료되었습니다.
+                </p>
               )}
             </div>
 
@@ -94,12 +137,31 @@ export default function StoreVerifyDialog({
                   </span>
                 </div>
                 <p className="text-slate-600 leading-relaxed">
-                  휴대폰에서 <strong>csmtask@gmail.com</strong> 으로 <br/>
+                  휴대폰에서 <strong>csmtask@gmail.com</strong> 으로 <br />
                   위 인증 코드를 문자로 전송해주세요.
                 </p>
-                <p className="text-xs text-slate-400 mt-2">
-                  * 전송 후 잠시 기다리시면 자동으로 인증이 완료됩니다.
+
+                {/* ✅ 여기! 타이머 표시 */}
+                <p className="text-xs text-slate-400 mt-2 flex items-center gap-2">
+                  <span>* 전송 후 잠시 기다리시면 자동으로 인증이 완료됩니다.</span>
+                  <span className={expired ? "text-rose-500" : "text-slate-500"}>
+                    {expired ? "인증번호가 만료되었습니다." : `유효시간 ${timeText}`}
+                  </span>
                 </p>
+
+                {/* ✅ 만료되면 재인증 유도 버튼(선택) */}
+                {expired && (
+                  <div className="pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handlePhoneVerify}
+                      disabled={phoneLoading}
+                    >
+                      {phoneLoading ? "재전송 중..." : "인증번호 다시 받기"}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -110,14 +172,19 @@ export default function StoreVerifyDialog({
                 inputMode="numeric"
                 value={form.bizNo}
                 onChange={(e) =>
-                  setForm((p) => ({ ...p, bizNo: e.target.value.replace(/[^0-9]/g, "") }))
+                  setForm((p) => ({
+                    ...p,
+                    bizNo: e.target.value.replace(/[^0-9]/g, ""),
+                  }))
                 }
                 placeholder="예) 1234567890"
                 maxLength={10}
               />
             </div>
 
-            {error && <p className="text-sm text-red-600 whitespace-pre-wrap">{error}</p>}
+            {error && (
+              <p className="text-sm text-red-600 whitespace-pre-wrap">{error}</p>
+            )}
           </div>
 
           <DialogFooter className="flex gap-2 justify-end">
