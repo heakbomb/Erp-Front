@@ -339,7 +339,6 @@ export default function OwnerEmployeeSchedulePage() {
 
   const handleSingleDeleteMonth = async (employeeId: number) => {
     if (!currentStoreId) return;
-    if (!confirm("이 직원의 이번 달 근무를 모두 삭제하시겠습니까?")) return;
     try {
       const from = toDateOnlyString(startOfMonth(anchorDate));
       const to = toDateOnlyString(endOfMonth(anchorDate));

@@ -22,13 +22,13 @@ const thisMonthStr = () => todayStr().slice(0, 7);
 
 export default function useEmployeesAttendance() {
   // ───── 직원 출결 현황(월간 요약) 전용 상태 ─────
-  const [summaryStoreIdInput, setSummaryStoreIdInput] = useState<string>("1");
+  const [summaryStoreIdInput, setSummaryStoreIdInput] = useState<string>("101");
   const [summaryMonth, setSummaryMonth] = useState<string>(thisMonthStr());
   const [summaryEmployeeFilter, setSummaryEmployeeFilter] = useState<string>("all");
   const [summaryItems, setSummaryItems] = useState<EmployeeAttendanceSummary[]>([]);
 
   // ───── 출퇴근 로그 리스트(기간) 전용 상태 ─────
-  const [logStoreIdInput, setLogStoreIdInput] = useState<string>("1");
+  const [logStoreIdInput, setLogStoreIdInput] = useState<string>("101");
 
   // ✅ 요구사항 2) from/to 상태로 변경 (기본은 오늘~오늘)
   const [logFromDate, setLogFromDate] = useState<string>(todayStr());

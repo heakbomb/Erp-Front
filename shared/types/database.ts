@@ -12,6 +12,7 @@ export interface Owner {
   username: string; // VARCHAR(50)
   email: string; // VARCHAR(100)
   created_at: string; // DATETIME
+  role?: "OWNER" | "ADMIN" | "EMPLOYEE";
 }
 
 // 2.2. Employee (직원)
