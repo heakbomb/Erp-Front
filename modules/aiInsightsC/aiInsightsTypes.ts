@@ -4,9 +4,9 @@
 export interface DemandForecastResponse {
   forecastId: number;
   storeId: number;
-  forecastDate: string;        // "YYYY-MM-DD"
-  predictedSalesMax: number;   // 예상 일 매출
-  predictedVisitors: number;   // 예상 방문객 수
+  forecastDate: string;
+  predictedSalesMax: number;
+  predictedVisitors: number;
 }
 
 // ✅ 2. Recharts 차트용 데이터 타입
@@ -17,7 +17,7 @@ export interface DemandForecastChartData {
   [key: string]: any; 
 }
 
-// ✅ 3. 기존 메뉴 및 가격 최적화 관련 타입 (복구됨)
+// ✅ 3. 기존 메뉴 및 가격 최적화 관련 타입
 export interface Material {
   name: string;
   cost: number;
@@ -67,4 +67,14 @@ export interface InventoryAlert {
   safety: number;
   urgency: "high" | "medium" | "low";
   daysLeft: number;
+}
+
+// ✅ [신규 추가] 메뉴 성장률 및 발주 제안 타입
+export interface MenuGrowthStats {
+  menuId: number;
+  menuName: string;
+  lastWeekSales: number;
+  nextWeekPrediction: number;
+  growthRate: number;
+  recommendation: string;
 }
