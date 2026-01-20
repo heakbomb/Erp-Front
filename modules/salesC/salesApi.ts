@@ -84,8 +84,6 @@ export const salesApi = {
     const res = await apiClient.get<WeeklyAreaAvgResponse>("/owner/sales/weekly-area-avg", {
       params: { storeId, year, month },
     })
-    console.log("weeklyAreaAvg raw:", res)
-    console.log("weeklyAreaAvg data:", res.data)
     return res.data
   },
 };
