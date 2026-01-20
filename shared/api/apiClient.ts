@@ -8,6 +8,9 @@ let inactiveStoreHandled = false;
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
+// 🔴 추가: 만료 alert 중복 방지
+let sessionExpiredAlerted = false;
+
 const ACCESS_KEY = "accessToken";
 const REFRESH_KEY = "refreshToken";
 
@@ -48,17 +51,12 @@ async function tryRefreshToken(): Promise<string | null> {
   isRefreshing = true;
   refreshPromise = (async () => {
     try {
-      // ✅ 순환 의존 방지: 동적 import
       const { authApi } = await import("@/modules/authC/authApi");
-
       const res = await authApi.refreshAccessToken(refreshToken);
 
       if (res?.accessToken) {
         localStorage.setItem(ACCESS_KEY, res.accessToken);
-
-        // rotation이면 refresh도 갱신
         if (res.refreshToken) localStorage.setItem(REFRESH_KEY, res.refreshToken);
-
         return res.accessToken;
       }
       return null;
@@ -74,7 +72,7 @@ async function tryRefreshToken(): Promise<string | null> {
 }
 
 /**
- * 응답 인터셉터
+ * ✅ 응답 인터셉터
  */
 apiClient.interceptors.response.use(
   (response) => response,
@@ -102,15 +100,31 @@ apiClient.interceptors.response.use(
       }
 
       /**
-       * ✅ 인증 실패(401) 처리:
-       * 1) refreshToken 있으면 accessToken 재발급 시도
-       * 2) 성공하면 원 요청을 1회 재시도
-       * 3) 실패하면 기존처럼 로그인으로 이동
+       * 🔴 인증 실패(401) 처리 개선
+       * - 사장: refresh 시도 → 실패 시 alert
+       * - 직원: 즉시 alert
        */
       if (status === 401 && typeof window !== "undefined") {
         const originalRequest = error.config as any;
+        const refreshToken = localStorage.getItem(REFRESH_KEY);
 
-        // 무한루프 방지
+        // 🔴 refreshToken 없는 경우 = 직원
+        if (!refreshToken) {
+          if (!sessionExpiredAlerted) {
+            sessionExpiredAlerted = true;
+            alert("로그인이 만료되었습니다.\n다시 로그인해주세요.");
+          }
+
+          localStorage.removeItem(ACCESS_KEY);
+          localStorage.removeItem(REFRESH_KEY);
+
+          if (!window.location.pathname.startsWith("/login")) {
+            window.location.href = "/login";
+            return new Promise(() => {});
+          }
+        }
+
+        // 🔴 사장 refresh 흐름
         if (!originalRequest?._retry) {
           originalRequest._retry = true;
 
@@ -122,7 +136,12 @@ apiClient.interceptors.response.use(
           }
         }
 
-        // refresh 실패 or 이미 재시도 실패
+        // 🔴 refresh 실패 → 사장도 alert
+        if (!sessionExpiredAlerted) {
+          sessionExpiredAlerted = true;
+          alert("로그인이 만료되었습니다.\n다시 로그인해주세요.");
+        }
+
         localStorage.removeItem(ACCESS_KEY);
         localStorage.removeItem(REFRESH_KEY);
 

@@ -14,7 +14,7 @@ export type {
   PayrollRecord,
   CurrentPayrollSummary,
   EmployeePayroll, // OwnerPayrollView 등에서 사용
-  PayrollHistory,   // useOwnerPayroll 등에서 사용
+  PayrollHistory, // useOwnerPayroll 등에서 사용
 } from "./payrollTypes"
 
 import type {
@@ -66,13 +66,9 @@ export async function savePayrollSetting(params: {
   deductionRate: number | null
 }): Promise<PayrollSetting> {
   const { storeId, employeeId, ...body } = params
-  const res = await apiClient.put<PayrollSetting>(
-    `/owner/payroll/settings/${employeeId}`,
-    body,
-    {
-      params: { storeId },
-    },
-  )
+  const res = await apiClient.put<PayrollSetting>(`/owner/payroll/settings/${employeeId}`, body, {
+    params: { storeId },
+  })
   return res.data
 }
 
@@ -82,13 +78,9 @@ export async function calculatePayroll(params: {
   yearMonth: string
 }): Promise<PayrollCalcResult> {
   const { storeId, yearMonth } = params
-  const res = await apiClient.post<PayrollCalcResult>(
-    "/owner/payroll/calc",
-    null,
-    {
-      params: { storeId, yearMonth },
-    },
-  )
+  const res = await apiClient.post<PayrollCalcResult>("/owner/payroll/calc", null, {
+    params: { storeId, yearMonth },
+  })
   return res.data
 }
 
@@ -98,13 +90,9 @@ export async function saveMonthlyPayrollHistory(params: {
   yearMonth: string
 }): Promise<PayrollHistoryDetail[]> {
   const { storeId, yearMonth } = params
-  const res = await apiClient.post<PayrollHistoryDetail[]>(
-    "/owner/payroll/history/save",
-    null,
-    {
-      params: { storeId, yearMonth },
-    },
-  )
+  const res = await apiClient.post<PayrollHistoryDetail[]>("/owner/payroll/history/save", null, {
+    params: { storeId, yearMonth },
+  })
   return res.data
 }
 
@@ -114,12 +102,9 @@ export async function fetchMonthlyPayrollHistory(params: {
   yearMonth: string
 }): Promise<PayrollHistoryDetail[]> {
   const { storeId, yearMonth } = params
-  const res = await apiClient.get<PayrollHistoryDetail[]>(
-    "/owner/payroll/history",
-    {
-      params: { storeId, yearMonth },
-    },
-  )
+  const res = await apiClient.get<PayrollHistoryDetail[]>("/owner/payroll/history", {
+    params: { storeId, yearMonth },
+  })
   return res.data
 }
 
@@ -129,11 +114,9 @@ export async function updatePayrollStatus(params: {
   status: string
 }): Promise<{ status: string }> {
   const { payrollId, status } = params
-  const res = await apiClient.patch<{ status: string }>(
-    `/owner/payroll/history/${payrollId}/status`,
-    null,
-    { params: { status } },
-  )
+  const res = await apiClient.patch<{ status: string }>(`/owner/payroll/history/${payrollId}/status`, null, {
+    params: { status },
+  })
   return res.data
 }
 
@@ -142,10 +125,9 @@ export async function fetchPayrollHistorySummary(params: {
   storeId: number
 }): Promise<PayrollHistorySummary[]> {
   const { storeId } = params
-  const res = await apiClient.get<PayrollHistorySummary[]>(
-    "/owner/payroll/history/summary",
-    { params: { storeId } },
-  )
+  const res = await apiClient.get<PayrollHistorySummary[]>("/owner/payroll/history/summary", {
+    params: { storeId },
+  })
   return res.data
 }
 
@@ -155,12 +137,9 @@ export async function fetchPayrollRunStatus(params: {
   yearMonth: string
 }): Promise<PayrollRunStatusRes> {
   const { storeId, yearMonth } = params
-  const res = await apiClient.get<PayrollRunStatusRes>(
-    "/owner/payroll/history/run",
-    {
-      params: { storeId, yearMonth },
-    },
-  )
+  const res = await apiClient.get<PayrollRunStatusRes>("/owner/payroll/history/run", {
+    params: { storeId, yearMonth },
+  })
   return res.data
 }
 
@@ -168,22 +147,19 @@ export async function fetchPayrollRunStatus(params: {
    [직원] 급여 조회 API
    ========================================= */
 
-// TODO: 실제 구현 시 Context 등에서 가져와야 함
-const MOCK_STORE_ID = 101
-const MOCK_EMPLOYEE_ID = 3
-
 const formatCurrency = (value: number) => `₩${value.toLocaleString()}`
 
-export async function fetchEmployeePayrollData(): Promise<EmployeePayrollData> {
-  const res = await apiClient.get<BackendPayrollHistoryDetailDto[]>(
-    "/employee/payroll/history",
-    {
-      params: {
-        storeId: MOCK_STORE_ID,
-        employeeId: MOCK_EMPLOYEE_ID,
-      },
+// ✅ [수정] MOCK 제거: storeId/employeeId를 외부에서 주입받음
+export async function fetchEmployeePayrollData(params: {
+  storeId: number
+  employeeId: number
+}): Promise<EmployeePayrollData> {
+  const res = await apiClient.get<BackendPayrollHistoryDetailDto[]>("/employee/payroll/history", {
+    params: {
+      storeId: params.storeId,
+      employeeId: params.employeeId,
     },
-  )
+  })
 
   const items = res.data ?? []
 

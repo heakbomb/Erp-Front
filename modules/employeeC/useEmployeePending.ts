@@ -3,11 +3,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { employeeApi } from "./employeeApi";
 import type { PendingRequest, Banner } from "./employeeTypes";
+import { useStore } from "@/contexts/StoreContext"; // ✅ 추가
 
 export default function useEmployeePending() {
+  const { currentStoreId } = useStore(); // ✅ 선택된 사업장 ID
+
   const [pending, setPending] = useState<PendingRequest[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
-  const [storeIdForPending, setStoreIdForPending] = useState<string>("101"); // 기본값 유지
   const [banner, setBanner] = useState<Banner>(null);
 
   const bannerShow = useCallback((b: Banner) => {
@@ -15,27 +17,25 @@ export default function useEmployeePending() {
     setTimeout(() => setBanner(null), 2400);
   }, []);
 
-  const fetchPending = useCallback(
-    async (storeId?: number) => {
-      const target = typeof storeId === "number" ? storeId : Number(storeIdForPending);
-      if (Number.isNaN(target)) {
-        setPending([]);
-        return;
-      }
+  // ✅ currentStoreId 기반으로만 조회 (입력/하드코딩 제거)
+  const fetchPending = useCallback(async () => {
+    if (!currentStoreId) {
+      setPending([]);
+      return;
+    }
 
-      try {
-        setLoadingPending(true);
-        const data = await employeeApi.fetchPendingAssignments(target);
-        setPending(data || []);
-      } catch {
-        setPending([]);
-      } finally {
-        setLoadingPending(false);
-      }
-    },
-    [storeIdForPending]
-  );
+    try {
+      setLoadingPending(true);
+      const data = await employeeApi.fetchPendingAssignments(currentStoreId);
+      setPending(data || []);
+    } catch {
+      setPending([]);
+    } finally {
+      setLoadingPending(false);
+    }
+  }, [currentStoreId]);
 
+  // ✅ 사업장 변경/초기 진입 시 자동 조회
   useEffect(() => {
     fetchPending();
   }, [fetchPending]);
@@ -81,8 +81,6 @@ export default function useEmployeePending() {
   return {
     pending,
     loadingPending,
-    storeIdForPending,
-    setStoreIdForPending,
     banner,
     fetchPending,
     approve,
