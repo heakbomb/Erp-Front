@@ -60,7 +60,6 @@ function endOfMonth(d: Date): Date {
 }
 
 export default function AttendanceDesktop() {
-  // features 로직 그대로 훅 사용
   const {
     employeeId,
     storeId,
@@ -69,8 +68,6 @@ export default function AttendanceDesktop() {
     page,
     totalPages,
     pagedRecent,
-    setEmployeeId,
-    setStoreId,
     loadRecent,
     setPage,
   } = useAttendance();
@@ -96,7 +93,6 @@ export default function AttendanceDesktop() {
       const start = startOfMonth(anchorDate);
       const end = endOfMonth(anchorDate);
 
-      // 달력 채우기 (사장페이지와 동일: 월의 첫 주 시작~월의 마지막 주 끝)
       const startGrid = startOfWeek(start);
       const endGrid = endOfWeek(end);
 
@@ -179,7 +175,6 @@ export default function AttendanceDesktop() {
     );
   };
   const handleToday = () => {
-    // ✅ 사장페이지와 동일: 이번 주(일요일 시작)로 이동
     setAnchorDate(startOfWeek(new Date()));
   };
 
@@ -192,20 +187,7 @@ export default function AttendanceDesktop() {
           주간 근무 시간표와 출퇴근 기록을 함께 확인할 수 있습니다.
         </p>
 
-        <div className="grid grid-cols-2 gap-2 sm:max-w-md">
-          <Input
-            inputMode="numeric"
-            placeholder="직원 ID"
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value.replace(/[^0-9]/g, ""))}
-          />
-          <Input
-            inputMode="numeric"
-            placeholder="사업장 ID"
-            value={storeId}
-            onChange={(e) => setStoreId(e.target.value.replace(/[^0-9]/g, ""))}
-          />
-        </div>
+       
       </div>
 
       <div className="grid gap-6">
@@ -267,7 +249,7 @@ export default function AttendanceDesktop() {
                 employees={scheduleEmployees}
                 onDayCreate={() => {}}
                 onShiftClick={() => {}}
-                readOnly // 직원 페이지이므로 읽기 전용
+                readOnly
               />
             ) : (
               <MonthScheduleGrid
@@ -290,12 +272,7 @@ export default function AttendanceDesktop() {
             <CardTitle>최근 출퇴근 기록</CardTitle>
             <CardDescription>최대 30건, 페이지당 10건</CardDescription>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => loadRecent()}
-            className="text-xs"
-          >
+          <Button variant="ghost" size="sm" onClick={() => loadRecent()} className="text-xs">
             <RefreshCcw className="mr-2 h-4 w-4" />
             출퇴근 기록 새로고침
           </Button>
@@ -309,15 +286,10 @@ export default function AttendanceDesktop() {
             <>
               <div className="space-y-2">
                 {pagedRecent.map((r) => (
-                  <div
-                    key={r.logId}
-                    className="flex items-center justify-between p-4 rounded-lg border"
-                  >
+                  <div key={r.logId} className="flex items-center justify-between p-4 rounded-lg border">
                     <div className="flex items-center gap-4">
                       <div className="text-center">
-                        <p className="text-sm font-medium">
-                          {r.recordTime.slice(0, 10)}
-                        </p>
+                        <p className="text-sm font-medium">{r.recordTime.slice(0, 10)}</p>
                       </div>
                       <div className="h-8 w-px bg-border" />
                       <div>
@@ -328,9 +300,7 @@ export default function AttendanceDesktop() {
                             second: "2-digit",
                           })}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {r.clientIp ?? ""}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{r.clientIp ?? ""}</p>
                       </div>
                     </div>
                     <Badge variant={r.recordType === "IN" ? "default" : "secondary"}>

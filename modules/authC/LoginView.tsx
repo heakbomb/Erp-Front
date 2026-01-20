@@ -8,7 +8,7 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import { Store, Users, Shield, Cookie as Google, QrCode, CheckCircle2, Lock, Sparkles } from "lucide-react";
+import { Store, Users, Shield, QrCode, CheckCircle2, Lock, Sparkles } from "lucide-react";
 import { useLogin } from "./useLogin";
 import EmployeesQr from "@/modules/employeeC/EmployeesQr";
 
@@ -194,13 +194,38 @@ export default function LoginView() {
                     <div className="space-y-3">
                       {/* ✅ Google Primary */}
                       <Button
+                        type="button"
                         variant="outline"
-                        className="w-full justify-start gap-2"
+                        className="w-full justify-start gap-3 bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 active:bg-slate-100"
                         onClick={() => handleSocialLogin("google")}
                         disabled={isLoading}
+                        aria-label="Google 계정으로 로그인"
                       >
-                        <Google className="h-4 w-4" />
-                        Google 계정으로 로그인
+                        <span className="inline-flex h-5 w-5 items-center justify-center">
+                          {/* Google 'G' (SVG) */}
+                          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                            <path
+                              fill="#EA4335"
+                              d="M24 9.5c3.54 0 6.72 1.22 9.22 3.62l6.9-6.9C35.95 2.38 30.4 0 24 0 14.62 0 6.51 5.38 2.56 13.22l8.04 6.24C12.54 13.1 17.84 9.5 24 9.5z"
+                            />
+                            <path
+                              fill="#4285F4"
+                              d="M46.15 24.5c0-1.64-.15-3.21-.43-4.73H24v9.02h12.42c-.54 2.9-2.18 5.36-4.64 7.01l7.11 5.52c4.16-3.84 6.26-9.5 6.26-16.82z"
+                            />
+                            <path
+                              fill="#FBBC05"
+                              d="M10.6 28.54A14.5 14.5 0 0 1 9.5 24c0-1.58.28-3.1.78-4.54l-8.04-6.24A23.92 23.92 0 0 0 0 24c0 3.86.92 7.5 2.56 10.78l8.04-6.24z"
+                            />
+                            <path
+                              fill="#34A853"
+                              d="M24 48c6.4 0 11.95-2.11 15.92-5.71l-7.11-5.52c-1.98 1.33-4.53 2.11-8.81 2.11-6.16 0-11.46-3.6-13.4-8.96l-8.04 6.24C6.51 42.62 14.62 48 24 48z"
+                            />
+                          </svg>
+                        </span>
+
+                        <span className="flex-1 text-left text-sm font-medium">
+                          Google로 계속하기
+                        </span>
                       </Button>
 
                       {/* ✅ Kakao Secondary (기능 유지) */}

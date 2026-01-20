@@ -1,4 +1,3 @@
-// modules/storeC/useSearchStores.ts
 "use client";
 
 import { useState } from "react";
@@ -6,9 +5,12 @@ import { storeApi, extractErrorMessage } from "./storeApi";
 import type { PreviewStore, AssignmentStatus } from "./storeTypes";
 import { useSearch } from "@/shared/hooks/useSearch";
 
-const MOCK_EMPLOYEE_ID = 3;
+// ✅ 로그인된 직원 정보 가져오기 (프로젝트에 맞는 훅/경로로만 조정)
+import { useAuth } from "@/contexts/AuthContext";
 
 export function useSearchStores() {
+  const { employeeId } = useAuth(); // ✅ 로그인된 직원 ID (소셜 로그인 붙이면 여기로 들어와야 함)
+
   const [searchResult, setSearchResult] = useState<PreviewStore | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -16,7 +18,19 @@ export function useSearchStores() {
   const [assignmentStatus, setAssignmentStatus] =
     useState<AssignmentStatus | "NONE">("NONE");
 
+  const requireEmployeeId = () => {
+    // ✅ UI/UX 변경 없이, 기존 alert 흐름만 사용
+    if (!employeeId || employeeId <= 0) {
+      alert("로그인이 필요합니다.");
+      return null;
+    }
+    return employeeId;
+  };
+
   const performSearch = async (code: string) => {
+    const eid = requireEmployeeId();
+    if (!eid) return;
+
     if (!code) {
       alert("사업장 코드를 입력하세요.");
       return;
@@ -46,7 +60,8 @@ export function useSearchStores() {
       };
       setSearchResult(mappedStore);
 
-      const status = await storeApi.fetchAssignmentStatus(MOCK_EMPLOYEE_ID, id);
+      // ✅ 하드코딩 제거: 로그인된 직원으로 상태 조회
+      const status = await storeApi.fetchAssignmentStatus(eid, id);
       setAssignmentStatus(status);
     } catch (e: any) {
       setSearchResult(null);
@@ -67,6 +82,9 @@ export function useSearchStores() {
   });
 
   const handleApply = async (storeId: number) => {
+    const eid = requireEmployeeId();
+    if (!eid) return;
+
     if (assignmentStatus === "PENDING") {
       alert("이미 신청 중입니다. 사장님 승인 대기 중입니다.");
       return;
@@ -80,7 +98,8 @@ export function useSearchStores() {
       setSubmitting(true);
 
       await storeApi.applyToStore({
-        employeeId: MOCK_EMPLOYEE_ID,
+        // ✅ 하드코딩 제거: 로그인된 직원으로 신청
+        employeeId: eid,
         storeId,
         role: "STAFF",
       });
@@ -111,6 +130,6 @@ export function useSearchStores() {
     handleKeyDown,
     handleApply,
 
-    fetchStoreGps, // ✅ 추가
+    fetchStoreGps,
   };
 }

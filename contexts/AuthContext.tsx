@@ -1,12 +1,19 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 type User = any;
+type Role = "OWNER" | "EMPLOYEE" | "ADMIN" | string;
 
 interface AuthContextType {
   user: User | null;
+  role: Role | null;
+
+  ownerId: number | null;
+  employeeId: number | null;
+  adminId: number | null;
+
   isLoggedIn: boolean;
   isLoading: boolean;
 
@@ -23,31 +30,38 @@ const ACCESS_KEY = "accessToken";
 const REFRESH_KEY = "refreshToken";
 const USER_KEY = "user";
 
+const toUpperRole = (r: any): string => String(r ?? "OWNER").toUpperCase();
+
+const toNumberOrNull = (v: any): number | null => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+};
+
 function normalizeUser(userData: any) {
   if (!userData) return userData;
 
-  const role = userData.role ?? "OWNER";
+  const role = toUpperRole(userData.role);
 
   if (role === "OWNER") {
-    const ownerId = userData.ownerId ?? userData.owner_id ?? userData.id ?? null;
+    const ownerId = toNumberOrNull(userData.ownerId ?? userData.owner_id ?? userData.id);
     return { ...userData, ownerId, role };
   }
 
   if (role === "EMPLOYEE") {
-    const employeeId = userData.employeeId ?? userData.employee_id ?? userData.id ?? null;
+    const employeeId = toNumberOrNull(userData.employeeId ?? userData.employee_id ?? userData.id);
     return { ...userData, employeeId, role };
   }
 
   if (role === "ADMIN") {
-    const adminId = userData.adminId ?? userData.admin_id ?? userData.id ?? null;
+    const adminId = toNumberOrNull(userData.adminId ?? userData.admin_id ?? userData.id);
     return { ...userData, adminId, role };
   }
 
   return { ...userData, role };
-}
-
-function normalizeOwnerUser(userData: any) {
-  return normalizeUser(userData);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -94,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (userData: User, accessToken: string) => {
-    const normalizedUser = normalizeOwnerUser(userData);
+    const normalizedUser = normalizeUser(userData);
 
     setUser(normalizedUser);
 
@@ -113,15 +127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    // ✅ user/provider/role은 스토리지 지우기 전에 잡아둬야 함
     const currentUser = user;
-    const role = String(currentUser?.role ?? "").toUpperCase();
+    const role = toUpperRole(currentUser?.role);
     const provider = String(currentUser?.provider ?? "").toLowerCase();
-
     const refreshToken = getRefreshToken();
 
     try {
-      // ✅ 기존 사장 로그아웃 흐름 유지: OWNER만 서버 로그아웃 호출
       if (role === "OWNER") {
         const { authApi } = await import("@/modules/authC/authApi");
         await authApi.logout(refreshToken ?? undefined);
@@ -132,10 +143,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       clearStorage();
 
-      // ✅ 직원 + 카카오: 카카오 세션까지 끊어야 “자동로그인”이 사라짐
       if (typeof window !== "undefined" && role === "EMPLOYEE" && provider === "kakao") {
         const kakaoClientId = process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY;
-        const logoutRedirectUri = "http://localhost:3000/login"; // 카카오 콘솔에 등록한 값과 동일해야 함
+        const logoutRedirectUri = `${window.location.origin}/login`;
 
         if (kakaoClientId) {
           const url =
@@ -146,17 +156,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           window.location.replace(url);
           return;
         }
-        // client id 없으면 fallback
       }
 
       router.replace("/login");
     }
   };
 
+  const derived = useMemo(() => {
+    const role = (user?.role ?? null) as Role | null;
+    const ownerId = toNumberOrNull(user?.ownerId);
+    const employeeId = toNumberOrNull(user?.employeeId);
+    const adminId = toNumberOrNull(user?.adminId);
+    return { role, ownerId, employeeId, adminId };
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
         user,
+        role: derived.role,
+        ownerId: derived.ownerId,
+        employeeId: derived.employeeId,
+        adminId: derived.adminId,
         isLoggedIn: !!user,
         isLoading,
         login,
