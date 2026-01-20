@@ -1,11 +1,15 @@
-// src/modules/aiInsightsC/AIInsightsView.tsx
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import { TrendingUp, Target, Package, Users, ArrowRight } from "lucide-react";
+// ✅ 테이블 컴포넌트 Import (없을 경우 ui 폴더 확인 필요)
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
+import { 
+  TrendingUp, Target, Package, Users, ArrowRight, 
+  ArrowUp, ArrowDown, Minus 
+} from "lucide-react";
 import Link from "next/link";
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -14,7 +18,6 @@ import {
 import useAiInsights from "./useAiInsights";
 
 export default function AIInsightsView() {
-  // 실제 storeId를 props나 Context에서 가져와야 하지만, 편의상 Hook 기본값(101) 사용
   const { 
     demandForecast, 
     menuPerformance, 
@@ -22,7 +25,8 @@ export default function AIInsightsView() {
     categoryData, 
     inventoryAlerts,
     totalPredictedVisitors,
-    expectedWeekendSales
+    expectedWeekendSales,
+    menuGrowthStats // ✅ Hook에서 추가된 데이터 가져오기
   } = useAiInsights();
 
   return (
@@ -40,7 +44,6 @@ export default function AIInsightsView() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {/* 실제 데이터 연결 (7일 예측 기반 추정치) */}
             <div className="text-2xl font-bold">₩{expectedWeekendSales.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground"><span className="text-green-600">+15%</span> 지난주 대비</p>
           </CardContent>
@@ -74,7 +77,6 @@ export default function AIInsightsView() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {/* ✅ 실제 AI 예측 데이터 연결 */}
             <div className="text-2xl font-bold">{totalPredictedVisitors.toLocaleString()}명</div>
             <p className="text-xs text-muted-foreground">AI 예측 기반</p>
           </CardContent>
@@ -89,6 +91,7 @@ export default function AIInsightsView() {
           <TabsTrigger value="inventory">재고 예측</TabsTrigger>
         </TabsList>
 
+        {/* 1. 수요 예측 탭 */}
         <TabsContent value="forecast" className="space-y-4">
           <Card>
             <CardHeader>
@@ -97,17 +100,14 @@ export default function AIInsightsView() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                {/* ✅ [수정] margin 속성 추가 */}
                 <LineChart 
                   data={demandForecast}
-                  margin={{ top: 10, right: 30, left: 10, bottom: 5 }} // 여백 확보
+                  margin={{ top: 10, right: 30, left: 10, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  {/* padding을 주어 첫 데이터와 마지막 데이터가 벽에 붙지 않게 함 */}
                   <XAxis dataKey="date" padding={{ left: 20, right: 20 }} />
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
-                  
                   <Tooltip 
                     formatter={(value: number | undefined, name: string | undefined) => {
                       const safeName = name ?? "";
@@ -126,7 +126,65 @@ export default function AIInsightsView() {
           </Card>
         </TabsContent>
 
+        {/* 2. 메뉴 분석 탭 (수정됨) */}
         <TabsContent value="menu" className="space-y-4">
+          
+          {/* ✅ [신규 추가] AI 기반 메뉴 트렌드 및 발주 제안 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>주간 메뉴 트렌드 예측 (발주 참고)</CardTitle>
+              <CardDescription>
+                지난주 실제 판매량 대비 다음 주 예상 판매량의 증감률입니다. 
+                <span className="text-primary font-bold"> 발주 수량 산정</span>에 참고하세요.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {menuGrowthStats && menuGrowthStats.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>메뉴명</TableHead>
+                      <TableHead className="text-right">지난주 판매</TableHead>
+                      <TableHead className="text-right">다음주 예측</TableHead>
+                      <TableHead className="text-right">예상 증감률</TableHead>
+                      <TableHead className="text-center">AI 발주 제안</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {menuGrowthStats.map((item) => (
+                      <TableRow key={item.menuId}>
+                        <TableCell className="font-medium">{item.menuName}</TableCell>
+                        <TableCell className="text-right">{item.lastWeekSales.toLocaleString()}개</TableCell>
+                        <TableCell className="text-right font-bold">{item.nextWeekPrediction.toLocaleString()}개</TableCell>
+                        <TableCell className="text-right">
+                          <div className={`flex items-center justify-end gap-1 ${
+                            item.growthRate > 0 ? "text-red-500" : item.growthRate < 0 ? "text-blue-500" : "text-gray-500"
+                          }`}>
+                            {item.growthRate > 0 ? <ArrowUp size={14} /> : item.growthRate < 0 ? <ArrowDown size={14} /> : <Minus size={14} />}
+                            {Math.abs(item.growthRate)}%
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={
+                            item.recommendation.includes("증량") || item.recommendation.includes("급증") ? "default" : 
+                            item.recommendation.includes("소진") ? "destructive" : "outline"
+                          }>
+                            {item.recommendation}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  데이터를 분석 중입니다...
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 기존 차트 그리드 */}
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
@@ -175,6 +233,7 @@ export default function AIInsightsView() {
           </div>
         </TabsContent>
 
+        {/* 3. 가격 최적화 탭 */}
         <TabsContent value="pricing" className="space-y-4">
           <Card>
             <CardHeader>
@@ -209,6 +268,7 @@ export default function AIInsightsView() {
           </Card>
         </TabsContent>
 
+        {/* 4. 재고 예측 탭 */}
         <TabsContent value="inventory" className="space-y-4">
           <Card>
             <CardHeader>
