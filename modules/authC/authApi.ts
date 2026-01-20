@@ -34,9 +34,12 @@ export const authApi = {
     return res.data;
   },
 
-  loginAdmin: async (data: LoginRequest): Promise<LoginResponse> => {
-    const res = await apiClient.post<LoginResponse>("/auth/login/admin", {
-      username: data.username,
+  // ✅ [수정됨] 관리자 로그인
+  loginAdmin: async (data: { username: string; password: string }): Promise<OwnerLoginResponse> => {
+    // 1. URL 수정: /auth/admin/login
+    // 2. Body 수정: 백엔드 DTO(AdminLoginRequest)가 email 필드를 아이디로 받음 -> email: data.username
+    const res = await apiClient.post<OwnerLoginResponse>("/auth/admin/login", {
+      email: data.username, 
       password: data.password,
     });
     return res.data;
@@ -59,21 +62,12 @@ export const authApi = {
     await apiClient.post("/auth/reset-password", { email });
   },
 
-  /**
-   * ✅ 직원 소셜 로그인 진입
-   * - 반드시 "백엔드 OAuth2 엔드포인트"로 직접 이동해야 함
-   * - Next.js rewrite(/api → backend) 경로를 타게 구성
-   */
   handleSocialLogin: (provider: "google" | "kakao" | "naver") => {
     if (typeof window === "undefined") return;
-
-    // ❗ 현재 백엔드에 google/kakao만 구현되어 있으므로 방어
     if (provider === "naver") {
       alert("네이버 로그인은 아직 준비 중입니다.");
       return;
     }
-
-    // ✅ OAuth2 시작점 (백엔드로 바로 진입)
     window.location.href = `/api/oauth2/authorization/${provider}`;
   },
 
