@@ -1,10 +1,8 @@
-// modules/employeeC/EmployeePendingList.tsx
 "use client";
 
 import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
 import { Badge } from "@/shared/ui/badge";
 import { CheckCircle2, XCircle, Clock3 } from "lucide-react";
 import useEmployeePending from "./useEmployeePending";
@@ -42,24 +40,18 @@ function StatusBadge({ status }: { status: "PENDING" | "APPROVED" | "REJECTED" }
 }
 
 export default function EmployeePendingList() {
-  const {
-    pending,
-    loadingPending,
-    storeIdForPending,
-    setStoreIdForPending,
-    fetchPending,
-    approve,
-    reject,
-    banner,
-  } = useEmployeePending();
+  const { pending, loadingPending, approve, reject, banner } = useEmployeePending();
 
   const cards = useMemo(() => {
     return (pending ?? []).map((r) => {
       const status = normalizeStatus((r as any).status);
 
-      // ✅ 백엔드에서 내려주는 필드 우선 사용 (호환: 기존 name/phone도 fallback)
       const employeeName =
-        (r as any).employeeName ?? (r as any).name ?? (r as any).employee_name ?? `EMP#${(r as any).employeeId}`;
+        (r as any).employeeName ??
+        (r as any).name ??
+        (r as any).employee_name ??
+        `EMP#${(r as any).employeeId}`;
+
       const employeePhone =
         (r as any).employeePhone ?? (r as any).phone ?? (r as any).employee_phone ?? "-";
 
@@ -87,21 +79,7 @@ export default function EmployeePendingList() {
       <Card>
         <CardHeader>
           <CardTitle>신청 직원 목록</CardTitle>
-          <CardDescription>사업장 ID로 조회하면 신청/승인/거절 상태를 카드로 확인할 수 있습니다.</CardDescription>
-
-          <div className="mt-3 flex flex-wrap gap-2 items-center">
-            <Input
-              className="w-44"
-              placeholder="사업장 ID"
-              value={storeIdForPending}
-              onChange={(e) => setStoreIdForPending(e.target.value.replace(/[^0-9]/g, ""))}
-            />
-            <Button onClick={() => fetchPending()}>조회</Button>
-
-            <Badge variant="secondary" className="border">
-              {loadingPending ? "조회 중..." : `결과 ${cards.length}`}
-            </Badge>
-          </div>
+          <CardDescription>선택된 사업장 기준으로 신청/승인/거절 상태를 확인할 수 있습니다.</CardDescription>
         </CardHeader>
 
         <CardContent>
@@ -116,19 +94,14 @@ export default function EmployeePendingList() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        {/* ✅ 이름 표시 */}
                         <p className="font-medium truncate">{r._employeeName}</p>
                         <StatusBadge status={r._status} />
                       </div>
 
-                      {/* ✅ 이메일 표시(기존 그대로 유지) */}
                       <p className="text-xs text-muted-foreground mt-1 truncate">{r.email || "-"}</p>
-
-                      {/* ✅ 전화번호 표시 (백엔드 필드 우선) */}
                       <p className="text-xs text-muted-foreground truncate">{r._employeePhone}</p>
                     </div>
 
-                    {/* ✅ 승인/거절은 대기일 때만 */}
                     {r._status === "PENDING" && (
                       <div className="flex shrink-0 gap-2">
                         <Button size="sm" onClick={() => approve(r.assignmentId)}>

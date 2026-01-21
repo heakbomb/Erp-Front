@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { attendanceApi } from "./attendanceApi";
-import type { AttendanceShiftStatus, MobileAttendanceItem, EmployeeShift } from "./attendanceTypes";
+import type {
+  AttendanceShiftStatus,
+  MobileAttendanceItem,
+  EmployeeShift,
+} from "./attendanceTypes";
+
+import { useAuth } from "@/contexts/AuthContext";
+import { useStore } from "@/contexts/StoreContext";
 
 /* ================= utils ================= */
 
@@ -25,9 +32,31 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
   const [mounted, setMounted] = useState(false);
   const [canScan, setCanScan] = useState(false);
 
-  // 로그인 붙이기 전 임시값
-  const [employeeId] = useState<number>(opts?.employeeId ?? 3);
-  const [storeId] = useState<number>(opts?.storeId ?? 101);
+  // ✅ 로그인/사업장 컨텍스트
+  const { employeeId: ctxEmployeeId, isLoggedIn, isLoading: authLoading } = useAuth();
+  const { currentStoreId, isLoading: storeLoading } = useStore();
+
+  // ✅ 최종 employeeId/storeId (opts 우선 → 없으면 context)
+  const employeeId = useMemo<number | null>(() => {
+    const v = opts?.employeeId ?? ctxEmployeeId;
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
+  }, [opts?.employeeId, ctxEmployeeId]);
+
+  const storeId = useMemo<number | null>(() => {
+    const v = opts?.storeId ?? currentStoreId;
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
+  }, [opts?.storeId, currentStoreId]);
+
+  // ✅ API 호출 가능 조건 (하드코딩 제거의 핵심)
+  const ready = useMemo(() => {
+    if (authLoading || storeLoading) return false;
+    if (!mounted) return false;
+    // 직원 페이지이므로 로그인 & employeeId 필수
+    if (!isLoggedIn || !employeeId) return false;
+    // 현재 사업장 선택 필수
+    if (!storeId) return false;
+    return true;
+  }, [authLoading, storeLoading, mounted, isLoggedIn, employeeId, storeId]);
 
   // QR / 위치
   const [qrCode, setQrCode] = useState("");
@@ -68,14 +97,14 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
   /* ========== shift fetch (표시/현재 shift 계산용 유지) ========== */
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!ready) return;
     const today = getLocalDateKey();
 
     attendanceApi
-      .fetchShifts({ storeId, from: today, to: today })
+      .fetchShifts({ storeId: storeId as number, from: today, to: today })
       .then(setTodayShifts)
       .catch(() => setTodayShifts([]));
-  }, [mounted, storeId]);
+  }, [ready, storeId]);
 
   useEffect(() => {
     if (todayShifts.length === 0) {
@@ -98,23 +127,31 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
   /* ========== recent logs (표시용) ========== */
 
   const fetchRecent = useCallback(async () => {
+    if (!ready) return;
     try {
-      const data = await attendanceApi.fetchRecentMobileAttendance(employeeId, storeId);
+      const data = await attendanceApi.fetchRecentMobileAttendance(
+        employeeId as number,
+        storeId as number,
+      );
       setRecent((data ?? []).slice(0, 20));
     } catch (err: any) {
       const raw = err?.response?.data ?? err?.message ?? "최근 기록을 불러오지 못했습니다.";
       const msg = typeof raw === "string" ? raw : JSON.stringify(raw);
       setBanner({ type: "error", msg });
     }
-  }, [employeeId, storeId]);
+  }, [ready, employeeId, storeId]);
 
   /* ========== ✅ shift status (버튼 판정용) ========== */
 
   const fetchStatus = useCallback(async () => {
+    if (!ready) return;
     try {
-      const s = await attendanceApi.fetchAttendanceShiftStatus(employeeId, storeId);
+      const s = await attendanceApi.fetchAttendanceShiftStatus(
+        employeeId as number,
+        storeId as number,
+      );
       setStatus(s);
-    } catch (err) {
+    } catch {
       // status API 실패 시 안전하게 버튼 다 막기
       setStatus({
         shiftId: null,
@@ -124,13 +161,13 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
         message: "상태 정보를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.",
       });
     }
-  }, [employeeId, storeId]);
+  }, [ready, employeeId, storeId]);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!ready) return;
     fetchRecent();
     fetchStatus();
-  }, [mounted, fetchRecent, fetchStatus]);
+  }, [ready, fetchRecent, fetchStatus]);
 
   /* ========== location ========== */
 
@@ -151,14 +188,17 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
       () => {
         setGettingLocation(false);
         setBanner({ type: "error", msg: "위치 정보를 가져오지 못했습니다." });
-      }
+      },
     );
   }, []);
 
   /* ========== punch 가능 전제 ========== */
 
   // ✅ QR + 위치만 확인 (shift 여부는 status/currentShift가 판단)
-  const canPunch = useMemo(() => !!qrCode && latitude !== null && longitude !== null, [qrCode, latitude, longitude]);
+  const canPunch = useMemo(
+    () => !!qrCode && latitude !== null && longitude !== null,
+    [qrCode, latitude, longitude],
+  );
 
   /* ========== ✅ 버튼 활성화: status를 단일 기준으로 ========== */
 
@@ -166,7 +206,6 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
   const canClockOut = useMemo(() => !!status?.canClockOut && canPunch, [status, canPunch]);
 
   /* ========== status message 보정 ========== */
-  // 백엔드가 message를 주면 그대로 쓰고, 없다면 프론트에서 기본 문구 제공
   useEffect(() => {
     if (!mounted) return;
     if (!status) return;
@@ -188,6 +227,8 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
 
   const sendPunch = useCallback(
     async (kind: "IN" | "OUT") => {
+      if (!ready) return;
+
       // ✅ 프론트에서 1차 차단 (409 거의 안 나게)
       if (kind === "IN" && !canClockIn) return;
       if (kind === "OUT" && !canClockOut) return;
@@ -200,8 +241,8 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
 
       try {
         await attendanceApi.punchMobileAttendance({
-          employeeId,
-          storeId,
+          employeeId: employeeId as number,
+          storeId: storeId as number,
           shiftId,
           recordType: kind,
           qrCode,
@@ -229,6 +270,7 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
       }
     },
     [
+      ready,
       employeeId,
       storeId,
       status,
@@ -239,7 +281,7 @@ export function useMobilePunch(opts?: { employeeId?: number; storeId?: number })
       canClockOut,
       fetchRecent,
       fetchStatus,
-    ]
+    ],
   );
 
   /* ========== QR ========== */

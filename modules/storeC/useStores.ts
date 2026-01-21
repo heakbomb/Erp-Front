@@ -3,18 +3,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { storeApi } from "./storeApi";
 import type { StoreResponse, StoreCreateRequest } from "./storeTypes";
-import { useAuth } from "@/contexts/AuthContext"; // ✅ 추가
+import { useAuth } from "@/contexts/AuthContext"; // ✅ 실제 경로로 통일
 
 export function useStores(version?: number) {
-  const { user } = useAuth(); // ✅ 추가
-  const ownerId = (user as any)?.ownerId; // ✅ 핵심: 로그인 응답/스토리지에 저장된 ownerId 사용
+  const { user } = useAuth();
+
+  // ✅ ownerId를 number로 정규화 (string 들어와도 안전)
+  const ownerId = useMemo(() => {
+    const raw = (user as any)?.ownerId;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [user]);
 
   const [stores, setStores] = useState<StoreResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    // ✅ ownerId 없으면 호출 자체를 안 함 (undefined 요청 방지)
     if (!ownerId) {
       setStores([]);
       setLoading(false);
@@ -24,7 +29,7 @@ export function useStores(version?: number) {
     setLoading(true);
     setError(null);
     try {
-      const data = await storeApi.fetchMyStores(ownerId); // ✅ 변경: 인자 필수
+      const data = await storeApi.fetchMyStores(ownerId);
       setStores(data);
     } catch (e: any) {
       console.error("사업장 목록 불러오기 실패:", e);
@@ -72,19 +77,16 @@ export function useStores(version?: number) {
     }
   }, [load]);
 
-  const patch = useCallback(
-    async (id: number, payload: StoreCreateRequest) => {
-      try {
-        await storeApi.updateStore(id, payload);
-        await load();
-      } catch (e: any) {
-        console.error(e);
-        setError(e?.friendlyMessage || e?.message || "수정 실패");
-        throw e;
-      }
-    },
-    [load]
-  );
+  const patch = useCallback(async (id: number, payload: StoreCreateRequest) => {
+    try {
+      await storeApi.updateStore(id, payload);
+      await load();
+    } catch (e: any) {
+      console.error(e);
+      setError(e?.friendlyMessage || e?.message || "수정 실패");
+      throw e;
+    }
+  }, [load]);
 
   return {
     stores,

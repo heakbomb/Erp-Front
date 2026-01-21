@@ -12,7 +12,7 @@ export function useForgotPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    
+
     setIsLoading(true);
     try {
       await authApi.requestPasswordReset(email);
@@ -25,11 +25,5 @@ export function useForgotPassword() {
     }
   };
 
-  return {
-    email,
-    submitted,
-    isLoading,
-    setEmail,
-    handleSubmit,
-  };
+  return { email, submitted, isLoading, setEmail, handleSubmit };
 }

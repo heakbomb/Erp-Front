@@ -4,18 +4,37 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { attendanceApi } from "./attendanceApi";
 import type { AttendanceItem } from "./attendanceTypes";
+import { useAuth } from "@/contexts/AuthContext";
+import { useStore } from "@/contexts/StoreContext";
 
 const ymdLocal = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const isoDate = (d: Date) => ymdLocal(d);
 
-export function useAttendance(initialEmployeeId = "3", initialStoreId = "101") {
-  // 테스트용(로그인 전): 직원/사업장 ID
-  const [employeeId, setEmployeeId] = useState(initialEmployeeId);
-  const [storeId, setStoreId] = useState(initialStoreId);
+export function useAttendance() {
+  const { user, isLoggedIn, isLoading: authLoading } = useAuth();
+  const { currentStoreId } = useStore();
+
+  // ✅ 로그인 기반 employeeId (EMPLOYEE만)
+  const employeeIdNum: number | null = useMemo(() => {
+    const role = String(user?.role ?? "").toUpperCase();
+    if (!isLoggedIn || role !== "EMPLOYEE") return null;
+
+    const v = user?.employeeId ?? user?.employee_id ?? null;
+    const n = typeof v === "string" ? Number(v) : v;
+    return Number.isFinite(n) && n > 0 ? (n as number) : null;
+  }, [user, isLoggedIn]);
+
+  // ✅ 사업장 ID: StoreContext 기준
+  const storeIdNum: number | null = useMemo(() => {
+    const n = typeof currentStoreId === "string" ? Number(currentStoreId) : currentStoreId;
+    return Number.isFinite(n) && (n as number) > 0 ? (n as number) : null;
+  }, [currentStoreId]);
+
+  // UI 표시용(기존 컴포넌트와 호환 위해 string 유지)
+  const employeeId = employeeIdNum ? String(employeeIdNum) : "";
+  const storeId = storeIdNum ? String(storeIdNum) : "";
 
   // 날짜와 달력 월
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -33,74 +52,81 @@ export function useAttendance(initialEmployeeId = "3", initialStoreId = "101") {
   const pageSize = 10;
   const [page, setPage] = useState(1);
 
+  const canQuery = !authLoading && isLoggedIn && !!employeeIdNum && !!storeIdNum;
+
   // 최근 기록 불러오기
   const loadRecent = useCallback(async () => {
-    if (!employeeId || !storeId) return;
+    if (!canQuery) return;
     try {
       setLoadingRecent(true);
-      const data = await attendanceApi.fetchRecentAttendance(Number(employeeId), Number(storeId));
+      const data = await attendanceApi.fetchRecentAttendance(employeeIdNum!, storeIdNum!);
       setRecent(data);
       setPage(1);
     } finally {
       setLoadingRecent(false);
     }
-  }, [employeeId, storeId]);
+  }, [canQuery, employeeIdNum, storeIdNum]);
 
   // 특정 일자 기록 불러오기
   const loadDay = useCallback(
     async (d: Date) => {
-      if (!employeeId || !storeId) return;
+      if (!canQuery) return;
       try {
         setLoadingDay(true);
-        const data = await attendanceApi.fetchDayAttendance(
-          Number(employeeId),
-          Number(storeId),
-          isoDate(d)
-        );
+        const data = await attendanceApi.fetchDayAttendance(employeeIdNum!, storeIdNum!, isoDate(d));
         setDaily(data);
       } finally {
         setLoadingDay(false);
       }
     },
-    [employeeId, storeId]
+    [canQuery, employeeIdNum, storeIdNum]
   );
 
-  // 초기 로드
+  // 초기 로드 (로그인/사업장 준비되면)
   useEffect(() => {
-    if (!employeeId || !storeId) return;
+    if (!canQuery) {
+      // ✅ 로그인/사업장 없으면 기존 데이터 초기화(표시 안정)
+      setRecent([]);
+      setDaily([]);
+      setPage(1);
+      return;
+    }
     loadRecent();
     if (date) loadDay(date);
-  }, [employeeId, storeId]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canQuery, employeeIdNum, storeIdNum]);
 
   // 날짜 바뀌면 그날 데이터 다시
   useEffect(() => {
+    if (!canQuery) return;
     if (date) loadDay(date);
-  }, [date, loadDay]);
+  }, [date, loadDay, canQuery]);
 
   // 출퇴근
   const punch = useCallback(
     async (kind: "IN" | "OUT") => {
-      if (!employeeId || !storeId) {
-        alert("직원 ID와 사업장 ID를 입력하세요.");
+      if (!canQuery) {
+        alert("로그인 및 사업장 선택 후 이용할 수 있습니다.");
         return;
       }
+
       try {
         setPunching(kind);
         const now = new Date().toISOString();
 
-        // 낙관적 UI
+        // 낙관적 UI (기존 그대로)
         const optimistic: AttendanceItem = {
           logId: -Date.now(),
-          employeeId: Number(employeeId),
-          storeId: Number(storeId),
+          employeeId: employeeIdNum!,
+          storeId: storeIdNum!,
           recordTime: now,
           recordType: kind,
         };
         setRecent((prev) => [optimistic, ...prev]);
 
         await attendanceApi.punchAttendance({
-          employeeId: Number(employeeId),
-          storeId: Number(storeId),
+          employeeId: employeeIdNum!,
+          storeId: storeIdNum!,
           recordTime: now,
           recordType: kind,
         });
@@ -116,7 +142,7 @@ export function useAttendance(initialEmployeeId = "3", initialStoreId = "101") {
         setPunching(null);
       }
     },
-    [employeeId, storeId, date, loadRecent, loadDay]
+    [canQuery, employeeIdNum, storeIdNum, date, loadRecent, loadDay]
   );
 
   // 여러 계산값들
@@ -144,10 +170,36 @@ export function useAttendance(initialEmployeeId = "3", initialStoreId = "101") {
   const dayHasOut = daily.some((d) => d.recordType === "OUT");
 
   return {
-    employeeId, storeId, date, visibleMonth, ymOpen,
-    recent, daily, loadingRecent, loadingDay, punching,
-    page, totalPages, pagedRecent, modifiers, dayHasIn, dayHasOut,
-    setEmployeeId, setStoreId, setDate, setVisibleMonth, setYmOpen, setPage,
-    loadRecent, loadDay, punch,
+    employeeId,
+    storeId,
+    date,
+    visibleMonth,
+    ymOpen,
+
+    recent,
+    daily,
+    loadingRecent,
+    loadingDay,
+    punching,
+
+    page,
+    totalPages,
+    pagedRecent,
+    modifiers,
+    dayHasIn,
+    dayHasOut,
+
+    // ✅ UI/UX 유지 목적: setter를 남기되(기존 컴포넌트 호환),
+    // 실제 API에는 반영되지 않게 차단(보안).
+    setEmployeeId: (_: string) => { },
+    setStoreId: (_: string) => { },
+    setDate,
+    setVisibleMonth,
+    setYmOpen,
+    setPage,
+
+    loadRecent,
+    loadDay,
+    punch,
   };
 }
