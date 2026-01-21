@@ -24,11 +24,12 @@ import useAiInsights from "./useAiInsights";
 import { useProfitForecast } from "@/modules/aiInsightsC/useProfitForecast";
 import { useStore } from "@/contexts/StoreContext";
 
+// 돈 단위 포맷팅 헬퍼
 const money = (v: number | undefined | null) =>
   new Intl.NumberFormat("ko-KR").format(Math.round(Number(v ?? 0)));
 
 export default function AIInsightsView() {
-  const { currentStoreId, isLoading } = useStore();
+  const { currentStoreId, isLoading: isStoreLoading } = useStore();
 
   const {
     demandForecast,
@@ -37,20 +38,21 @@ export default function AIInsightsView() {
     totalPredictedVisitors,
     expectedWeekendSales,
     menuGrowthStats,
+    loading: isAiLoading
   } = useAiInsights();
 
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
-  // ✅ storeId는 StoreContext 내부에서 처리하는 훅이라고 가정
   const profitQ = useProfitForecast(year, month);
+  const isLoading = isStoreLoading || isAiLoading;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">AI 인사이트</h1>
-        <p className="text-muted-foreground">AI 기반 수요 예측과 운영 제안을 확인하세요</p>
+        <p className="text-muted-foreground">데이터 기반의 수요 예측과 운영 제안을 확인하세요</p>
       </div>
 
       {/* 상단 요약 카드 */}
@@ -62,31 +64,7 @@ export default function AIInsightsView() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">₩{expectedWeekendSales.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+15%</span> 지난주 대비
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">최적화 가능 마진</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+3.2%</div>
-            <p className="text-xs text-muted-foreground">가격 조정 시</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">재고 최적화</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₩150,000</div>
-            <p className="text-xs text-muted-foreground">절감 가능 금액</p>
+            <p className="text-xs text-muted-foreground">금/토/일 합계 (예측)</p>
           </CardContent>
         </Card>
 
@@ -97,7 +75,29 @@ export default function AIInsightsView() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalPredictedVisitors.toLocaleString()}명</div>
-            <p className="text-xs text-muted-foreground">AI 예측 기반</p>
+            <p className="text-xs text-muted-foreground">DB 예측 데이터 기반</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">최적화 가능 마진</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">+3.2%</div>
+            <p className="text-xs text-muted-foreground">가격 조정 시 (예상)</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">재고 최적화</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">₩150,000</div>
+            <p className="text-xs text-muted-foreground">폐기 절감 가능액</p>
           </CardContent>
         </Card>
       </div>
@@ -115,46 +115,49 @@ export default function AIInsightsView() {
             <CardHeader>
               <CardTitle>7일 매출 예측</CardTitle>
               <CardDescription>
-                AI 모델이 분석한 향후 7일간의 예상 매출과 방문객 추이입니다.
+                DB에 저장된 수요 예측 데이터를 기반으로 분석한 향후 7일간의 예상 매출 추이입니다.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={demandForecast} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" padding={{ left: 20, right: 20 }} />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip
-                    formatter={(value: number | undefined, name: string | undefined) => {
-                      const safeName = name ?? "";
-                      if (value === undefined) return ["-", safeName];
-                      return [
-                        safeName === "예상 매출" ? `₩${value.toLocaleString()}` : `${value}명`,
-                        safeName,
-                      ];
-                    }}
-                  />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="predicted"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    name="예상 매출"
-                    activeDot={{ r: 6 }}
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="visitors"
-                    stroke="#82ca9d"
-                    strokeWidth={2}
-                    name="예상 방문객"
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {demandForecast.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={demandForecast} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" padding={{ left: 20, right: 20 }} />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip
+                      // ✅ [수정] 타입 오류 해결: value 타입을 any로 받아서 처리
+                      formatter={(value: any, name: any) => [
+                        name === "예상 매출" ? `₩${Number(value).toLocaleString()}` : `${value}명`,
+                        name,
+                      ]}
+                    />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="predicted"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      name="예상 매출"
+                      activeDot={{ r: 6 }}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="visitors"
+                      stroke="#82ca9d"
+                      strokeWidth={2}
+                      name="예상 방문객"
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                  {isLoading ? "데이터를 불러오는 중입니다..." : "표시할 예측 데이터가 없습니다."}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -165,8 +168,7 @@ export default function AIInsightsView() {
             <CardHeader>
               <CardTitle>주간 메뉴 트렌드 예측 (발주 참고)</CardTitle>
               <CardDescription>
-                지난주 실제 판매량 대비 다음 주 예상 판매량의 증감률입니다.
-                <span className="text-primary font-bold"> 발주 수량 산정</span>에 참고하세요.
+                지난주 실제 판매량과 다음 주 예측 판매량(DB)을 비교하여 <span className="text-primary font-bold">발주 추천</span>을 제공합니다.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -215,7 +217,7 @@ export default function AIInsightsView() {
                               item.recommendation.includes("증량") ||
                               item.recommendation.includes("급증")
                                 ? "default"
-                                : item.recommendation.includes("소진")
+                                : item.recommendation.includes("소진") || item.recommendation.includes("감소")
                                 ? "destructive"
                                 : "outline"
                             }
@@ -228,7 +230,9 @@ export default function AIInsightsView() {
                   </TableBody>
                 </Table>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">데이터를 분석 중입니다...</div>
+                <div className="flex h-[200px] items-center justify-center text-muted-foreground">
+                  {isLoading ? "분석 중입니다..." : "분석할 데이터가 충분하지 않습니다."}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -236,24 +240,30 @@ export default function AIInsightsView() {
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>메뉴별 성과 분석</CardTitle>
+                <CardTitle>메뉴별 매출 현황</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={menuPerformance}>
-                    <defs>
-                      <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366F1" stopOpacity={0.95} />
-                        <stop offset="100%" stopColor="#22C55E" stopOpacity={0.85} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="sales" radius={[10, 10, 4, 4]} fill="url(#barGrad)" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {menuPerformance.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={menuPerformance}>
+                      <defs>
+                        <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366F1" stopOpacity={0.95} />
+                          <stop offset="100%" stopColor="#22C55E" stopOpacity={0.85} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="sales" radius={[10, 10, 4, 4]} fill="url(#barGrad)" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                    데이터 없음
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -262,31 +272,40 @@ export default function AIInsightsView() {
                 <CardTitle>카테고리별 매출 비중</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {categoryData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number | undefined) => `₩${(value ?? 0).toLocaleString()}`} />
-                  </PieChart>
-                </ResponsiveContainer>
+                {categoryData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {categoryData.map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        // ✅ [수정] 타입 오류 해결: value 타입을 any로 받아서 처리
+                        formatter={(value: any) => `₩${Number(value).toLocaleString()}`} 
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                    데이터 없음
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* 3. 수익 예측 탭 (한국어 문구 개선 완료) */}
+        {/* 3. 수익 예측 탭 */}
         <TabsContent value="profit" className="space-y-4">
           <Card>
             <CardHeader>
@@ -304,7 +323,7 @@ export default function AIInsightsView() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {isLoading ? (
+              {isStoreLoading ? (
                 <div className="rounded-lg border p-4 text-muted-foreground">매장 정보를 불러오는 중…</div>
               ) : !currentStoreId ? (
                 <div className="rounded-lg border p-4 text-muted-foreground">
@@ -314,13 +333,14 @@ export default function AIInsightsView() {
                 <div className="rounded-lg border p-4 text-muted-foreground">수익 예측을 불러오는 중…</div>
               ) : profitQ.isError ? (
                 <div className="rounded-lg border p-4 text-red-600">
-                  수익 예측 조회에 실패했습니다. (서버 로그 확인)
+                  수익 예측 조회에 실패했습니다. (ML 서버 상태 확인 필요)
                 </div>
               ) : !profitQ.data ? (
-                <div className="rounded-lg border p-4 text-muted-foreground">예측 데이터가 없습니다.</div>
+                <div className="rounded-lg border p-4 text-muted-foreground">
+                  아직 예측 데이터가 준비되지 않았습니다. (다음 달 1일에 갱신됩니다)
+                </div>
               ) : (
                 <>
-                  {/* KPI 카드 */}
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="rounded-xl border p-4">
                       <div className="text-sm text-muted-foreground">예측 수익</div>
@@ -328,7 +348,7 @@ export default function AIInsightsView() {
                         ₩{money(profitQ.data.pred)}
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        예측 지표: <span className="font-medium">다음 달 수익</span>
+                        예측 지표: <span className="font-medium">다음 달 순이익</span>
                       </div>
                     </div>
 
@@ -336,10 +356,7 @@ export default function AIInsightsView() {
                       <div className="text-sm text-muted-foreground">기준월</div>
                       <div className="mt-1 text-2xl font-semibold">{profitQ.data.featureYm}</div>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        기준 연월:{" "}
-                        <span className="font-medium">
-                          {profitQ.data.year}-{String(profitQ.data.month).padStart(2, "0")}
-                        </span>
+                        데이터 기준
                       </div>
                     </div>
 
@@ -347,58 +364,19 @@ export default function AIInsightsView() {
                       <div className="text-sm text-muted-foreground">예측월</div>
                       <div className="mt-1 text-2xl font-semibold">{profitQ.data.predForYm}</div>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        매장 ID: <span className="font-medium">{profitQ.data.storeId}</span>
+                        예측 대상 기간
                       </div>
                     </div>
                   </div>
 
-                  {/* 요약 배너 */}
                   <div className="rounded-xl border bg-muted/40 p-4">
-                    <div className="text-sm font-medium">AI 수익 예측 요약</div>
+                    <div className="text-sm font-medium">AI 분석 요약</div>
                     <div className="mt-1 text-sm text-muted-foreground">
-                      <span className="font-medium">{profitQ.data.featureYm}</span> 매출·비용 데이터를 바탕으로{" "}
-                      <span className="font-medium">{profitQ.data.predForYm}</span> 예상 수익은{" "}
-                      <span className="font-medium">₩{money(profitQ.data.pred)}</span> 입니다.
+                      <span className="font-medium">{profitQ.data.featureYm}</span>의 매출, 비용, 상권 데이터를 종합 분석한 결과,{" "}
+                      <span className="font-medium">{profitQ.data.predForYm}</span> 예상 수익은 약{" "}
+                      <span className="font-medium text-primary">₩{money(profitQ.data.pred)}</span>으로 전망됩니다.
                     </div>
                   </div>
-
-                  {/* 상세 정보 (접기) */}
-                  <details className="rounded-xl border p-4">
-                    <summary className="cursor-pointer text-sm font-medium">
-                      예측 상세 정보
-                    </summary>
-
-                    <div className="mt-4 space-y-3">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-40">항목</TableHead>
-                            <TableHead>값</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          <TableRow>
-                            <TableCell className="font-medium">매장 ID</TableCell>
-                            <TableCell>{profitQ.data.storeId}</TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-medium">기준 연월</TableCell>
-                            <TableCell>
-                              {profitQ.data.year}-{String(profitQ.data.month).padStart(2, "0")}
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-medium">예측 대상 월</TableCell>
-                            <TableCell>{profitQ.data.predForYm}</TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-medium">예측 수익</TableCell>
-                            <TableCell className="font-semibold">₩{money(profitQ.data.pred)}</TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </details>
                 </>
               )}
             </CardContent>
