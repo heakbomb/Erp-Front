@@ -8,9 +8,9 @@ import type {
   SubscribeRequest,
   CancelSubscriptionRequest,
   SubscriptionRequest,
-  SubscriptionStatus,
   AdminGetSubscriptionsParams,
-  AdminGetStatusParams
+  AdminGetStatusParams,
+  SubscriptionStatus
 } from "./subscriptionTypes";
 
 export const subscriptionApi = {
@@ -24,12 +24,12 @@ export const subscriptionApi = {
     return res.data;
   },
 
-  // 이용 가능한 플랜 목록 조회
+  // ✅ [수정] 이용 가능한 플랜 목록 조회
+  // 기존: 관리자용 API (/admin/subscriptions) 사용 -> PageResponse
+  // 변경: 사장님용 전용 API (/owner/subscriptions/products) 사용 -> List (Array)
   getPublicPlans: async () => {
-    const res = await apiClient.get<PageResponse<SubscriptionPlan>>("/admin/subscriptions", {
-      params: { page: 0, size: 100, status: "ACTIVE" } 
-    });
-    return res.data.content;
+    const res = await apiClient.get<SubscriptionPlan[]>("/owner/subscriptions/products");
+    return res.data; // 백엔드에서 바로 List<Dto>를 반환하므로 .content 없이 바로 data 리턴
   },
 
   // 구독 신청
