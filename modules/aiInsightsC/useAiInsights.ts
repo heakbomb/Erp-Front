@@ -1,20 +1,19 @@
 // src/modules/aiInsightsC/useAiInsights.ts
 import { useState, useEffect } from "react";
+import { useStore } from "@/contexts/StoreContext"; // ✅ Context import
 import { aiInsightsApi } from "./aiInsightsApi";
-// ✅ 타입 import 추가
 import { DemandForecastChartData, MenuGrowthStats } from "./aiInsightsTypes";
 
-export default function useAiInsights(storeId: number = 101) {
+export default function useAiInsights() { // ❌ storeId 인자 제거
+  const { currentStoreId } = useStore(); // ✅ 동적 Store ID 사용
+
   const [demandForecast, setDemandForecast] = useState<DemandForecastChartData[]>([]);
   const [totalPredictedVisitors, setTotalPredictedVisitors] = useState<number>(0);
   const [expectedWeekendSales, setExpectedWeekendSales] = useState<number>(0);
-  
-  // ✅ [추가] 메뉴 성장률 분석 State
   const [menuGrowthStats, setMenuGrowthStats] = useState<MenuGrowthStats[]>([]);
-  
   const [loading, setLoading] = useState(true);
 
-  // --- 기존 Mock 데이터 ---
+  // --- 기존 Mock 데이터 (변경 없음) ---
   const [menuPerformance] = useState([
     { name: "제육 정식", sales: 1200000, margin: 35, trend: "up" },
     { name: "김치찌개", sales: 850000, margin: 40, trend: "up" },
@@ -41,13 +40,14 @@ export default function useAiInsights(storeId: number = 101) {
   // ✅ 백엔드 데이터 Fetching
   useEffect(() => {
     const fetchForecast = async () => {
-      if (!storeId) return;
+      // ✅ currentStoreId가 없으면 로직 중단 (안전장치)
+      if (!currentStoreId) return;
       
       try {
         setLoading(true);
 
-        // 1. 수요 예측 데이터 가져오기 (기존)
-        const data = await aiInsightsApi.getDemandForecast(storeId);
+        // 1. 수요 예측 데이터
+        const data = await aiInsightsApi.getDemandForecast(currentStoreId);
         const chartData: DemandForecastChartData[] = data.map((item: any) => ({
           date: item.forecastDate,
           predicted: item.predictedSalesMax,
@@ -62,8 +62,8 @@ export default function useAiInsights(storeId: number = 101) {
           setExpectedWeekendSales(Math.round(totalSales * 0.35)); 
         }
 
-        // ✅ 2. [추가] 메뉴 성장률 분석 데이터 (Mock 예시)
-        // 실제 API 연동 시: const growthData = await aiInsightsApi.getMenuGrowth(storeId);
+        // 2. 메뉴 성장률 분석 (Mock) -> 실제 API 호출 시 currentStoreId 사용
+        // const growthData = await aiInsightsApi.getMenuGrowth(currentStoreId);
         const mockGrowthData: MenuGrowthStats[] = [
             { menuId: 1, menuName: "마라탕", lastWeekSales: 120, nextWeekPrediction: 150, growthRate: 25.0, recommendation: "발주 증량" },
             { menuId: 2, menuName: "꿔바로우", lastWeekSales: 45, nextWeekPrediction: 40, growthRate: -11.1, recommendation: "발주 감소" },
@@ -73,14 +73,14 @@ export default function useAiInsights(storeId: number = 101) {
         setMenuGrowthStats(mockGrowthData);
 
       } catch (error) {
-        console.error("Failed to fetch demand forecast:", error);
+        console.error("Failed to fetch AI insights:", error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchForecast();
-  }, [storeId]);
+  }, [currentStoreId]); // ✅ 의존성 배열 수정
 
   return {
     demandForecast,
@@ -91,7 +91,6 @@ export default function useAiInsights(storeId: number = 101) {
     loading,
     totalPredictedVisitors,
     expectedWeekendSales,
-    // ✅ [중요] 여기서 리턴해줘야 View에서 사용 가능
     menuGrowthStats, 
   };
 }

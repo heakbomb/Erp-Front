@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/shared/ui/use-toast";
-import { authApi } from "./authApi";
+import { authApi, OwnerLoginResponse } from "./authApi"; // OwnerLoginResponse 타입 추가
 import { useAuth } from "@/contexts/AuthContext";
 
 function pickErrorMessage(e: any) {
@@ -31,15 +31,10 @@ export function useLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // ✅ 추가: 공통 에러 처리 (여기만 추가하면 handleError 에러 해결)
   const handleError = (error: any, title: string) => {
     const msg = pickErrorMessage(error);
-
-    // 사용자 알림(요구사항: 브라우저 콘솔에만 찍히고 끝나면 안 됨)
     if (typeof window !== "undefined") alert(msg);
-
     toast({ variant: "destructive", title, description: msg });
-
     if (error?.fieldErrors) setFieldErrors(error.fieldErrors);
   };
 
@@ -51,8 +46,6 @@ export function useLogin() {
     try {
       const res = await authApi.loginOwner({ email: ownerEmail, password: ownerPassword });
 
-      // ✅ 백엔드 OwnerLoginResponse 기준 매핑
-      // res: { ownerId, email, username, accessToken }
       login(
         {
           ownerId: res.ownerId,
@@ -73,19 +66,30 @@ export function useLogin() {
     }
   };
 
+  // ✅ [수정됨] 관리자 로그인 핸들러
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setFieldErrors({});
 
     try {
-      const res: any = await authApi.loginAdmin({ username: adminUsername, password: adminPassword });
+      // 1. authApi 호출
+      const res: OwnerLoginResponse = await authApi.loginAdmin({ 
+        username: adminUsername, 
+        password: adminPassword 
+      });
 
-      // ⚠️ admin 응답 DTO에 맞춰 아래를 조정해야 함
-      const user = { ...(res.user ?? res), role: "ADMIN" };
-      const token = res.accessToken ?? res.token;
-
-      login(user, token);
+      // 2. 로그인 처리 (res 자체가 유저 정보 + 토큰)
+      login(
+        {
+          ownerId: res.ownerId, // 관리자 ID
+          email: res.email,     // "admin"
+          username: res.username, // "admin"
+          role: "ADMIN",        // 역할 강제 지정
+          refreshToken: res.refreshToken,
+        },
+        res.accessToken
+      );
 
       toast({ title: "관리자 접속", description: "관리자 페이지로 이동합니다." });
       router.push("/admin/dashboard");

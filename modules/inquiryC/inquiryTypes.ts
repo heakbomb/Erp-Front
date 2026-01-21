@@ -1,51 +1,49 @@
-// modules/inquiryC/inquiryTypes.ts
-
 export type InquiryStatus = "PENDING" | "RESPONDED";
 export type InquiryCategory = "INQUIRY" | "SUGGESTION" | "REPORT";
 
-// 공통 Inquiry 응답 객체 (InquiryResponse)
+// [공통] 문의 데이터 구조
 export interface Inquiry {
-  inquiryId: number;
-  ownerId: number;
-  category: InquiryCategory;
+  inquiryId: number;       // 백엔드와 일치
   title: string;
   content: string;
-  answer?: string | null;
+  answer?: string;
   status: InquiryStatus;
-  createdAt: string | number[]; // 백엔드 응답에 따라 다를 수 있으나 features 로직 대응
-  answeredAt?: string | number[] | null;
+  category: InquiryCategory;
+  createdAt: string;
+  answeredAt?: string;
   
-  // 관리자 화면용 추가 정보
+  // 관리자 화면용 추가 필드
   ownerName?: string;
   storeName?: string;
+  adminName?: string; 
 }
 
-// [사장님] 문의 등록 요청
+// [사장님] 문의 등록 요청 (이게 없어서 api 파일 에러 발생 중)
 export interface CreateInquiryRequest {
-  category: InquiryCategory;
   title: string;
   content: string;
-  storeId?: number | null;
-  createdAt?: string; // 클라이언트 생성 시간 (features 로직 반영)
+  category: InquiryCategory;
+  storeId?: number; 
+  isSecret?: boolean;
+}
+
+// [사장님] 목록 조회 파라미터
+export interface OwnerInquiryParams {
+  page: number;
+  size: number;
+}
+
+// [관리자] 목록 조회 파라미터
+export interface AdminInquiryParams {
+  page: number;
+  size: number;
+  status?: InquiryStatus;
+  category?: InquiryCategory;
 }
 
 // [관리자] 답변 등록 요청
 export interface ReplyInquiryRequest {
+  adminId: number;
+  inquiryId: number;
   answer: string;
-}
-
-// [관리자] 검색 파라미터
-export interface AdminInquiryParams {
-  page: number;
-  size: number;
-  status?: InquiryStatus | "ALL";
-  category?: InquiryCategory | "ALL";
-}
-
-// [사장님] 검색 파라미터
-export interface OwnerInquiryParams {
-  ownerId: number;
-  page: number;
-  size: number;
-  sort?: string;
 }

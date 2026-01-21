@@ -25,7 +25,6 @@ export const OWNER_NAV_ITEMS = [
   { name: "매입 관리", href: "/owner/purchases", icon: ShoppingCart }, 
   { name: "매출 관리", href: "/owner/sales", icon: BarChart3 },  
   { name: "AI 인사이트", href: "/owner/ai-insights", icon: BrainCircuit }, 
-  { name: "문서 관리", href: "/owner/documents", icon: FileText },
   { name: "문의 내역", href: "/owner/inquiries", icon: MessageSquare },
   { name: "설정", href: "/owner/settings", icon: Settings },
 ];
@@ -43,5 +42,4 @@ export const ADMIN_NAV_ITEMS = [
   { name: "사업장 승인", href: "/admin/stores", icon: Store },
   { name: "구독 현황", href: "/admin/subscriptions", icon: CreditCard },
   { name: "문의 관리", href: "/admin/inquiries", icon: MessageSquare },
-  { name: "시스템 로그", href: "/admin/logs", icon: FileText },
 ];
