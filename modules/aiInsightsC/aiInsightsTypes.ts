@@ -78,3 +78,19 @@ export interface MenuGrowthStats {
   growthRate: number;
   recommendation: string;
 }
+
+export type ProfitForecastResponse = {
+  storeId: number
+  year: number
+  month: number
+  featureYm: string      // 예: "2025-12"
+  predForYm: string      // 예: "2026-01"
+  target: string         // 예: "y_next_profit"
+  pred: number           // 예측값 (원 단위)
+  modelPath?: string     // 있으면 표시용
+}
+
+export type MenuAnalyticsResponse = {
+  menuPerformance: { name: string; sales: number }[];
+  categoryData: { name: string; value: number }[];
+};
