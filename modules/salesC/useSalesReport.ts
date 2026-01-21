@@ -24,7 +24,7 @@ export default function useSalesReport({ year, month }: { year: number; month: n
         const report = await salesApi.getMonthlyReport(currentStoreId, year, month)
 
         // 2) 주간 지역평균
-        const area = await salesApi.getWeeklyAreaAvg(currentStoreId, year, month, 2000)
+        const area = await salesApi.getWeeklyAreaAvg(currentStoreId, year, month)
 
         // 3) 주간 데이터에 areaAvgSales 합치기
         const weeklySales = (report.weeklySales || []).map((w) => {

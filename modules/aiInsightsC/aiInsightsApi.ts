@@ -1,6 +1,14 @@
 // src/modules/aiInsightsC/aiInsightsApi.ts
 import { apiClient } from "@/shared/api/apiClient";
-import { DemandForecastResponse, MenuItem } from "./aiInsightsTypes";
+import { DemandForecastResponse, MenuItem, MenuAnalyticsResponse,ProfitForecastResponse } from "./aiInsightsTypes";
+import type { AxiosError } from "axios";
+
+
+type ApiErrorBody = {
+  code?: string;
+  message?: string;
+  details?: any;
+};
 
 export const aiInsightsApi = {
   // ✅ 1. 수요 예측 데이터 조회 (실제 백엔드 연동)
@@ -8,6 +16,46 @@ export const aiInsightsApi = {
     const { data } = await apiClient.get<DemandForecastResponse[]>(`/ai/insights/${storeId}/forecast`);
     return data;
   },
+  // ✅ [신규] 메뉴 성과 + 카테고리 비중 (Bar + Pie)
+  getMenuAnalytics: async (params: {
+    storeId: number;
+    from: string; // "YYYY-MM-DD"
+    to: string;   // "YYYY-MM-DD"
+  }): Promise<MenuAnalyticsResponse> => {
+    const { storeId, from, to } = params;
+
+    // ✅ 백엔드 경로는 네 컨트롤러 매핑에 맞춰 조정
+    // 예: /owner/sales/menu-analytics 또는 /sales/menu-analytics 등
+    const { data } = await apiClient.get<MenuAnalyticsResponse>(`/owner/sales/menu-analytics`, {
+      params: { storeId, from, to },
+    });
+    return data;
+  },
+
+   getProfitForecast: async (
+    storeId: number,
+    year: number,
+    month: number
+  ): Promise<ProfitForecastResponse | null> => {
+    try {
+      const res = await apiClient.get<ProfitForecastResponse>("/owner/ml/profit-forecast", {
+        params: { storeId, year, month },
+      });
+      return res.data;
+    } catch (e) {
+      const err = e as AxiosError<ApiErrorBody>;
+      const code = err.response?.data?.code;
+
+      // ✅ 예측 데이터 준비 안됨 = 정상 (에러 X)
+      if (code === "ML_FEATURE_NOT_READY") return null;
+
+      // ✅ 그 외는 진짜 에러로 올려서 react-query의 isError로 처리
+      throw e;
+    }
+  },
+
+
+  
 
   // ✅ 2. 메뉴 아이템 조회 (usePriceOpt에서 사용 - 에러 방지용 복구)
   // 추후 백엔드에 가격 최적화 전용 API가 생기면 그쪽으로 연결해야 합니다.
@@ -21,30 +69,7 @@ export const aiInsightsApi = {
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve([
-          {
-            id: 1,
-            name: "제육 정식",
-            currentMaterials: [{ name: "돼지고기(앞다리)", cost: 3000, origin: "국내산" }],
-            alternativeMaterials: [{ name: "돼지고기(뒷다리)", cost: 2200, origin: "수입산" }],
-            currentPrice: 10000,
-            currentCost: 4500,
-            currentMargin: 55,
-            alternativeCost: 3700,
-            alternativeMargin: 63,
-            suggestedPrice: 10500
-          },
-          {
-            id: 2,
-            name: "김치찌개",
-            currentMaterials: [{ name: "묵은지", cost: 1500, origin: "국내산" }],
-            alternativeMaterials: [{ name: "일반김치", cost: 1000, origin: "중국산" }],
-            currentPrice: 9000,
-            currentCost: 3000,
-            currentMargin: 66,
-            alternativeCost: 2500,
-            alternativeMargin: 72,
-            suggestedPrice: 9000
-          }
+          
         ]);
       }, 500);
     });

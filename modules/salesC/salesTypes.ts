@@ -135,8 +135,8 @@ export type WeeklyAreaAvgPoint = {
 
 export type WeeklyAreaAvgResponse = {
   storeId: number
-  radiusM: number
   year: number
   month: number
+  nearStoreTotalCount: number
   data: WeeklyAreaAvgPoint[]
 }
