@@ -388,10 +388,6 @@ export default function AIInsightsView() {
                             </TableCell>
                           </TableRow>
                           <TableRow>
-                            <TableCell className="font-medium">기준 데이터 월</TableCell>
-                            <TableCell>{profitQ.data.featureYm}</TableCell>
-                          </TableRow>
-                          <TableRow>
                             <TableCell className="font-medium">예측 대상 월</TableCell>
                             <TableCell>{profitQ.data.predForYm}</TableCell>
                           </TableRow>

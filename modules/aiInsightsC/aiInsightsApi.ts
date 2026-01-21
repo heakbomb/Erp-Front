@@ -1,7 +1,14 @@
 // src/modules/aiInsightsC/aiInsightsApi.ts
 import { apiClient } from "@/shared/api/apiClient";
-import { DemandForecastResponse, MenuItem, MenuAnalyticsResponse } from "./aiInsightsTypes";
-import type { ProfitForecastResponse } from "./aiInsightsTypes"
+import { DemandForecastResponse, MenuItem, MenuAnalyticsResponse,ProfitForecastResponse } from "./aiInsightsTypes";
+import type { AxiosError } from "axios";
+
+
+type ApiErrorBody = {
+  code?: string;
+  message?: string;
+  details?: any;
+};
 
 export const aiInsightsApi = {
   // ✅ 1. 수요 예측 데이터 조회 (실제 백엔드 연동)
@@ -25,13 +32,28 @@ export const aiInsightsApi = {
     return data;
   },
 
- 
-  getProfitForecast: async (storeId: number, year: number, month: number) => {
-    const res = await apiClient.get<ProfitForecastResponse>("/owner/ml/profit-forecast", {
-      params: { storeId, year, month },
-    })
-    return res.data
+   getProfitForecast: async (
+    storeId: number,
+    year: number,
+    month: number
+  ): Promise<ProfitForecastResponse | null> => {
+    try {
+      const res = await apiClient.get<ProfitForecastResponse>("/owner/ml/profit-forecast", {
+        params: { storeId, year, month },
+      });
+      return res.data;
+    } catch (e) {
+      const err = e as AxiosError<ApiErrorBody>;
+      const code = err.response?.data?.code;
+
+      // ✅ 예측 데이터 준비 안됨 = 정상 (에러 X)
+      if (code === "ML_FEATURE_NOT_READY") return null;
+
+      // ✅ 그 외는 진짜 에러로 올려서 react-query의 isError로 처리
+      throw e;
+    }
   },
+
 
   
 
