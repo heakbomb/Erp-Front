@@ -1,25 +1,11 @@
-// modules/attendanceC/EmployeesAttendance.tsx
 "use client";
 
 import { useMemo } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Badge } from "@/shared/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import { Loader2 } from "lucide-react";
 
 import useEmployeesAttendance from "./useEmployeesAttendance";
@@ -27,25 +13,26 @@ import type { EmployeeAttendanceSummary } from "./attendanceTypes";
 
 export default function EmployeesAttendance() {
   const {
-    summaryStoreIdInput,
     summaryMonth,
     summaryEmployeeFilter,
     summaryItems,
-    logStoreIdInput,
+
     logFromDate,
     logToDate,
     logEmployeeFilter,
     logs,
+
     loading,
     banner,
     stats,
-    setSummaryStoreIdInput,
+
     setSummaryMonth,
     setSummaryEmployeeFilter,
-    setLogStoreIdInput,
+
     setLogFromDate,
     setLogToDate,
     setLogEmployeeFilter,
+
     loadSummary,
     loadLogs,
   } = useEmployeesAttendance();
@@ -60,12 +47,32 @@ export default function EmployeesAttendance() {
   const employeeOptions = useMemo<EmployeeAttendanceSummary[]>(
     () =>
       Array.from(
-        new Map<number, EmployeeAttendanceSummary>(
-          summaryItems.map((i) => [i.employeeId, i]),
-        ).values(),
+        new Map<number, EmployeeAttendanceSummary>(summaryItems.map((i) => [i.employeeId, i])).values()
       ),
-    [summaryItems],
+    [summaryItems]
   );
+
+  // ✅ employeeId -> employeeName 매핑(로그에서 이름 보정용)
+  const employeeNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const e of employeeOptions) {
+      const name = (e.employeeName ?? "").trim();
+      if (name) map.set(e.employeeId, name);
+    }
+    return map;
+  }, [employeeOptions]);
+
+  const resolveEmployeeName = useMemo(() => {
+    return (employeeId: number, employeeName?: string | null) => {
+      const direct = (employeeName ?? "").trim();
+      if (direct) return direct;
+
+      const fromMap = employeeNameById.get(employeeId);
+      if (fromMap) return fromMap;
+
+      return `직원 #${employeeId}`; // 최후 fallback
+    };
+  }, [employeeNameById]);
 
   const filteredSummaryItems = useMemo(() => {
     if (summaryEmployeeFilter === "all") return summaryItems;
@@ -82,10 +89,7 @@ export default function EmployeesAttendance() {
       return logs.filter((l) => l.employeeId === id);
     })();
 
-    // ✅ 요구사항 1) 기록시간 기준 오름차순 정렬 (08:00 → 09:00 ...)
-    return [...base].sort(
-      (a, b) => new Date(a.recordTime).getTime() - new Date(b.recordTime).getTime(),
-    );
+    return [...base].sort((a, b) => new Date(a.recordTime).getTime() - new Date(b.recordTime).getTime());
   }, [logs, logEmployeeFilter]);
 
   const logStats = useMemo(() => {
@@ -123,15 +127,6 @@ export default function EmployeesAttendance() {
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Input
-                className="w-32"
-                placeholder="사업장 ID"
-                inputMode="numeric"
-                value={summaryStoreIdInput}
-                onChange={(e) =>
-                  setSummaryStoreIdInput(e.target.value.replace(/[^0-9]/g, ""))
-                }
-              />
-              <Input
                 className="w-40"
                 type="month"
                 value={summaryMonth}
@@ -149,12 +144,7 @@ export default function EmployeesAttendance() {
                   </option>
                 ))}
               </select>
-              <Button
-                size="sm"
-                onClick={() => void loadSummary()}
-                disabled={loading}
-                className="whitespace-nowrap"
-              >
+              <Button size="sm" onClick={() => void loadSummary()} disabled={loading} className="whitespace-nowrap">
                 {loading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
                 조회
               </Button>
@@ -190,7 +180,7 @@ export default function EmployeesAttendance() {
             </div>
           ) : filteredSummaryItems.length === 0 ? (
             <div className="text-sm text-muted-foreground">
-              조회된 출결 데이터가 없습니다. 사업장 ID와 월을 확인해주세요.
+              조회된 출결 데이터가 없습니다. 월을 확인해주세요.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -199,26 +189,18 @@ export default function EmployeesAttendance() {
                   <TableRow>
                     <TableHead>직원</TableHead>
                     <TableHead className="text-right">이번 달 근무일수</TableHead>
-                    <TableHead className="text-right">
-                      이번 달 총 근무시간 (h)
-                    </TableHead>
+                    <TableHead className="text-right">이번 달 총 근무시간 (h)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredSummaryItems.map((row) => (
                     <TableRow key={row.employeeId}>
                       <TableCell>
-                        <div className="font-medium">
-                          {row.employeeName ?? `직원 #${row.employeeId}`}
-                        </div>
+                        <div className="font-medium">{row.employeeName ?? `직원 #${row.employeeId}`}</div>
                       </TableCell>
+                      <TableCell className="text-right">{row.workDaysThisMonth ?? 0}일</TableCell>
                       <TableCell className="text-right">
-                        {row.workDaysThisMonth ?? 0}일
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {row.workHoursThisMonth != null
-                          ? row.workHoursThisMonth.toFixed(1)
-                          : "-"}
+                        {row.workHoursThisMonth != null ? row.workHoursThisMonth.toFixed(1) : "-"}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -235,35 +217,12 @@ export default function EmployeesAttendance() {
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
               <CardTitle>출퇴근 로그 리스트</CardTitle>
-              <CardDescription>
-                선택한 사업장 / 날짜 기준으로 기록된 모든 출근 · 퇴근 로그입니다.
-              </CardDescription>
+              <CardDescription>선택한 사업장 / 날짜 기준으로 기록된 모든 출근 · 퇴근 로그입니다.</CardDescription>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Input
-                className="w-32"
-                placeholder="사업장 ID"
-                inputMode="numeric"
-                value={logStoreIdInput}
-                onChange={(e) =>
-                  setLogStoreIdInput(e.target.value.replace(/[^0-9]/g, ""))
-                }
-              />
-
-              {/* ✅ 요구사항 2) 기간 선택(from~to) */}
-              <Input
-                className="w-44"
-                type="date"
-                value={logFromDate}
-                onChange={(e) => setLogFromDate(e.target.value)}
-              />
-              <Input
-                className="w-44"
-                type="date"
-                value={logToDate}
-                onChange={(e) => setLogToDate(e.target.value)}
-              />
+              <Input className="w-44" type="date" value={logFromDate} onChange={(e) => setLogFromDate(e.target.value)} />
+              <Input className="w-44" type="date" value={logToDate} onChange={(e) => setLogToDate(e.target.value)} />
 
               <select
                 className="w-40 rounded-md border px-2 py-1 text-sm"
@@ -277,21 +236,12 @@ export default function EmployeesAttendance() {
                   </option>
                 ))}
               </select>
-              <Button
-                size="sm"
-                onClick={() => void loadLogs()}
-                disabled={loading}
-                className="whitespace-nowrap"
-              >
+
+              <Button size="sm" onClick={() => void loadLogs()} disabled={loading} className="whitespace-nowrap">
                 {loading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
                 조회
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleTodayLogs}
-                className="whitespace-nowrap"
-              >
+              <Button variant="outline" size="sm" onClick={handleTodayLogs} className="whitespace-nowrap">
                 오늘
               </Button>
             </div>
@@ -332,7 +282,7 @@ export default function EmployeesAttendance() {
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="text-sm text-muted-foreground">
-              조회된 출결 로그가 없습니다. 사업장 ID와 기간, 직원 필터를 확인해주세요.
+              조회된 출결 로그가 없습니다. 기간과 직원 필터를 확인해주세요.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -345,35 +295,32 @@ export default function EmployeesAttendance() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLogs.map((l) => (
-                    <TableRow key={l.logId}>
-                      <TableCell>
-                        <div className="font-medium">
-                          {l.employeeName ?? `직원 #${l.employeeId}`}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          ID {l.employeeId}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(l.recordTime).toLocaleString("ko-KR", {
-                          year: "2-digit",
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={l.recordType === "IN" ? "default" : "secondary"}
-                        >
-                          {l.recordType === "IN" ? "출근" : "퇴근"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredLogs.map((l) => {
+                    const name = resolveEmployeeName(l.employeeId, (l as any).employeeName);
+                    return (
+                      <TableRow key={l.logId}>
+                        <TableCell>
+                          <div className="font-medium">{name}</div>
+                          {/* ✅ 기존 "ID {employeeId}" 라인을 이름으로 교체 (레이아웃/타이포 유지) */}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(l.recordTime).toLocaleString("ko-KR", {
+                            year: "2-digit",
+                            month: "2-digit",
+                            day: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={l.recordType === "IN" ? "default" : "secondary"}>
+                            {l.recordType === "IN" ? "출근" : "퇴근"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

@@ -51,19 +51,38 @@ export const authApi = {
   },
 
   checkOwnerEmailExists: async (email: string): Promise<OwnerEmailExistsResponse> => {
-    const res = await apiClient.get<OwnerEmailExistsResponse>(
-      "/auth/register/owner/exists",
-      { params: { email } }
-    );
+    const res = await apiClient.get<OwnerEmailExistsResponse>("/auth/register/owner/exists", {
+      params: { email },
+    });
     return res.data;
   },
 
+  /**
+   * ✅ 비밀번호 재설정 메일 요청
+   * 백엔드: POST /auth/password/reset/request?email=...
+   */
   requestPasswordReset: async (email: string): Promise<void> => {
-    await apiClient.post("/auth/reset-password", { email });
+    await apiClient.post("/auth/password/reset/request", null, {
+      params: { email },
+    });
   },
 
+  /**
+   * ✅ 비밀번호 재설정 확정
+   * 백엔드: POST /auth/password/reset/confirm?token=...&newPassword=...
+   */
+  confirmPasswordReset: async (token: string, newPassword: string): Promise<void> => {
+    await apiClient.post("/auth/password/reset/confirm", null, {
+      params: { token, newPassword },
+    });
+  },
+
+  /**
+   * ✅ 직원 소셜 로그인 진입
+   */
   handleSocialLogin: (provider: "google" | "kakao" | "naver") => {
     if (typeof window === "undefined") return;
+
     if (provider === "naver") {
       alert("네이버 로그인은 아직 준비 중입니다.");
       return;
@@ -71,46 +90,27 @@ export const authApi = {
     window.location.href = `/api/oauth2/authorization/${provider}`;
   },
 
-  sendEmailVerificationCode: async (
-    data: SendEmailCodeRequest
-  ): Promise<SendEmailCodeResponse> => {
-    const res = await apiClient.post<SendEmailCodeResponse>(
-      "/auth/email-verifications",
-      data
-    );
+  sendEmailVerificationCode: async (data: SendEmailCodeRequest): Promise<SendEmailCodeResponse> => {
+    const res = await apiClient.post<SendEmailCodeResponse>("/auth/email-verifications", data);
     return res.data;
   },
 
   resendEmailVerificationCode: async (verificationId: string): Promise<void> => {
-    await apiClient.post(
-      `/auth/email-verifications/${encodeURIComponent(verificationId)}/resend`
-    );
+    await apiClient.post(`/auth/email-verifications/${encodeURIComponent(verificationId)}/resend`);
   },
 
-  confirmEmailVerificationCode: async (
-    data: ConfirmEmailCodeRequest
-  ): Promise<ConfirmEmailCodeResponse> => {
-    const res = await apiClient.post<ConfirmEmailCodeResponse>(
-      "/auth/email-verifications/confirm",
-      data
-    );
+  confirmEmailVerificationCode: async (data: ConfirmEmailCodeRequest): Promise<ConfirmEmailCodeResponse> => {
+    const res = await apiClient.post<ConfirmEmailCodeResponse>("/auth/email-verifications/confirm", data);
     return res.data;
   },
 
-  refreshAccessToken: async (
-    refreshToken: string
-  ): Promise<RefreshTokenResponse> => {
-    const res = await apiClient.post<RefreshTokenResponse>(
-      "/auth/token/refresh",
-      { refreshToken }
-    );
+  refreshAccessToken: async (refreshToken: string): Promise<RefreshTokenResponse> => {
+    const res = await apiClient.post<RefreshTokenResponse>("/auth/token/refresh", { refreshToken });
     return res.data;
   },
 
   logout: async (refreshToken?: string): Promise<LogoutResponse> => {
-    const res = await apiClient.post<LogoutResponse>("/auth/logout", {
-      refreshToken,
-    });
+    const res = await apiClient.post<LogoutResponse>("/auth/logout", { refreshToken });
     return res.data;
   },
 };
