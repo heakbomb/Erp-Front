@@ -449,7 +449,7 @@ export default function AIInsightsView() {
                 <>
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="rounded-xl border p-4">
-                      <div className="text-sm text-muted-foreground">예측 수익</div>
+                      <div className="text-sm text-muted-foreground">예측 순수익</div>
                       <div className="mt-1 text-3xl font-bold tracking-tight">
                         ₩{money(profitQ.data.pred)}
                       </div>
