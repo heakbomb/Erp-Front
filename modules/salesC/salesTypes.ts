@@ -123,8 +123,20 @@ export interface WeeklyPoint {
 
 export interface MonthlyReport {
   summary: MonthlySummary;
-  topMenus: MonthlyTopMenu[];
+  topMenus: {
+    menuId: number;
+    menuName: string;   // ✅ 백엔드는 menuName
+    quantity: number;
+    revenue: number;    // ✅ 매출액
+  }[];
   weeklySales: WeeklyPoint[];
+}
+
+// ✅ 파이차트 전용(프론트에서 계산)
+export interface MonthlyTopMenu {
+  menuName: string;
+  sales: number;
+  rate: number;
 }
 
 export type WeeklyAreaAvgPoint = {
