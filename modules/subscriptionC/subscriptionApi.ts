@@ -24,12 +24,10 @@ export const subscriptionApi = {
     return res.data;
   },
 
-  // ✅ [수정] 이용 가능한 플랜 목록 조회
-  // 기존: 관리자용 API (/admin/subscriptions) 사용 -> PageResponse
-  // 변경: 사장님용 전용 API (/owner/subscriptions/products) 사용 -> List (Array)
+  // 이용 가능한 플랜 목록 조회
   getPublicPlans: async () => {
     const res = await apiClient.get<SubscriptionPlan[]>("/owner/subscriptions/products");
-    return res.data; // 백엔드에서 바로 List<Dto>를 반환하므로 .content 없이 바로 data 리턴
+    return res.data;
   },
 
   // 구독 신청
@@ -41,6 +39,11 @@ export const subscriptionApi = {
   // 구독 해지
   cancelSubscription: async (ownerSubId: number, body: CancelSubscriptionRequest) => {
     await apiClient.post(`/owner/subscriptions/${ownerSubId}/cancel`, body);
+  },
+
+  // ✅ [추가] 구독 해지 취소 (상태 복구)
+  undoCancelSubscription: async (ownerSubId: number) => {
+    await apiClient.post(`/owner/subscriptions/${ownerSubId}/undo-cancel`);
   },
 
   // ---------------------------------------------
