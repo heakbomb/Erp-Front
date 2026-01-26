@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import {
   Card,
   CardContent,
@@ -43,18 +44,18 @@ import {
 
 import useAiInsights from "./useAiInsights";
 import { useProfitForecast } from "@/modules/aiInsightsC/useProfitForecast";
+import { useProfitBenchmark } from "@/modules/aiInsightsC/useProfitBenchmark";
 import { useStore } from "@/contexts/StoreContext";
 
 // 돈 단위 포맷팅 헬퍼
 const money = (v: number | undefined | null) =>
   new Intl.NumberFormat("ko-KR").format(Math.round(Number(v ?? 0)));
 
-// ✅ Y축 숫자 잘림 방지용: 값 자릿수 기반으로 width 자동 산정(원하면 고정값 써도 됨)
+// ✅ Y축 숫자 잘림 방지용: 값 자릿수 기반으로 width 자동 산정
 const yAxisWidthFromMax = (max: number, minWidth = 60, maxWidth = 96) => {
   const digits = String(Math.max(0, Math.floor(Math.abs(max)))).length;
-  // 콤마 포함 자릿수 고려(+2 정도 여유)
-  const approxChars = digits + Math.floor((digits - 1) / 3) + 2;
-  const px = approxChars * 7; // 대략 1글자 폭 7px 가정
+  const approxChars = digits + Math.floor((digits - 1) / 3) + 2; // 콤마 여유
+  const px = approxChars * 7;
   return Math.min(maxWidth, Math.max(minWidth, px));
 };
 
@@ -72,10 +73,22 @@ export default function AIInsightsView() {
   } = useAiInsights();
 
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const base = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const year = base.getFullYear();
+  const month = base.getMonth() + 1;
 
   const profitQ = useProfitForecast(year, month);
+
+  // ✅ 구·업종 평균 대비 손익 비교
+  // 백엔드 컨트롤러에서 myCogsRate가 required=false면 안 보내도 됨.
+  // required=true면 아래 myCogsRate 주석 해제해서 기본값 보내.
+  const benchQ = useProfitBenchmark({
+    storeId: currentStoreId ?? undefined,
+    year,
+    month,
+    // myCogsRate: 0.33,
+  });
+
   const isLoading = isStoreLoading || isAiLoading;
 
   // ✅ 차트별 최대값 추출(없으면 0)
@@ -88,7 +101,7 @@ export default function AIInsightsView() {
     ...(demandForecast?.map((d: any) => Number(d?.predicted ?? 0)) ?? [0])
   );
 
-  // ✅ 필요 폭 계산 (고정값 원하면 아래 두 줄을 width={80} 같은 값으로 바꿔도 됨)
+  // ✅ 필요 폭 계산
   const menuYAxisWidth = yAxisWidthFromMax(maxMenuSales, 70, 110);
   const forecastLeftYAxisWidth = yAxisWidthFromMax(maxPredictedSales, 70, 110);
 
@@ -170,34 +183,27 @@ export default function AIInsightsView() {
               </CardDescription>
             </CardHeader>
 
-            {/* ✅ 차트 좌측 숫자 잘림 방지: 패딩 살짝 + */}
             <CardContent className="px-6">
               {demandForecast.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart
                     data={demandForecast}
-                    // ✅ left 여백 늘려서 tick 잘림 방지
                     margin={{ top: 10, right: 30, left: 40, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" padding={{ left: 20, right: 20 }} />
-
-                    {/* ✅ 왼쪽 Y축: width + tickMargin + tickFormatter */}
                     <YAxis
                       yAxisId="left"
                       width={forecastLeftYAxisWidth}
                       tickMargin={8}
                       tickFormatter={(v) => money(Number(v))}
                     />
-
-                    {/* ✅ 오른쪽 Y축도 width 확보 */}
                     <YAxis
                       yAxisId="right"
                       orientation="right"
                       width={60}
                       tickMargin={8}
                     />
-
                     <Tooltip
                       formatter={(value: any, name: any) => [
                         name === "예상 매출"
@@ -206,7 +212,6 @@ export default function AIInsightsView() {
                         name,
                       ]}
                     />
-
                     <Line
                       yAxisId="left"
                       type="monotone"
@@ -261,7 +266,7 @@ export default function AIInsightsView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {menuGrowthStats.map((item) => (
+                    {menuGrowthStats.map((item: any) => (
                       <TableRow key={item.menuId}>
                         <TableCell className="font-medium">{item.menuName}</TableCell>
                         <TableCell className="text-right">
@@ -272,13 +277,12 @@ export default function AIInsightsView() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div
-                            className={`flex items-center justify-end gap-1 ${
-                              item.growthRate > 0
+                            className={`flex items-center justify-end gap-1 ${item.growthRate > 0
                                 ? "text-red-500"
                                 : item.growthRate < 0
-                                ? "text-blue-500"
-                                : "text-gray-500"
-                            }`}
+                                  ? "text-blue-500"
+                                  : "text-gray-500"
+                              }`}
                           >
                             {item.growthRate > 0 ? (
                               <ArrowUp size={14} />
@@ -293,13 +297,13 @@ export default function AIInsightsView() {
                         <TableCell className="text-center">
                           <Badge
                             variant={
-                              item.recommendation.includes("증량") ||
-                              item.recommendation.includes("급증")
+                              item.recommendation?.includes("증량") ||
+                                item.recommendation?.includes("급증")
                                 ? "default"
-                                : item.recommendation.includes("소진") ||
-                                  item.recommendation.includes("감소")
-                                ? "destructive"
-                                : "outline"
+                                : item.recommendation?.includes("소진") ||
+                                  item.recommendation?.includes("감소")
+                                  ? "destructive"
+                                  : "outline"
                             }
                           >
                             {item.recommendation}
@@ -323,13 +327,11 @@ export default function AIInsightsView() {
                 <CardTitle>메뉴별 매출 현황</CardTitle>
               </CardHeader>
 
-              {/* ✅ 차트 좌측 숫자 잘림 방지: padding + */}
               <CardContent className="px-6">
                 {menuPerformance.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart
                       data={menuPerformance}
-                      // ✅ left 여백 늘려서 Y축 숫자 잘림 방지
                       margin={{ top: 10, right: 20, left: 40, bottom: 10 }}
                     >
                       <defs>
@@ -341,23 +343,13 @@ export default function AIInsightsView() {
 
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
-
-                      {/* ✅ 핵심: width 늘리고 tickFormatter로 콤마 */}
                       <YAxis
                         width={menuYAxisWidth}
                         tickMargin={8}
                         tickFormatter={(v) => money(Number(v))}
                       />
-
-                      <Tooltip
-                        formatter={(value: any) => `₩${money(Number(value))}`}
-                      />
-
-                      <Bar
-                        dataKey="sales"
-                        radius={[10, 10, 4, 4]}
-                        fill="url(#barGrad)"
-                      />
+                      <Tooltip formatter={(value: any) => `₩${money(Number(value))}`} />
+                      <Bar dataKey="sales" radius={[10, 10, 4, 4]} fill="url(#barGrad)" />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -392,9 +384,7 @@ export default function AIInsightsView() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip
-                        formatter={(value: any) => `₩${money(Number(value))}`}
-                      />
+                      <Tooltip formatter={(value: any) => `₩${money(Number(value))}`} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
@@ -491,6 +481,130 @@ export default function AIInsightsView() {
                     </div>
                   </div>
                 </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ✅ [추가] 구·업종 평균 대비 손익 비교 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>구·업종 평균 대비 손익 비교</CardTitle>
+              <CardDescription>
+                내 매장의 월 매출/인건비를 기반으로, 같은 구·업종 평균과 비교합니다.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {isStoreLoading ? (
+                <div className="rounded-lg border p-4 text-muted-foreground">
+                  매장 정보를 불러오는 중…
+                </div>
+              ) : !currentStoreId ? (
+                <div className="rounded-lg border p-4 text-muted-foreground">
+                  먼저 매장을 선택(또는 등록)해주세요.
+                </div>
+              ) : benchQ.isLoading ? (
+                <div className="rounded-lg border p-4 text-muted-foreground">
+                  벤치마크 비교 데이터를 불러오는 중…
+                </div>
+              ) : benchQ.isError ? (
+                <div className="rounded-lg border p-4 text-red-600">
+                  벤치마크 비교 조회에 실패했습니다. (industry_benchmark 집계/데이터 확인)
+                </div>
+              ) : !benchQ.data ? (
+                <div className="rounded-lg border p-4 text-muted-foreground">
+                  벤치마크 데이터가 없습니다. (스케줄러 실행/샘플 수 부족)
+                </div>
+              ) : (
+                (() => {
+                  const b: any = benchQ.data;
+
+                  const pct = (v: number) =>
+                    `${(Number(v ?? 0) * 100).toFixed(1)}%`;
+                  const pctAbs = (v: number) =>
+                    `${Math.abs(Number(v ?? 0)).toFixed(2)}%p`;
+
+                  const diffBadge =
+                    Number(b.diffProfitRatePct ?? 0) > 0 ? (
+                      <Badge className="gap-1">
+                        <ArrowUp className="h-3 w-3" /> 평균보다 {(b.diffProfitRatePct)}%
+                      </Badge>
+                    ) : Number(b.diffProfitRatePct ?? 0) < 0 ? (
+                      <Badge variant="destructive" className="gap-1">
+                        <ArrowDown className="h-3 w-3" /> 평균보다 {pctAbs(b.diffProfitRatePct)}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1">
+                        <Minus className="h-3 w-3" /> 평균과 동일
+                      </Badge>
+                    );
+
+                  return (
+                    <>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-sm text-muted-foreground">
+                          기준: {b.year}-{String(b.month).padStart(2, "0")} ·{" "}
+                          {b.sigunguCdNm ?? "구 정보 없음"} · {b.industry ?? "업종 없음"} ·
+                          표본 {Number(b.sampleCount ?? 0).toLocaleString()}개
+                        </div>
+                        {diffBadge}
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div className="rounded-xl border p-4">
+                          <div className="text-sm text-muted-foreground">내 순이익</div>
+                          <div className="mt-1 text-2xl font-semibold">
+                            ₩{money(b.myProfit)}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border p-4">
+                          <div className="text-sm text-muted-foreground">
+                            구·업종 평균 순이익(환산)
+                          </div>
+                          <div className="mt-1 text-2xl font-semibold">
+                            ₩{money(b.benchProfit)}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border p-4">
+                          <div className="text-sm text-muted-foreground">매출</div>
+                          <div className="mt-1 text-2xl font-semibold">
+                            ₩{money(b.sales)}
+                          </div>  
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-xl border p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-medium">인건비율</div>
+                            <Badge variant="outline">
+                              내 {pct(b.myLaborRate)} · 평균 {pct(b.benchLaborRate)}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            내 인건비 ₩{money(b.myLaborAmount)} / 평균 환산 ₩
+                            {money(b.benchLaborAmount)}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-medium">원가율(대략)</div>
+                            <Badge variant="outline">
+                              내 {pct(b.myCogsRate)} · 평균 {pct(b.benchCogsRate)}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            내 원가 ₩{money(b.myCogsAmount)} / 평균 환산 ₩
+                            {money(b.benchCogsAmount)}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()
               )}
             </CardContent>
           </Card>
