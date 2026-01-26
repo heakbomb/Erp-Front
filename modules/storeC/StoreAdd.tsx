@@ -1,7 +1,6 @@
-// modules/storeC/StoreAdd.tsx
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/shared/ui/button"
 import {
   Dialog,
@@ -25,63 +24,76 @@ import {
 } from "@/shared/ui/select"
 
 import { storeApi } from "./storeApi"
-import { BusinessNumber, StoreIndustry, STORE_INDUSTRY_LABELS } from "./storeTypes" // ✅ Import 추가
+import { BusinessNumber, StoreIndustry, STORE_INDUSTRY_LABELS } from "./storeTypes"
 import NaverMapPicker from "./NaverMapPicker"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function StoreAdd({
   verifiedInfo,
   onCreatedAction,
-  trigger, 
+  trigger,
 }: {
   verifiedInfo?: any | null
   onCreatedAction?: () => void
-  trigger?: React.ReactNode 
+  trigger?: React.ReactNode
 }) {
+  const { user } = useAuth()
+  const ownerIdRaw = (user as any)?.ownerId
+  const ownerId = useMemo(() => {
+    const n = Number(ownerIdRaw)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }, [ownerIdRaw])
+
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<{
-    bizId: string;
-    storeName: string;
-    industry: StoreIndustry; // ✅ 타입 변경
-    posVendor: string;
-    latitude: string;
-    longitude: string;
+    bizId: string
+    storeName: string
+    industry: StoreIndustry
+    posVendor: string
+    latitude: string
+    longitude: string
   }>({
     bizId: "",
     storeName: "",
-    industry: StoreIndustry.KOREAN, // ✅ 기본값 설정
+    industry: StoreIndustry.KOREAN,
     posVendor: "",
     latitude: "",
     longitude: "",
   })
+
   const [saving, setSaving] = useState(false)
   const [openMap, setOpenMap] = useState(false)
 
   const [bizList, setBizList] = useState<BusinessNumber[]>([])
   const [bizLoading, setBizLoading] = useState(false)
 
-  const OWNER_ID = 1
   const maxLen = 20
 
+  // ✅ 모달 열릴 때 + ownerId 있을 때 사업자번호 목록 로드
   useEffect(() => {
     if (!open) return
-    if (bizList.length > 0 || bizLoading) return
+    if (!ownerId) {
+      setBizList([])
+      return
+    }
 
     const loadBizNumbers = async () => {
       try {
         setBizLoading(true)
-        const data = await storeApi.fetchBusinessNumbers(OWNER_ID)
+        const data = await storeApi.fetchBusinessNumbers(ownerId)
         setBizList(data)
       } catch (e) {
         console.error("사업자번호 목록 조회 실패:", e)
+        setBizList([])
       } finally {
         setBizLoading(false)
       }
     }
 
     loadBizNumbers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, ownerId])
 
+  // ✅ 인증 완료 시 bizId 자동 세팅
   useEffect(() => {
     if (verifiedInfo?.bizId) {
       setForm((p) => ({ ...p, bizId: String(verifiedInfo.bizId) }))
@@ -111,7 +123,6 @@ export default function StoreAdd({
 
     if (!form.bizId.trim()) missing.push("사업자번호")
     if (!form.storeName.trim()) missing.push("사업장명")
-    // industry는 select이므로 기본값이 있어 검사 생략 가능하지만 안전하게 체크
     if (!form.industry) missing.push("업종")
     if (!form.latitude.trim()) missing.push("위도")
     if (!form.longitude.trim()) missing.push("경도")
@@ -133,7 +144,7 @@ export default function StoreAdd({
       })
       alert("사업장이 추가되었습니다.")
       setOpen(false)
-      // 초기화
+
       setForm({
         bizId: verifiedInfo?.bizId ? String(verifiedInfo.bizId) : "",
         storeName: "",
@@ -142,6 +153,7 @@ export default function StoreAdd({
         latitude: "",
         longitude: "",
       })
+
       onCreatedAction?.()
     } catch (e) {
       console.error("사업장 추가 실패:", e)
@@ -164,6 +176,7 @@ export default function StoreAdd({
             </Button>
           )}
         </DialogTrigger>
+
         <DialogContent>
           <DialogHeader>
             <DialogTitle>사업장 추가</DialogTitle>
@@ -174,6 +187,7 @@ export default function StoreAdd({
             {/* 사업자번호 */}
             <div className="space-y-2">
               <Label htmlFor="add-bizId">사업자번호</Label>
+
               {bizLoading ? (
                 <p className="text-xs text-muted-foreground px-1">
                   사업자번호 목록을 불러오는 중…
@@ -181,9 +195,7 @@ export default function StoreAdd({
               ) : (
                 <Select
                   value={form.bizId}
-                  onValueChange={(value) =>
-                    setForm((p) => ({ ...p, bizId: value }))
-                  }
+                  onValueChange={(value) => setForm((p) => ({ ...p, bizId: value }))}
                 >
                   <SelectTrigger id="add-bizId">
                     <SelectValue placeholder="사업자번호 선택" />
@@ -197,6 +209,7 @@ export default function StoreAdd({
                   </SelectContent>
                 </Select>
               )}
+
               {!bizLoading && bizList.length === 0 && (
                 <p className="text-xs text-muted-foreground px-1">
                   등록된 사업자번호가 없습니다. 먼저 사업자번호를 인증해 주세요.
@@ -205,28 +218,27 @@ export default function StoreAdd({
             </div>
 
             {/* 사업장명 */}
-            <div className="space-y-1">
-              <Label htmlFor="add-storeName">사업장명</Label>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="add-storeName">사업장명</Label>
+                <span className="text-xs text-muted-foreground">
+                  {form.storeName.length}/{maxLen}
+                </span>
+              </div>
               <Input
                 id="add-storeName"
                 value={form.storeName}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    storeName: e.target.value.slice(0, maxLen),
-                  }))
-                }
-                placeholder="예) 홍대카페"
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v.length <= maxLen) setForm((p) => ({ ...p, storeName: v }))
+                }}
+                placeholder="예) 홍대 라멘집"
                 maxLength={maxLen}
-                className={form.storeName.length >= maxLen ? "border-red-500" : ""}
               />
-              <p className="text-xs text-muted-foreground px-1">
-                최대 {maxLen}자까지 입력 가능합니다. ({form.storeName.length}/{maxLen})
-              </p>
             </div>
 
-            {/* ✅ [수정] 업종 (Select Box) */}
-            <div className="space-y-1">
+            {/* 업종 */}
+            <div className="space-y-2">
               <Label htmlFor="add-industry">업종</Label>
               <Select
                 value={form.industry}
@@ -237,69 +249,75 @@ export default function StoreAdd({
                 <SelectTrigger id="add-industry">
                   <SelectValue placeholder="업종 선택" />
                 </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {Object.values(StoreIndustry).map((enumVal) => (
-                    <SelectItem key={enumVal} value={enumVal}>
-                      {STORE_INDUSTRY_LABELS[enumVal]}
+                <SelectContent>
+                  {Object.values(StoreIndustry).map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {STORE_INDUSTRY_LABELS[key]}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground px-1 mt-1">
-                * 정확한 매출 분석을 위해 업종을 신중히 선택해주세요.
-              </p>
             </div>
 
-            {/* POS 시스템(선택) */}
-            <div className="space-y-1">
-              <Label htmlFor="add-posVendor">POS 시스템(선택)</Label>
+            {/* POS 공급사 (선택) */}
+            <div className="space-y-2">
+              <Label htmlFor="add-posVendor">POS 공급사 (선택)</Label>
               <Input
                 id="add-posVendor"
                 value={form.posVendor}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    posVendor: e.target.value.slice(0, maxLen),
-                  }))
-                }
-                placeholder="예) 포스시스템A"
-                maxLength={maxLen}
+                onChange={(e) => setForm((p) => ({ ...p, posVendor: e.target.value }))}
+                placeholder="예) 포스원 / 키오스크사명"
               />
             </div>
 
-            {/* 위도/경도 */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="add-lat">위도</Label>
-                <Input
-                  id="add-lat"
-                  value={form.latitude}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, latitude: e.target.value }))
-                  }
-                  readOnly
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="add-lng">경도</Label>
-                <Input
-                  id="add-lng"
-                  value={form.longitude}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, longitude: e.target.value }))
-                  }
-                  readOnly
-                />
-              </div>
-            </div>
+            {/* 위치 */}
+            <div className="space-y-2">
+              <Label>사업장 위치</Label>
 
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={getCurrent}>
-                현재 위치 가져오기
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setOpenMap(true)}>
-                지도에서 선택
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="add-lat" className="text-xs text-muted-foreground">
+                    위도
+                  </Label>
+                  <Input
+                    id="add-lat"
+                    value={form.latitude}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        latitude: e.target.value.replace(/[^0-9.-]/g, ""),
+                      }))
+                    }
+                    placeholder="예) 37.5665"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="add-lng" className="text-xs text-muted-foreground">
+                    경도
+                  </Label>
+                  <Input
+                    id="add-lng"
+                    value={form.longitude}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        longitude: e.target.value.replace(/[^0-9.-]/g, ""),
+                      }))
+                    }
+                    placeholder="예) 126.9780"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" onClick={getCurrent}>
+                  내 위치 가져오기
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setOpenMap(true)}>
+                  지도에서 선택
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -314,13 +332,13 @@ export default function StoreAdd({
         </DialogContent>
       </Dialog>
 
-      {/* 지도 선택 다이얼로그 */}
       <Dialog open={openMap} onOpenChange={setOpenMap}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>지도에서 위치 선택</DialogTitle>
             <DialogDescription>지도를 클릭하면 위도/경도가 폼에 들어갑니다.</DialogDescription>
           </DialogHeader>
+
           <NaverMapPicker
             onSelect={(lat, lng) =>
               setForm((p) => ({
@@ -333,6 +351,7 @@ export default function StoreAdd({
             defaultLat={form.latitude ? Number(form.latitude) : 37.5665}
             defaultLng={form.longitude ? Number(form.longitude) : 126.978}
           />
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenMap(false)}>
               닫기

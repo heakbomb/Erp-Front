@@ -5,28 +5,28 @@ import React, { useState, useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AppLayout } from "@/shared/layout/AppLayout";
 import { EMPLOYEE_NAV_ITEMS } from "@/shared/utils/navigation";
-import { StoreProvider } from "@/contexts/StoreContext";
+import { StoreProvider, useStore } from "@/contexts/StoreContext"; // ✅ useStore 추가
 import { ChevronDown, Clock, Check, LogOut } from "lucide-react";
 
 import { Button } from "@/shared/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-
 import { useEmployeeProfile, useEmployeeStores } from "@/modules/employeeC/useEmployeeProfile";
 
 /**
  * ✅ 직원 영역에서 "비로그인 접근 허용"해야 하는 예외 경로들
- * - 소셜 콜백: 로그인 처리(useEffect)가 실행되기 전에 layout 가드가 튕기면 안 됨
- * - 출퇴근 모바일: 너가 이미 예외로 둔 경로
  */
 function isPublicEmployeePath(pathname: string) {
-  // 소셜 로그인 콜백은 로그인 처리 실행을 위해 예외로 허용
   if (pathname === "/employee/social/callback") return true;
   if (pathname.startsWith("/employee/social/callback/")) return true;
   return false;
 }
 
+// ✅ 직원 store 선택값 저장 키 (사장쪽과 충돌 방지)
+const EMPLOYEE_STORE_LS_KEY = "employeeCurrentStoreId";
+
 function EmployeeInfo() {
   const { user, isLoggedIn, isLoading: authLoading } = useAuth();
+  const { currentStoreId, setCurrentStoreId } = useStore(); // ✅ 전역 storeId 사용
 
   const employeeId: number | null = useMemo(() => {
     const id = (user as any)?.employeeId ?? (user as any)?.employee_id ?? null;
@@ -40,22 +40,34 @@ function EmployeeInfo() {
   const { stores, isLoading: isStoresLoading } = useEmployeeStores(safeEmployeeId);
 
   const [open, setOpen] = useState(false);
-  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
 
+  // ✅ stores 로딩 후: localStorage 복원 → 없으면 첫 매장 선택
   useEffect(() => {
-    if (stores.length > 0 && selectedStoreId === null) {
-      setSelectedStoreId(stores[0].storeId);
-    }
-  }, [stores, selectedStoreId]);
+    if (!stores || stores.length === 0) return;
+
+    // 이미 전역 storeId가 있고, 현재 stores에 존재하면 그대로 둠
+    if (currentStoreId && stores.some((s) => s.storeId === currentStoreId)) return;
+
+    const saved = Number(localStorage.getItem(EMPLOYEE_STORE_LS_KEY));
+    const restored =
+      Number.isFinite(saved) && saved > 0 && stores.some((s) => s.storeId === saved) ? saved : null;
+
+    const nextId = restored ?? stores[0].storeId;
+    setCurrentStoreId(nextId);
+    localStorage.setItem(EMPLOYEE_STORE_LS_KEY, String(nextId));
+  }, [stores, currentStoreId, setCurrentStoreId]);
 
   const isLoading = authLoading || isProfileLoading || isStoresLoading;
 
   const displayName = profile?.name ?? "직원";
+
+  const selectedStoreId = currentStoreId ?? null;
   const currentStore = stores.find((s) => s.storeId === selectedStoreId) ?? stores[0];
   const currentStoreName = currentStore?.storeName ?? "소속 매장 없음";
 
   const handleSelectStore = (storeId: number) => {
-    setSelectedStoreId(storeId);
+    setCurrentStoreId(storeId); // ✅ 전역 반영
+    localStorage.setItem(EMPLOYEE_STORE_LS_KEY, String(storeId)); // ✅ 새로고침 복원
     setOpen(false);
     console.log(`Selected Store ID: ${storeId}`);
   };
@@ -93,7 +105,9 @@ function EmployeeInfo() {
       {open && canShowDropdown && (
         <div className="absolute left-0 top-full mt-2 w-64 rounded-lg border bg-popover shadow-md z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
           <div className="py-1 bg-white">
-            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">사업장 전환</div>
+            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/50 border-b">
+              사업장 전환
+            </div>
             <div className="max-h-[300px] overflow-y-auto">
               {stores.map((store) => (
                 <button
@@ -129,10 +143,9 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
     setMounted(true);
   }, []);
 
-  // ✅ (중요) /employee/** 접근 가드: EMPLOYEE + token + employeeId 아니면 /login
   useEffect(() => {
     if (!mounted) return;
-    if (isPublicEmployeePath(pathname)) return; // ✅ 콜백/모바일은 예외
+    if (isPublicEmployeePath(pathname)) return;
     if (isLoading) return;
 
     const token = getAccessToken?.();
@@ -148,7 +161,6 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
     return <div className="min-h-screen bg-background">{children}</div>;
   }
 
-  // ✅ 가드 통과 전 렌더 방지(깜빡임/불필요 요청 방지)
   if (isLoading) return null;
   {
     const token = getAccessToken?.();

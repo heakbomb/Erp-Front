@@ -344,7 +344,7 @@ export default function AdminStoreList() {
                       </div>
                       <div>
                         <span className="block text-xs text-muted-foreground mb-1">사업장 코드</span>
-                        <span className="font-medium font-mono">STORE-{detailData.storeId}</span>
+                        <span className="font-medium font-mono">{detailData.storeId}</span>
                       </div>
                     </div>
                   </section>

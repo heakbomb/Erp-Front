@@ -40,7 +40,7 @@ export default function EmployeeSocialCallbackPage() {
     );
 
     // 토큰이 주소창에 남지 않게 replace
-    router.replace("/employee/dashboard");
+    router.replace("/employee/search-stores");
   }, [login, router, sp]); // ✅ memo 제거
 
   return (

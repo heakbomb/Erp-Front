@@ -58,6 +58,7 @@ export default function BulkShiftCreateModal({
   const [breakMinutes, setBreakMinutes] = useState(60);
 
   const [isFixed, setIsFixed] = useState(false);
+  const [isBreakTimeLimitReached, setIsBreakTimeLimitReached] = useState(false);
 
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -71,6 +72,7 @@ export default function BulkShiftCreateModal({
       setBreakMinutes(60);
       setSelectedWeekdays([]);
       setIsFixed(false);
+      setIsBreakTimeLimitReached(false);
 
       const start = startOfMonth(targetMonth);
       const end = endOfMonth(targetMonth);
@@ -262,6 +264,12 @@ export default function BulkShiftCreateModal({
                 value={breakMinutes}
                 onChange={handleBreakMinutesChange}
               />
+              {/* ✅ 경고 문구 추가 */}
+              {isBreakTimeLimitReached && (
+                <p className="text-xs text-red-500 mt-1">
+                  휴게시간은 최대 3자리(999분)까지 입력 가능합니다.
+                </p>
+              )}
             </div>
           </div>
 
