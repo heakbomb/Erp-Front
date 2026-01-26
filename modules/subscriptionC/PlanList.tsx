@@ -4,7 +4,7 @@ import { useSubscription } from "./useSubscription";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Badge } from "@/shared/ui/badge";
-import { Loader2, Check, AlertCircle, CreditCard, CalendarDays, Sparkles, AlertTriangle, ArrowRight } from "lucide-react";
+import { Loader2, Check, AlertCircle, CreditCard, Sparkles, AlertTriangle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Separator } from "@/shared/ui/separator";
@@ -17,7 +17,9 @@ export default function PlanList() {
     publicPlans, 
     isSubscriptionLoading, 
     isPlansLoading, 
-    handleSelectPlan 
+    handleSelectPlan,
+    undoCancelSubscription, // ✅ 추가
+    isUndoCanceling         // ✅ 추가
   } = useSubscription();
 
   const isLoading = isSubscriptionLoading || isPlansLoading;
@@ -47,7 +49,24 @@ export default function PlanList() {
     }
   }
 
-  // 테마 색상 및 스타일 정의 (배경 그라데이션 추가)
+  // ✅ 해지 취소 핸들러 (결제 없이 상태 복구)
+  const handleUndoCancel = async () => {
+    if (!currentSubscription) return;
+    
+    // confirm 확인
+    if (!confirm("구독 해지를 취소하시겠습니까?\n기존 결제 수단으로 다음 결제일에 자동 갱신됩니다.")) {
+      return;
+    }
+
+    try {
+      await undoCancelSubscription(currentSubscription.ownerSubId);
+      // 성공 시 useSubscription의 onSuccess에서 toast 발생 및 데이터 갱신
+    } catch (e) {
+      // 에러 처리는 useSubscription 내부에서 수행
+    }
+  };
+
+  // 테마 색상 및 스타일 정의
   const statusTheme = isExpired 
     ? { border: "border-gray-200", bg: "bg-gradient-to-br from-gray-50 to-gray-100", badge: "bg-gray-200 text-gray-700 hover:bg-gray-200", text: "text-gray-600", icon: "text-gray-400" }
     : isCanceled 
@@ -57,7 +76,7 @@ export default function PlanList() {
   return (
     <div className="container mx-auto max-w-6xl py-6 px-4 space-y-8">
       
-      {/* 1. 헤더 영역 (여백 축소) */}
+      {/* 1. 헤더 영역 */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-3">
         <div className="text-center md:text-left">
           <h1 className="text-2xl font-bold tracking-tight text-foreground/90">구독 관리</h1>
@@ -75,7 +94,7 @@ export default function PlanList() {
 
       <Separator className="bg-border/60" />
 
-      {/* 2. 현재 이용 중인 플랜 카드 (컴팩트하게 개선) */}
+      {/* 2. 현재 이용 중인 플랜 카드 */}
       <section>
         <div className="flex items-center gap-2 mb-3 px-1">
           <Sparkles className={`h-4 w-4 ${statusTheme.icon}`} />
@@ -158,16 +177,34 @@ export default function PlanList() {
 
                   {/* 버튼 영역 */}
                   <div className="grid gap-2">
-                    {(isExpired || isCanceled) && (
+                    {/* 1. 만료된 경우 -> 재구독 (결제 필요) */}
+                    {isExpired && (
                       <Button 
                         onClick={() => handleSelectPlan(currentSubscription.subId)}
-                        className={`w-full h-9 font-semibold shadow-sm ${isExpired ? "bg-primary hover:bg-primary/90" : "bg-green-600 hover:bg-green-700 text-white"}`}
+                        className="w-full h-9 font-semibold shadow-sm bg-primary hover:bg-primary/90"
                         size="sm"
                       >
-                        {isExpired ? "다시 구독하기" : "구독 유지하기"}
+                        다시 구독하기
                       </Button>
                     )}
 
+                    {/* 2. 해지 예정 (만료 전) -> 해지 취소 (API 호출, 결제 X) */}
+                    {!isExpired && isCanceled && (
+                      <Button 
+                        onClick={handleUndoCancel} // ✅ API 호출
+                        disabled={isUndoCanceling}
+                        className="w-full h-9 font-semibold shadow-sm bg-green-600 hover:bg-green-700 text-white"
+                        size="sm"
+                      >
+                        {isUndoCanceling ? (
+                          <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> 처리 중</>
+                        ) : (
+                          "구독 유지하기 (해지 취소)"
+                        )}
+                      </Button>
+                    )}
+
+                    {/* 3. 정상 이용 중 -> 해지 버튼 */}
                     {!isExpired && !isCanceled && (
                       <Button 
                           variant="ghost" 
@@ -193,7 +230,7 @@ export default function PlanList() {
         </Card>
       </section>
 
-      {/* 3. 플랜 선택 그리드 (카드 높이 및 여백 축소) */}
+      {/* 3. 플랜 선택 그리드 */}
       <section id="plan-grid" className="pt-4">
         <div className="text-center mb-6 space-y-1.5">
           <h2 className="text-2xl font-bold tracking-tight">요금제 선택</h2>
@@ -218,7 +255,7 @@ export default function PlanList() {
 
                   if (isCurrentPlan) {
                     if (isExpired) { btnText = "다시 시작하기"; btnVariant = "default"; }
-                    else if (isCanceled) { btnText = "구독 연장하기"; btnVariant = "default"; }
+                    else if (isCanceled) { btnText = "구독 연장하기"; btnVariant = "default"; } // 재활성화 개념
                     else { btnText = "현재 이용 중"; btnVariant = "secondary"; }
                   } else if (currentSubscription && !isExpired) {
                     btnText = "이 플랜으로 변경";
@@ -278,7 +315,14 @@ export default function PlanList() {
                               className={`w-full h-10 text-sm font-semibold shadow-sm transition-colors ${isCurrentActive ? 'opacity-80' : ''}`}
                               variant={btnVariant}
                               disabled={isDisabled}
-                              onClick={() => handleSelectPlan(plan.subId)}
+                              onClick={() => {
+                                // 만약 해지 예정 상태인 자신의 플랜을 카드에서 클릭했다면 -> 해지 취소 로직 실행
+                                if (isCurrentPlan && !isExpired && isCanceled) {
+                                  handleUndoCancel();
+                                } else {
+                                  handleSelectPlan(plan.subId);
+                                }
+                              }}
                             >
                               {btnText}
                             </Button>
