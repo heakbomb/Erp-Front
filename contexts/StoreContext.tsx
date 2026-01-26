@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 
 import { Store } from "@/modules/storeC/storeTypes";
 import { storeApi } from "@/modules/storeC/storeApi";
@@ -21,9 +29,13 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-const STORAGE_KEY = "currentStoreId";
-
+/**
+ * ✅ 변경 포인트(최소):
+ * - localStorage 키를 역할/사용자별로 분리해서 OWNER/EMPLOYEE가 서로 storeId를 덮어쓰지 않게 함
+ * - 기존 로직/UX는 그대로 유지
+ */
 const toUpperRole = (r: any) => String(r ?? "").toUpperCase();
+
 const toNumberOrNull = (v: any): number | null => {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string" && v.trim() !== "") {
@@ -33,17 +45,24 @@ const toNumberOrNull = (v: any): number | null => {
   return null;
 };
 
-// ✅ 직원 매장 목록 조회: 네 스샷 네트워크에 찍히던 엔드포인트 기준
+const getStorageKey = (role: string, ownerId: number | null, employeeId: number | null) => {
+  // 역할/사용자 단위로 분리 (충돌 방지)
+  if (role === "OWNER" && ownerId) return `ownerCurrentStoreId:${ownerId}`;
+  if (role === "EMPLOYEE" && employeeId) return `employeeCurrentStoreId:${employeeId}`;
+  return null;
+};
+
+// ✅ 직원 매장 목록 조회: 네트워크에 찍히던 엔드포인트 기준
 async function fetchEmployeeStores(employeeId: number): Promise<Store[]> {
-  // /api proxy 환경이면 "/employees/.." 로 가도 됨 (apiClient baseUrl에 따라)
-  // 네 스샷은 "/api/employees/11" 이라서 여기서도 동일한 리소스 사용
   const res = await apiClient.get<Store[]>(`/employees/${employeeId}/stores`);
   return res.data ?? [];
 }
 
-function restoreStoreId(candidates: Store[]): number | null {
+function restoreStoreIdByKey(key: string | null, candidates: Store[]): number | null {
   if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  if (!key) return null;
+
+  const raw = window.localStorage.getItem(key);
   if (!raw) return null;
 
   const n = Number(raw);
@@ -59,26 +78,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [currentStoreIdState, _setCurrentStoreIdState] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const setCurrentStoreId = useCallback((id: number | null) => {
-    _setCurrentStoreIdState(id);
+  // ✅ role/id 추출 (기존 검증 로직 유지하면서, storageKey 계산에만 사용)
+  const resolvedRole = useMemo(() => toUpperRole(role ?? user?.role), [role, user?.role]);
 
-    if (typeof window !== "undefined") {
-      if (id == null) window.localStorage.removeItem(STORAGE_KEY);
-      else window.localStorage.setItem(STORAGE_KEY, String(id));
-    }
-  }, []);
+  const resolvedOwnerId = useMemo(
+    () => toNumberOrNull(ownerId ?? (user as any)?.ownerId),
+    [ownerId, user]
+  );
 
-  // ✅ 처음 마운트 때 localStorage 값을 state에 미리 복원 (ROLE 상관없이)
+  const resolvedEmployeeId = useMemo(
+    () => toNumberOrNull(employeeId ?? (user as any)?.employeeId),
+    [employeeId, user]
+  );
+
+  const storageKey = useMemo(
+    () => getStorageKey(resolvedRole, resolvedOwnerId, resolvedEmployeeId),
+    [resolvedRole, resolvedOwnerId, resolvedEmployeeId]
+  );
+
+  const setCurrentStoreId = useCallback(
+    (id: number | null) => {
+      _setCurrentStoreIdState(id);
+
+      if (typeof window === "undefined") return;
+      if (!storageKey) return;
+
+      if (id == null) window.localStorage.removeItem(storageKey);
+      else window.localStorage.setItem(storageKey, String(id));
+    },
+    [storageKey]
+  );
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const n = Number(raw);
-    if (!Number.isNaN(n)) _setCurrentStoreIdState(n);
-  }, []);
-
-  useEffect(() => {
-    // ✅ Auth 로딩 중에는 Store 로딩을 확정하지 않음 (직원 페이지가 너무 빨리 null로 굳는 것 방지)
+    // ✅ Auth 로딩 중에는 Store 로딩을 확정하지 않음
     if (authLoading) {
       setIsLoading(true);
       return;
@@ -92,7 +124,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const r = toUpperRole(role ?? user.role);
+    const r = resolvedRole;
 
     // ✅ OWNER / EMPLOYEE 외에는 여기서 매장 조회 대상 아님 (ADMIN 등)
     if (r !== "OWNER" && r !== "EMPLOYEE") {
@@ -102,9 +134,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // ✅ role별 식별자 검증
-    const oid = toNumberOrNull(ownerId ?? (user as any)?.ownerId);
-    const eid = toNumberOrNull(employeeId ?? (user as any)?.employeeId);
+    // ✅ role별 식별자 검증 (기존 로직 유지)
+    const oid = resolvedOwnerId;
+    const eid = resolvedEmployeeId;
 
     if (r === "OWNER" && !oid) {
       setStores([]);
@@ -128,7 +160,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const data =
           r === "OWNER"
             ? await storeApi.fetchMyStores(oid as number) // 기존 로직 유지
-            : await fetchEmployeeStores(eid as number);   // 직원용 추가
+            : await fetchEmployeeStores(eid as number); // 직원용 추가
 
         if (!mounted) return;
 
@@ -139,15 +171,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // ✅ 2) localStorage 우선
-        const restoredId = restoreStoreId(data);
+        // ✅ 2) localStorage 우선 (역할/사용자별 키로 복원)
+        const restoredId = restoreStoreIdByKey(storageKey, data);
         if (restoredId != null) {
           setCurrentStoreId(restoredId);
           return;
         }
 
         // ✅ 3) 기존 state 유지(유효할 때만)
-        if (currentStoreIdState != null && data.some((s: any) => (s as any).storeId === currentStoreIdState)) {
+        if (
+          currentStoreIdState != null &&
+          data.some((s: any) => (s as any).storeId === currentStoreIdState)
+        ) {
           setCurrentStoreId(currentStoreIdState);
           return;
         }
@@ -177,7 +212,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
     // ✅ currentStoreIdState는 “유지 판단”에만 쓰고, deps에 넣으면 불필요 재조회 가능
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user, role, ownerId, employeeId, setCurrentStoreId]);
+  }, [
+    authLoading,
+    user,
+    resolvedRole,
+    resolvedOwnerId,
+    resolvedEmployeeId,
+    storageKey,
+    setCurrentStoreId,
+  ]);
 
   const currentStore = useMemo(() => {
     if (currentStoreIdState == null) return null;
