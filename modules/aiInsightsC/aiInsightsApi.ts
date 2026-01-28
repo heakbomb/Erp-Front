@@ -1,51 +1,71 @@
 // src/modules/aiInsightsC/aiInsightsApi.ts
 import { apiClient } from "@/shared/api/apiClient";
-import { DemandForecastResponse, MenuItem } from "./aiInsightsTypes";
+import type { 
+  DemandForecastResponse, 
+  MenuGrowthResponse,
+  MenuItem, 
+  MenuAnalyticsResponse,
+  ProfitForecastResponse 
+} from "./aiInsightsTypes";
+import type { AxiosError } from "axios";
+
+type ApiErrorBody = {
+  code?: string;
+  message?: string;
+  details?: any;
+};
 
 export const aiInsightsApi = {
-  // ✅ 1. 수요 예측 데이터 조회 (실제 백엔드 연동)
+  // ✅ 1. 수요 예측 데이터 조회 (그래프용)
   getDemandForecast: async (storeId: number): Promise<DemandForecastResponse[]> => {
     const { data } = await apiClient.get<DemandForecastResponse[]>(`/ai/insights/${storeId}/forecast`);
     return data;
   },
 
-  // ✅ 2. 메뉴 아이템 조회 (usePriceOpt에서 사용 - 에러 방지용 복구)
-  // 추후 백엔드에 가격 최적화 전용 API가 생기면 그쪽으로 연결해야 합니다.
-  // 현재는 기존처럼 동작하도록 Mock 데이터나 빈 배열을 반환하거나, 기존 로직을 유지합니다.
-  getMenuItems: async (storeId: number): Promise<MenuItem[]> => {
-    // 백엔드 API가 있다면: 
-    // const { data } = await apiClient.get(`/api/erp/menu/optimization/${storeId}`);
-    // return data;
+  // ✅ 2. [신규] 주간 메뉴 트렌드 데이터 조회 (테이블용 - DB 데이터 기반)
+  getMenuGrowthStats: async (storeId: number): Promise<MenuGrowthResponse[]> => {
+    const { data } = await apiClient.get<MenuGrowthResponse[]>(`/ai/insights/${storeId}/menu-growth`);
+    return data;
+  },
 
-    // 우선 컴파일 에러 해결을 위한 임시 Mock 데이터 반환
+  // ✅ 3. 메뉴 성과 + 카테고리 비중 (Bar + Pie 차트용)
+  getMenuAnalytics: async (params: {
+    storeId: number;
+    from: string;
+    to: string;
+  }): Promise<MenuAnalyticsResponse> => {
+    const { storeId, from, to } = params;
+    // (참고) 백엔드 컨트롤러 경로가 /owner/sales/menu-analytics 라고 가정
+    const { data } = await apiClient.get<MenuAnalyticsResponse>(`/owner/sales/menu-analytics`, {
+      params: { storeId, from, to },
+    });
+    return data;
+  },
+
+  // ✅ 4. 월 수익 예측
+  getProfitForecast: async (
+    storeId: number,
+    year: number,
+    month: number
+  ): Promise<ProfitForecastResponse | null> => {
+    try {
+      const res = await apiClient.get<ProfitForecastResponse>("/owner/ml/profit-forecast", {
+        params: { storeId, year, month },
+      });
+      return res.data;
+    } catch (e) {
+      const err = e as AxiosError<ApiErrorBody>;
+      const code = err.response?.data?.code;
+      if (code === "ML_FEATURE_NOT_READY") return null;
+      throw e;
+    }
+  },
+
+  // ✅ 5. 메뉴 아이템 조회 (임시 Mock 유지)
+  getMenuItems: async (storeId: number): Promise<MenuItem[]> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve([
-          {
-            id: 1,
-            name: "제육 정식",
-            currentMaterials: [{ name: "돼지고기(앞다리)", cost: 3000, origin: "국내산" }],
-            alternativeMaterials: [{ name: "돼지고기(뒷다리)", cost: 2200, origin: "수입산" }],
-            currentPrice: 10000,
-            currentCost: 4500,
-            currentMargin: 55,
-            alternativeCost: 3700,
-            alternativeMargin: 63,
-            suggestedPrice: 10500
-          },
-          {
-            id: 2,
-            name: "김치찌개",
-            currentMaterials: [{ name: "묵은지", cost: 1500, origin: "국내산" }],
-            alternativeMaterials: [{ name: "일반김치", cost: 1000, origin: "중국산" }],
-            currentPrice: 9000,
-            currentCost: 3000,
-            currentMargin: 66,
-            alternativeCost: 2500,
-            alternativeMargin: 72,
-            suggestedPrice: 9000
-          }
-        ]);
+        resolve([]);
       }, 500);
     });
   },

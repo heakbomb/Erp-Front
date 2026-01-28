@@ -1,149 +1,125 @@
-// modules/inquiryC/InquiryCreateDialog.tsx
+"use client";
+
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger
-} from "@/shared/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/shared/ui/dialog";
 import { Button } from "@/shared/ui/button";
-import { Textarea } from "@/shared/ui/textarea"; 
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/form";
+import { Input } from "@/shared/ui/input";
+import { Textarea } from "@/shared/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
-import { CreateInquiryRequest } from "./inquiryTypes";
-// 주의: useStores 등 외부 의존성이 있다면 해당 모듈 경로 확인 필요. 
-// 여기서는 storeId 선택 로직이 features에 있어 단순화하거나 필요시 useStores를 가져와야 함.
-// modules/storeC/useStores.ts 가 있다고 가정.
-import { useStores } from "@/modules/storeC/useStores";
-
-const MAX_TITLE_LENGTH = 50;   
-const MAX_CONTENT_LENGTH = 1000; 
-
-const formSchema = z.object({
-  category: z.enum(["REPORT", "SUGGESTION", "INQUIRY"]),
-  title: z.string().min(1, "제목을 입력해주세요.").max(MAX_TITLE_LENGTH),
-  content: z.string().min(1, "내용을 입력해주세요.").max(MAX_CONTENT_LENGTH),
-  storeId: z.string().optional(),
-});
+import { Label } from "@/shared/ui/label";
+import { Checkbox } from "@/shared/ui/checkbox";
+import { useInquiries } from "./useInquiries";
+import { InquiryCategory } from "./inquiryTypes";
+import { useStores } from "@/modules/storeC/useStores"; // 내 사업장 목록 불러오기
 
 interface Props {
-  ownerId: number;
-  onCreate: (data: CreateInquiryRequest) => Promise<void>;
-  isCreating: boolean;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export default function InquiryCreateDialog({ ownerId, onCreate, isCreating }: Props) {
-  const [open, setOpen] = useState(false);
-  
-  // modules의 useStores 훅 사용 가정
-  const { stores } = useStores(ownerId);
+export default function InquiryCreateDialog({ isOpen, onClose }: Props) {
+  const { createInquiry, isCreating } = useInquiries();
+  const { stores } = useStores(); // 사업장 선택을 위해
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      category: "INQUIRY",
-      title: "",
-      content: "",
-      storeId: "none",
-    },
-  });
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [category, setCategory] = useState<InquiryCategory>("INQUIRY");
+  const [selectedStoreId, setSelectedStoreId] = useState<string | "none">("none");
+  const [isSecret, setIsSecret] = useState(false);
 
-  const titleValue = form.watch("title");
-  const contentValue = form.watch("content");
+  const handleSubmit = async () => {
+    if (!title.trim() || !content.trim()) return;
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const payload: CreateInquiryRequest = {
-      category: values.category,
-      title: values.title,
-      content: values.content,
-      storeId: values.storeId && values.storeId !== "none" ? Number(values.storeId) : null,
-      createdAt: new Date().toISOString(), 
-    };
+    // [핵심 수정] storeId가 "none"이거나 값이 없으면 undefined로 처리
+    const storeIdValue = selectedStoreId === "none" ? undefined : Number(selectedStoreId);
 
-    await onCreate(payload);
-    setOpen(false);
-    form.reset();
+    await createInquiry({
+      title,
+      content,
+      category,
+      storeId: storeIdValue, // 여기서 null 에러 해결
+      isSecret
+    });
+
+    onClose();
+    // 초기화
+    setTitle("");
+    setContent("");
+    setCategory("INQUIRY");
+    setSelectedStoreId("none");
+    setIsSecret(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>문의하기</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>새로운 문의 작성</DialogTitle></DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>카테고리</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="카테고리 선택" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      <SelectItem value="INQUIRY">일반 문의</SelectItem>
-                      <SelectItem value="SUGGESTION">건의 사항</SelectItem>
-                      <SelectItem value="REPORT">신고 하기</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>새 문의 등록</DialogTitle>
+        </DialogHeader>
+        
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label>카테고리</Label>
+            <Select value={category} onValueChange={(val: InquiryCategory) => setCategory(val)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="INQUIRY">일반 문의</SelectItem>
+                <SelectItem value="SUGGESTION">건의 사항</SelectItem>
+                <SelectItem value="REPORT">신고 하기</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>관련 사업장 (선택)</Label>
+            <Select value={selectedStoreId} onValueChange={setSelectedStoreId}>
+              <SelectTrigger>
+                <SelectValue placeholder="선택 없음" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">선택 없음</SelectItem>
+                {stores.map((store) => (
+                  <SelectItem key={store.storeId} value={String(store.storeId)}>
+                    {store.storeName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>제목</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="제목을 입력하세요" />
+          </div>
+
+          <div className="grid gap-2">
+            <Label>내용</Label>
+            <Textarea 
+              value={content} 
+              onChange={(e) => setContent(e.target.value)} 
+              placeholder="문의 내용을 자세히 적어주세요" 
+              className="h-32"
             />
-            <FormField
-              control={form.control}
-              name="storeId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>관련 사업장 (선택)</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="사업장 선택" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">선택 안함</SelectItem>
-                      {stores?.map((store: any) => (
-                        <SelectItem key={store.storeId} value={String(store.storeId)}>{store.storeName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="secret" 
+              checked={isSecret} 
+              onCheckedChange={(checked) => setIsSecret(checked as boolean)} 
             />
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>제목</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="제목 입력" className="min-h-[40px] resize-none py-2" maxLength={MAX_TITLE_LENGTH} {...field} />
-                  </FormControl>
-                  <div className="text-xs text-right text-muted-foreground">{titleValue?.length || 0} / {MAX_TITLE_LENGTH}자</div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="content"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>내용</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="내용 입력" className="min-h-[150px] resize-none" maxLength={MAX_CONTENT_LENGTH} {...field} />
-                  </FormControl>
-                  <div className="text-xs text-right text-muted-foreground">{contentValue?.length || 0} / {MAX_CONTENT_LENGTH.toLocaleString()}자</div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter className="pt-4">
-              <Button type="submit" disabled={isCreating}>{isCreating ? "등록 중..." : "등록하기"}</Button>
-            </DialogFooter>
-          </form>
-        </Form>
+            <Label htmlFor="secret">비공개 글</Label>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>취소</Button>
+          <Button onClick={handleSubmit} disabled={isCreating}>
+            {isCreating ? "등록 중..." : "등록하기"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -1,4 +1,3 @@
-// src/modules/aiInsights/PriceOptView.tsx
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -122,7 +121,8 @@ export default function PriceOptView() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="category" />
                     <YAxis />
-                    <Tooltip formatter={(value: number) => `₩${value.toLocaleString()}`} />
+                    {/* ✅ [수정] value 타입을 number | undefined로 지정하고 안전하게 처리 */}
+                    <Tooltip formatter={(value: number | undefined) => `₩${(value ?? 0).toLocaleString()}`} />
                     <Legend />
                     <Bar dataKey="current" fill="hsl(var(--chart-1))" name="현재" />
                     <Bar dataKey="alternative" fill="hsl(var(--primary))" name="대체 (추천)" />
