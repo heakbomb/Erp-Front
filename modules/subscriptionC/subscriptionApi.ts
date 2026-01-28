@@ -8,9 +8,9 @@ import type {
   SubscribeRequest,
   CancelSubscriptionRequest,
   SubscriptionRequest,
-  SubscriptionStatus,
   AdminGetSubscriptionsParams,
-  AdminGetStatusParams
+  AdminGetStatusParams,
+  SubscriptionStatus
 } from "./subscriptionTypes";
 
 export const subscriptionApi = {
@@ -26,10 +26,8 @@ export const subscriptionApi = {
 
   // 이용 가능한 플랜 목록 조회
   getPublicPlans: async () => {
-    const res = await apiClient.get<PageResponse<SubscriptionPlan>>("/admin/subscriptions", {
-      params: { page: 0, size: 100, status: "ACTIVE" } 
-    });
-    return res.data.content;
+    const res = await apiClient.get<SubscriptionPlan[]>("/owner/subscriptions/products");
+    return res.data;
   },
 
   // 구독 신청
@@ -41,6 +39,11 @@ export const subscriptionApi = {
   // 구독 해지
   cancelSubscription: async (ownerSubId: number, body: CancelSubscriptionRequest) => {
     await apiClient.post(`/owner/subscriptions/${ownerSubId}/cancel`, body);
+  },
+
+  // ✅ [추가] 구독 해지 취소 (상태 복구)
+  undoCancelSubscription: async (ownerSubId: number) => {
+    await apiClient.post(`/owner/subscriptions/${ownerSubId}/undo-cancel`);
   },
 
   // ---------------------------------------------
