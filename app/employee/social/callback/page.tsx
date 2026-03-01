@@ -1,14 +1,15 @@
+// app/employee/social/callback/page.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, Suspense } from "react"; // Suspense 추가
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
-export default function EmployeeSocialCallbackPage() {
+// 로직을 담은 별도 컴포넌트 분리
+function CallbackContent() {
   const router = useRouter();
   const sp = useSearchParams();
   const { login } = useAuth();
-
   const onceRef = useRef(false);
 
   useEffect(() => {
@@ -17,7 +18,7 @@ export default function EmployeeSocialCallbackPage() {
     const accessToken = sp.get("accessToken") ?? "";
     const employeeId = sp.get("employeeId") ?? "";
     const error = sp.get("error") ?? "";
-    const provider = sp.get("provider") ?? ""; // 백엔드에서 안 주면 빈값
+    const provider = sp.get("provider") ?? "";
 
     if (error) {
       onceRef.current = true;
@@ -39,13 +40,19 @@ export default function EmployeeSocialCallbackPage() {
       accessToken
     );
 
-    // 토큰이 주소창에 남지 않게 replace
     router.replace("/employee/search-stores");
-  }, [login, router, sp]); // ✅ memo 제거
+  }, [login, router, sp]);
 
+  return <div className="text-sm text-muted-foreground">소셜 로그인 처리 중...</div>;
+}
+
+// 메인 페이지 컴포넌트
+export default function EmployeeSocialCallbackPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center">
-      <div className="text-sm text-muted-foreground">소셜 로그인 처리 중...</div>
+      <Suspense fallback={<div>처리 중...</div>}>
+        <CallbackContent />
+      </Suspense>
     </div>
   );
 }

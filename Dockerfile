@@ -10,6 +10,14 @@ RUN pnpm install --frozen-lockfile
 
 # 전체 소스 복사 및 빌드
 COPY . .
+
+# [추가] 빌드 시점에 변수를 주입받도록 설정
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+# [추가] 에러가 났던 rewrites 문제를 우회하기 위해 환경 변수 확인용
+RUN echo "API URL is ${NEXT_PUBLIC_API_URL}"
+
 RUN pnpm run build
 
 # 2단계: 실행 스테이지 (Nginx)
