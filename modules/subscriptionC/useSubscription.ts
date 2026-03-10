@@ -4,14 +4,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { subscriptionApi } from "./subscriptionApi";
-import { toast } from "@/shared/ui/use-toast"; // sonner 대신 use-toast 사용 시 변경
+import { toast } from "@/shared/ui/use-toast"; // 또는 "sonner"
 import { useAuth } from "@/contexts/AuthContext";
-import { Zap, Crown, Sparkles, Package } from "lucide-react"; // 기본 아이콘 Package 추가
+import { Zap, Crown, Sparkles, Package } from "lucide-react";
 
-// DB의 subName과 매칭될 UI 정보
-// 키값을 DB에 저장된 실제 subName과 정확히 일치시켜야 합니다.
 export const PLAN_DETAILS: Record<string, any> = {
-  "Basic": { // DB에 영어로 저장되어 있다면 영어 키 사용
+  "Basic": {
     icon: Zap,
     description: "소규모 사업장에 적합한 기본 플랜",
     features: ["사업장 1개 등록", "직원 5명까지", "기본 재고 관리", "매출/매입 관리"],
@@ -27,7 +25,6 @@ export const PLAN_DETAILS: Record<string, any> = {
     description: "대규모 사업장을 위한 프리미엄 플랜",
     features: ["사업장 무제한", "직원 무제한", "모든 프로 기능", "전용 계정 매니저"],
   },
-  // 한글 호환용 (DB가 한글일 경우)
   "베이직": {
     icon: Zap,
     description: "소규모 사업장에 적합한 기본 플랜",
@@ -67,18 +64,12 @@ export function useSubscription() {
       const plans = await subscriptionApi.getPublicPlans();
       
       return plans.map(p => {
-        // 이름으로 매칭 시도 (대소문자 무시 등 유연하게 처리 가능)
-        // 매칭되는 정보가 없을 경우 기본값(Package 아이콘) 제공하여 화면에서 사라지지 않게 함
         const details = PLAN_DETAILS[p.subName] || PLAN_DETAILS[p.subName.trim()] || {
           icon: Package,
           description: "ERP 구독 서비스",
           features: ["기본 기능 제공"],
         };
-
-        return {
-          ...p,
-          ...details
-        };
+        return { ...p, ...details };
       });
     },
   });
@@ -97,6 +88,19 @@ export function useSubscription() {
     }
   });
 
+  // ✅ [추가] 해지 취소 Mutation
+  const undoCancelMutation = useMutation({
+    mutationFn: (subId: number) => subscriptionApi.undoCancelSubscription(subId),
+    onSuccess: () => {
+      toast({ title: "구독 복구 완료", description: "해지 취소가 완료되었습니다. 서비스를 계속 이용하실 수 있습니다." });
+      queryClient.invalidateQueries({ queryKey: ["currentSubscription"] });
+    },
+    onError: (e: any) => {
+      const msg = e.response?.data?.message || e.message || "해지 취소 실패";
+      toast({ variant: "destructive", title: "오류", description: msg });
+    }
+  });
+
   const handleSelectPlan = (subId: number) => {
     router.push(`/owner/subscription/checkout?planId=${subId}`);
   };
@@ -107,7 +111,12 @@ export function useSubscription() {
     publicPlans: publicPlans || [],
     isPlansLoading,
     handleSelectPlan,
+    
     cancelSubscription: cancelMutation.mutateAsync,
     isCancelling: cancelMutation.isPending,
+
+    // 추가된 내보내기
+    undoCancelSubscription: undoCancelMutation.mutateAsync,
+    isUndoCanceling: undoCancelMutation.isPending,
   };
 }

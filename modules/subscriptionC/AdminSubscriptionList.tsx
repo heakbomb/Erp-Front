@@ -9,18 +9,20 @@ import { Badge } from "@/shared/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/shared/ui/table";
 import { Search, Plus, Trash2, Edit } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/shared/ui/dialog";
 import { Label } from "@/shared/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
+import { CommonPagination } from "@/shared/ui/CommonPagination"; 
 
 export default function AdminSubscriptionList() {
   const {
     tab, handleTabChange,
     searchQuery, setSearchQuery,
     productsQuery, statusQuery,
-    createPlan, // 생성 훅
-    updatePlan, // 수정 훅
-    deletePlan
+    createPlan, 
+    updatePlan,
+    deletePlan,
+    page, setPage
   } = useAdminSubscriptions();
 
   // --- 다이얼로그 상태 및 폼 데이터 관리 ---
@@ -44,14 +46,13 @@ export default function AdminSubscriptionList() {
 
   // [기능 2] 구독 수정 다이얼로그 열기
   const openEditDialog = (plan: any) => {
-    console.log("수정할 플랜 데이터:", plan); // 디버깅용 로그
+    console.log("수정할 플랜 데이터 원본:", plan);
 
     setIsEditMode(true);
     setTargetId(plan.subId);
     
-    // ✅ [핵심] isActive가 없거나 null일 경우에 대한 안전한 처리
-    // plan.isActive가 있으면 그걸 쓰고, 없으면 plan.active를 확인하고, 둘 다 없으면 false
-    const activeStatus = plan.isActive ?? plan.active ?? false;
+    // ✅ 안전한 boolean 변환
+    const activeStatus = plan.isActive === true;
 
     setFormData({
       subName: plan.subName,
@@ -62,7 +63,7 @@ export default function AdminSubscriptionList() {
     setIsDialogOpen(true);
   };
 
-  // ✅ [수정] handleSave 함수 정의 (에러가 났던 부분)
+  // ✅ 저장 핸들러 (null 방지)
   const handleSave = () => {
     if (!formData.subName) {
       alert("상품명을 입력해주세요.");
@@ -71,15 +72,16 @@ export default function AdminSubscriptionList() {
 
     const payload = {
       subName: formData.subName,
-      monthlyPrice: Number(formData.monthlyPrice), // 숫자로 변환
-      isActive: formData.isActive,
+      monthlyPrice: Number(formData.monthlyPrice),
+      // ✅ 전송 직전 Boolean 변환
+      isActive: Boolean(formData.isActive), 
     };
 
+    console.log("서버로 전송하는 Payload:", payload);
+
     if (isEditMode && targetId) {
-      // 수정 요청
       updatePlan({ id: targetId, data: payload });
     } else {
-      // 생성 요청
       createPlan(payload);
     }
     setIsDialogOpen(false);
@@ -151,40 +153,62 @@ export default function AdminSubscriptionList() {
                   ))}
                 </TableBody>
               </Table>
+              <div className="mt-4">
+                 {/* ❌ 수정 전: productsQuery.data?.page?.totalPages */}
+                 {/* ✅ 수정 후: productsQuery.data?.totalPages (page 제거) */}
+                 <CommonPagination 
+                    page={page}
+                    totalPages={productsQuery.data?.totalPages || 0}
+                    onPageChange={setPage}
+                 />
+              </div>
             </div>
           )}
 
           {tab === "STATUS" && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>사장님</TableHead>
-                  <TableHead>이메일</TableHead>
-                  <TableHead>플랜</TableHead>
-                  <TableHead>만료일</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {statusQuery.isLoading ? <TableRow><TableCell colSpan={4}>로딩 중...</TableCell></TableRow> :
-                 statusQuery.data?.content.map((st) => (
-                  <TableRow key={st.ownerSubId}>
-                    <TableCell>{st.ownerName}</TableCell>
-                    <TableCell>{st.ownerEmail}</TableCell>
-                    <TableCell>{st.subName}</TableCell>
-                    <TableCell>{st.expiryDate}</TableCell>
+            <div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>사장님</TableHead>
+                    <TableHead>이메일</TableHead>
+                    <TableHead>플랜</TableHead>
+                    <TableHead>만료일</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {statusQuery.isLoading ? <TableRow><TableCell colSpan={4}>로딩 중...</TableCell></TableRow> :
+                   statusQuery.data?.content.map((st) => (
+                    <TableRow key={st.ownerSubId}>
+                      <TableCell>{st.ownerName}</TableCell>
+                      <TableCell>{st.ownerEmail}</TableCell>
+                      <TableCell>{st.subName}</TableCell>
+                      <TableCell>{st.expiryDate}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+               <div className="mt-4">
+                 {/* ❌ 수정 전: statusQuery.data?.page?.totalPages */}
+                 {/* ✅ 수정 후: statusQuery.data?.totalPages (page 제거) */}
+                 <CommonPagination 
+                    page={page}
+                    totalPages={statusQuery.data?.totalPages || 0}
+                    onPageChange={setPage}
+                 />
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* 상품 추가/수정 다이얼로그 */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{isEditMode ? "상품 수정" : "새 상품 추가"}</DialogTitle>
+            <DialogDescription className="hidden">
+              구독 상품 정보를 입력하거나 수정하는 폼입니다.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -232,7 +256,6 @@ export default function AdminSubscriptionList() {
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>취소</Button>
-            {/* handleSave가 여기서 호출됩니다 */}
             <Button onClick={handleSave}>{isEditMode ? "수정 저장" : "추가하기"}</Button>
           </div>
         </DialogContent>

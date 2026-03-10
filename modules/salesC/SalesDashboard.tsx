@@ -186,7 +186,7 @@ export default function SalesDashboard() {
                 <TableHeader><TableRow><TableHead>순위</TableHead><TableHead>메뉴명</TableHead><TableHead className="text-right">판매량</TableHead><TableHead className="text-right">매출액</TableHead><TableHead>매출 비중</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {topMenus.map((m, i) => (
-                    <TableRow key={m.menuId}>
+                    <TableRow key={`${m.menuId ?? "noid"}-${m.name}-${i}`}>
                       <TableCell>{i + 1}</TableCell><TableCell>{m.name}</TableCell><TableCell className="text-right">{m.quantity}개</TableCell><TableCell className="text-right">₩{formatKR.format(m.revenue)}</TableCell>
                       <TableCell><div className="flex items-center gap-2"><Progress value={m.share} className="h-2 w-16" /><span className="text-xs text-muted-foreground w-8 text-right">{m.share?.toFixed(0) || 0}%</span></div></TableCell>
                     </TableRow>
@@ -228,7 +228,7 @@ export default function SalesDashboard() {
                         <TableCell>{tx.paymentMethod}</TableCell>
                         <TableCell className={tx.status === "CANCELED" ? "line-through" : "font-medium"}>₩{formatKR.format(tx.totalAmount)}</TableCell>
                         <TableCell><Badge variant={tx.status === "PAID" ? "default" : "destructive"}>{tx.status}</Badge></TableCell>
-                        <TableCell className="text-right">{tx.status === "PAID" && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openRefundModal(tx.transactionId)}>취소</Button>}</TableCell>
+                        {/* <TableCell className="text-right">{tx.status === "PAID" && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openRefundModal(tx.transactionId)}>취소</Button>}</TableCell> */}
                       </TableRow>
                     ))}
                     {transactions.length === 0 && <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">내역이 없습니다.</TableCell></TableRow>}

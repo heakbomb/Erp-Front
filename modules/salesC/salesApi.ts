@@ -80,9 +80,9 @@ export const salesApi = {
     return res.data;
   },
 
-   getWeeklyAreaAvg: async (storeId: number, year: number, month: number, radiusM = 2000) => {
+  getWeeklyAreaAvg: async (storeId: number, year: number, month: number) => {
     const res = await apiClient.get<WeeklyAreaAvgResponse>("/owner/sales/weekly-area-avg", {
-      params: { storeId, year, month, radiusM },
+      params: { storeId, year, month },
     })
     return res.data
   },

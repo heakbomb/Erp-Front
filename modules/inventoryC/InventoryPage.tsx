@@ -113,10 +113,6 @@ export default function InventoryPage() {
               Excel 내보내기
             </Button>
 
-            {/* ✅ 재고 추가 버튼 => 매입 등록 모달 */}
-            <Button onClick={() => setIsAddOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> 재고 추가
-            </Button>
           </div>
         )}
       </div>

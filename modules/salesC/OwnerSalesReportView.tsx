@@ -98,7 +98,7 @@ function PrintWeeklyTable({ data }: { data: any[] }) {
           <tr>
             <th className="text-left font-medium py-2 border-b">주차</th>
             <th className="text-right font-medium py-2 border-b">내 매출</th>
-            <th className="text-right font-medium py-2 border-b">지역 평균 매출</th>
+            <th className="text-right font-medium py-2 border-b">구 평균 매출</th>
             <th className="text-right font-medium py-2 border-b">격차</th>
           </tr>
         </thead>

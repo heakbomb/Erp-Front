@@ -1,15 +1,31 @@
 // src/modules/aiInsightsC/aiInsightsTypes.ts
 
-// ✅ 1. 백엔드 수요 예측 (Demand Forecast) DTO
+// ✅ 1. 수요 예측 (Demand Forecast) DTO
 export interface DemandForecastResponse {
   forecastId: number;
   storeId: number;
-  forecastDate: string;        // "YYYY-MM-DD"
-  predictedSalesMax: number;   // 예상 일 매출
-  predictedVisitors: number;   // 예상 방문객 수
+  forecastDate: string;        // 백엔드: LocalDate -> string
+  predictedSalesMax: number;   // 백엔드: BigDecimal -> number
+  predictedVisitors: number;   // 백엔드: Integer -> number
 }
 
-// ✅ 2. Recharts 차트용 데이터 타입
+// ✅ 2. 메뉴 성장률 및 발주 제안 (백엔드 MenuGrowthResponse와 일치)
+export interface MenuGrowthResponse {
+  menuId: number;
+  menuName: string;
+  lastWeekSales: number;       // 지난주 실제 판매량
+  nextWeekPrediction: number;  // 다음주 예측 판매량 (DB demand_forecast)
+  growthRate: number;          // 증감률 (%)
+  recommendation: string;      // "발주 증량", "유지", "감소" 등
+}
+
+// 기존 코드와의 호환성을 위해 별칭 사용
+export type MenuGrowthStats = MenuGrowthResponse;
+
+
+// --- 아래는 차트 표시용 가공 데이터 타입 ---
+
+// Recharts 차트용
 export interface DemandForecastChartData {
   date: string;
   predicted: number;
@@ -17,54 +33,25 @@ export interface DemandForecastChartData {
   [key: string]: any; 
 }
 
-// ✅ 3. 기존 메뉴 및 가격 최적화 관련 타입 (복구됨)
-export interface Material {
-  name: string;
-  cost: number;
-  origin: string;
+// 메뉴 성과 차트용
+export interface MenuAnalyticsResponse {
+  menuPerformance: { name: string; sales: number }[];
+  categoryData: { name: string; value: number }[];
 }
 
-export interface MenuItem {
-  id: number;
-  name: string;
-  currentMaterials: Material[];
-  alternativeMaterials: Material[];
-  currentPrice: number;
-  currentCost: number;
-  currentMargin: number;
-  alternativeCost: number;
-  alternativeMargin: number;
-  suggestedPrice: number;
+// 수익 예측 응답
+export type ProfitForecastResponse = {
+  storeId: number;
+  year: number;
+  month: number;
+  featureYm: string;
+  predForYm: string;
+  target: string;
+  pred: number;
+  modelPath?: string;
 }
 
-export interface MenuPerformance {
-  name: string;
-  sales: number;
-  margin: number;
-  trend: "up" | "down";
-  [key: string]: any;
-}
-
-export interface PriceOptimizationSummary {
-  menu: string;
-  currentPrice: number;
-  suggestedPrice: number;
-  expectedMargin: number;
-  impact: string;
-  [key: string]: any;
-}
-
-export interface CategoryData {
-  name: string;
-  value: number;
-  color: string;
-  [key: string]: any;
-}
-
-export interface InventoryAlert {
-  item: string;
-  current: number;
-  safety: number;
-  urgency: "high" | "medium" | "low";
-  daysLeft: number;
-}
+// 기타 레거시 타입 (필요시 유지)
+export interface Material { name: string; cost: number; origin: string; }
+export interface MenuItem { id: number; name: string; suggestedPrice: number; [key: string]: any; }
+export interface CategoryData { name: string; value: number; color: string; }

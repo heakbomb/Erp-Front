@@ -18,7 +18,7 @@ export function WeeklyTable({ data }: { data: MonthlyReport["weeklySales"] }) {
         <TableRow>
           <TableHead>주차</TableHead>
           <TableHead className="text-right">내 매출</TableHead>
-          <TableHead className="text-right">지역 평균 매출</TableHead>
+          <TableHead className="text-right">구 평균 매출</TableHead>
           <TableHead className="text-right">격차</TableHead>
         </TableRow>
       </TableHeader>

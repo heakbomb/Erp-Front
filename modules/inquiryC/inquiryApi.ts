@@ -1,70 +1,41 @@
-// modules/inquiryC/inquiryApi.ts
 import { apiClient } from "@/shared/api/apiClient";
-import type { PageResponse } from "@/shared/types/api"; // shared 경로는 프로젝트 상황에 맞게
-import type { 
+import { 
   Inquiry, 
   CreateInquiryRequest, 
-  ReplyInquiryRequest, 
-  AdminInquiryParams,
-  OwnerInquiryParams
+  AdminInquiryParams, 
+  OwnerInquiryParams 
 } from "./inquiryTypes";
+import { PageResponse } from "@/shared/types/api";
 
 export const inquiryApi = {
-  // ---------------------------------------------
-  // [사장님] 고객센터 (features/owner/inquiries/services/inquiryService.ts)
-  // ---------------------------------------------
-
-  // 내 문의 내역 조회
-  getMyInquiries: async ({ ownerId, page, size, sort = "createdAt,desc" }: OwnerInquiryParams) => {
-    const response = await apiClient.get<PageResponse<Inquiry>>("/owner/inquiries", {
-      params: { 
-        ownerId, 
-        page, 
-        size,
-        sort 
-      },
+  // [사장님] 내 문의 조회
+  getMyInquiries: async (params: OwnerInquiryParams) => {
+    const { data } = await apiClient.get<PageResponse<Inquiry>>("/owner/inquiries", {
+      params,
     });
-    return response.data;
+    return data;
   },
 
-  // 문의 등록
-  createInquiry: async (ownerId: number, data: CreateInquiryRequest) => {
-    await apiClient.post("/owner/inquiries", data, {
-      params: { ownerId },
-    });
+  // [사장님] 문의 등록
+  createInquiry: async (data: CreateInquiryRequest) => {
+    await apiClient.post("/owner/inquiries", data);
   },
 
-  // 문의 삭제
-  deleteInquiry: async (ownerId: number, inquiryId: number) => {
-    await apiClient.delete(`/owner/inquiries/${inquiryId}`, {
-      params: { ownerId },
-    });
+  // [사장님] 문의 삭제
+  deleteInquiry: async (inquiryId: number) => {
+    await apiClient.delete(`/owner/inquiries/${inquiryId}`);
   },
 
-  // ---------------------------------------------
-  // [관리자] 문의 관리 (features/admin/inquiries/services/adminInquiryService.ts)
-  // ---------------------------------------------
-
-  // 전체 문의 조회
-  getAdminInquiries: async ({ page, size, status, category }: AdminInquiryParams) => {
-    const params: any = { page, size };
-    
-    if (status && status !== "ALL") {
-      params.status = status;
-    }
-    if (category && category !== "ALL") {
-      params.category = category;
-    }
-
-    const response = await apiClient.get<PageResponse<Inquiry>>("/admin/inquiries", { params });
-    return response.data;
+  // [관리자] 문의 목록 조회
+  getInquiries: async (params: AdminInquiryParams) => {
+    const { data } = await apiClient.get<PageResponse<Inquiry>>("/admin/inquiries", {
+      params,
+    });
+    return data;
   },
 
-  // 답변 등록
-  replyInquiry: async (adminId: number, inquiryId: number, answer: string) => {
-    const payload: ReplyInquiryRequest = { answer };
-    await apiClient.put(`/admin/inquiries/${inquiryId}/reply`, payload, {
-      params: { adminId },
-    });
+  // [관리자] 답변 등록
+  replyInquiry: async (inquiryId: number, answer: string) => {
+    await apiClient.post(`/admin/inquiries/${inquiryId}/reply`, { answer });
   },
 };

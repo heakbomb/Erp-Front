@@ -1,54 +1,68 @@
-// modules/inquiryC/useInquiries.ts
+"use client";
+
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { inquiryApi } from "./inquiryApi";
+import { useToast } from "@/shared/ui/use-toast";
 import { CreateInquiryRequest } from "./inquiryTypes";
-import { toast } from "sonner";
 
-export const useInquiries = (ownerId: number | undefined, page: number = 0, size: number = 6) => {
+export function useInquiries() {
+  const [page, setPage] = useState(0);
+  const pageSize = 10;
+  const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  const QUERY_KEY = ["owner-inquiries", ownerId, page, size];
 
-  // 목록 조회
-  const { data, isLoading } = useQuery({
-    queryKey: QUERY_KEY,
-    queryFn: () => inquiryApi.getMyInquiries({ ownerId: ownerId!, page, size }),
-    enabled: !!ownerId, 
+  // 조회
+  const query = useQuery({
+    queryKey: ["myInquiries", page],
+    queryFn: () => inquiryApi.getMyInquiries({ page, size: pageSize }),
   });
 
-  // 등록 Mutation
+  // 등록
   const createMutation = useMutation({
-    mutationFn: (data: CreateInquiryRequest) => 
-      inquiryApi.createInquiry(ownerId!, data),
+    mutationFn: (data: CreateInquiryRequest) => inquiryApi.createInquiry(data),
     onSuccess: () => {
-      toast.success("문의가 등록되었습니다.");
-      queryClient.invalidateQueries({ queryKey: ["owner-inquiries"] });
+        queryClient.invalidateQueries({ queryKey: ["myInquiries"] });
+        toast({ title: "문의가 성공적으로 등록되었습니다." });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "문의 등록에 실패했습니다.");
-    },
+    onError: (err: any) => {
+        toast({ 
+            variant: "destructive", 
+            title: "등록 실패", 
+            description: err.response?.data?.message || "오류가 발생했습니다."
+        });
+    }
   });
 
-  // 삭제 Mutation
+  // 삭제 (이게 없어서 InquiryList에서 오류 발생)
   const deleteMutation = useMutation({
-    mutationFn: (inquiryId: number) => 
-      inquiryApi.deleteInquiry(ownerId!, inquiryId),
+    mutationFn: (inquiryId: number) => inquiryApi.deleteInquiry(inquiryId),
     onSuccess: () => {
-      toast.success("문의가 삭제되었습니다.");
-      queryClient.invalidateQueries({ queryKey: ["owner-inquiries"] });
+        queryClient.invalidateQueries({ queryKey: ["myInquiries"] });
+        toast({ title: "문의가 삭제되었습니다." });
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "삭제에 실패했습니다.");
-    },
+    onError: (err: any) => {
+        toast({ 
+            variant: "destructive", 
+            title: "삭제 실패", 
+            description: err.response?.data?.message || "오류가 발생했습니다."
+        });
+    }
   });
 
   return {
-    inquiries: data?.content || [],
-    totalElements: data?.totalElements || 0,
-    totalPages: data?.totalPages || 0,
-    isLoading,
+    inquiries: query.data?.content || [],
+    totalElements: query.data?.totalElements || 0,
+    totalPages: query.data?.totalPages || 0,
+    isLoading: query.isLoading,
+    
+    page, 
+    setPage,
+    
     createInquiry: createMutation.mutateAsync,
     isCreating: createMutation.isPending,
-    deleteInquiry: deleteMutation.mutateAsync,
+
+    // 삭제 기능 내보내기
+    deleteInquiry: deleteMutation.mutateAsync 
   };
-};
+}

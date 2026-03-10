@@ -7,12 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/shared/ui/button";
 import { Label } from "@/shared/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
-import { Loader2, AlertTriangle } from "lucide-react";
-import { toast } from "sonner"; 
+import { Loader2, AlertTriangle, AlertCircle, ArrowLeft, Trash2 } from "lucide-react"; // 아이콘 추가
+import { toast } from "sonner";
+import { Separator } from "@/shared/ui/separator"; // 구분선 추가
 
 export default function SubscriptionCancelView() {
   const router = useRouter();
-  const { currentSubscription } = useSubscription();
+  const { currentSubscription, cancelSubscription } = useSubscription();
   const [reason, setReason] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -27,11 +28,11 @@ export default function SubscriptionCancelView() {
   const handleCancel = async () => {
     if (!currentSubscription) return;
     if (!reason) {
-      // 입력값 검증은 toast로 충분하지만, 원하시면 이것도 alert로 통일 가능합니다.
-      toast.error("해지 사유를 선택해주세요."); 
+      toast.error("해지 사유를 선택해주세요.");
       return;
     }
 
+    // confirm 대신 커스텀 모달을 사용하면 더 좋겠지만, 일단 기본 confirm 유지
     if (!confirm("정말 구독을 해지하시겠습니까?\n해지 하셔도 남은 기간 동안은 계속 이용하실 수 있습니다.")) {
       return;
     }
@@ -39,64 +40,54 @@ export default function SubscriptionCancelView() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`http://localhost:8080/owner/subscriptions/${currentSubscription.ownerSubId}/cancel`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ reason: reason }),
+      await cancelSubscription({ 
+        subId: currentSubscription.ownerSubId, 
+        reason: reason 
       });
 
-      // [수정 포인트] 409 Conflict 발생 시 (이미 해지됨)
-      if (res.status === 409) {
-        // toast 대신 alert 사용 -> 사용자가 확인 누를 때까지 대기
-        alert("이미 해지 신청된 구독입니다.\n구독 관리 페이지로 이동합니다.");
-        
-        router.push("/owner/subscription");
-        router.refresh(); // 데이터 갱신
-        return;
-      }
+      alert("구독 해지가 예약되었습니다.\n남은 기간 동안 서비스는 계속 이용 가능합니다.");
+      router.push("/owner/subscription");
+      router.refresh();
 
-      if (res.ok) {
-        // 성공 시에도 확실하게 알림
-        alert("구독 해지가 예약되었습니다.\n남은 기간 동안 서비스는 계속 이용 가능합니다.");
-        
+    } catch (error: any) {
+      console.error(error);
+      if (error.response?.status === 409) {
+        alert("이미 해지 신청된 구독입니다.\n구독 관리 페이지로 이동합니다.");
         router.push("/owner/subscription");
         router.refresh();
       } else {
-        const errorMsg = await res.text();
-        // 실패 에러도 alert로 띄우기
-        alert(`해지 처리에 실패했습니다.\n사유: ${errorMsg}`);
+        // useSubscription hook에서 에러 toast 처리
       }
-    } catch (error) {
-      console.error(error);
-      alert("서버 통신 중 오류가 발생했습니다.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (!currentSubscription) {
-     return <div className="p-10 text-center"><Loader2 className="animate-spin inline-block" /> 정보 확인 중...</div>;
+     return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  // 만약 이 페이지에 들어왔는데 이미 해지된 상태라면 바로 안내하고 버튼 비활성화
-  // (백엔드 데이터가 canceled: true인 경우)
+  // 이미 해지된 상태 화면도 디자인 개선
   if (currentSubscription.canceled) {
     return (
-      <div className="container max-w-2xl py-10 mx-auto text-center">
-        <Card className="border-yellow-400 bg-yellow-50">
-          <CardHeader>
-            <AlertTriangle className="h-10 w-10 text-yellow-600 mx-auto mb-2" />
-            <CardTitle className="text-yellow-800">이미 해지 신청된 구독입니다</CardTitle>
-            <CardDescription className="text-yellow-700">
-              만료일({currentSubscription.expiryDate})까지 이용 가능하며,<br/>
-              이후에는 자동 결제되지 않습니다.
-            </CardDescription>
+      <div className="container max-w-lg py-20 mx-auto">
+        <Card className="border-yellow-400/50 bg-yellow-50/50 shadow-sm">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3 text-yellow-700">
+              <AlertCircle className="h-6 w-6" />
+              <CardTitle className="text-xl">이미 해지 신청된 구독입니다</CardTitle>
+            </div>
           </CardHeader>
-          <CardFooter className="justify-center pt-4">
-             <Button onClick={() => router.push('/owner/subscription')}>
-               구독 관리로 돌아가기
+          <CardContent className="text-yellow-800/80 pb-6">
+            <p>
+              현재 구독은 <strong>{currentSubscription.expiryDate}</strong>까지 이용 가능하며,<br/>
+              그 이후에는 자동으로 결제되지 않습니다.
+            </p>
+          </CardContent>
+          <Separator className="bg-yellow-200/50" />
+          <CardFooter className="pt-6 justify-center">
+             <Button onClick={() => router.push('/owner/subscription')} variant="outline" className="border-yellow-300 hover:bg-yellow-100/50 text-yellow-800">
+               <ArrowLeft className="mr-2 h-4 w-4" /> 구독 관리로 돌아가기
              </Button>
           </CardFooter>
         </Card>
@@ -105,55 +96,65 @@ export default function SubscriptionCancelView() {
   }
 
   return (
-    <div className="container max-w-2xl py-10 mx-auto">
-      <Card className="border-destructive/50 shadow-lg">
-        <CardHeader className="bg-destructive/5 border-b border-destructive/10">
-          <div className="flex items-center gap-2 text-destructive mb-2">
-            <AlertTriangle className="h-6 w-6" />
-            <h2 className="text-xl font-bold">구독 해지</h2>
-          </div>
-          <CardTitle>정말 구독을 해지하시겠습니까?</CardTitle>
-          <CardDescription>
+    <div className="container max-w-xl py-16 mx-auto">
+      <Card className="border-destructive/30 shadow-xl shadow-destructive/5 overflow-hidden">
+        <CardHeader className="bg-destructive/5 border-b border-destructive/10 pb-8 pt-10 px-8 text-center">
+          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <CardTitle className="text-2xl font-bold text-destructive">정말 구독을 해지하시겠습니까?</CardTitle>
+          <CardDescription className="text-base mt-2 text-destructive/80">
             해지하시더라도 <strong>{currentSubscription.expiryDate}</strong>까지는 
             <br />
             <strong>{currentSubscription.subName}</strong>의 모든 혜택을 이용하실 수 있습니다.
           </CardDescription>
         </CardHeader>
         
-        <CardContent className="pt-6 space-y-6">
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">해지하시는 이유를 알려주세요</Label>
-            <RadioGroup onValueChange={setReason} className="flex flex-col space-y-2">
+        <CardContent className="pt-8 px-8 space-y-6">
+          <div className="space-y-4">
+            <Label className="text-lg font-semibold flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-muted-foreground" />
+              해지하시는 이유를 알려주세요
+            </Label>
+            <RadioGroup onValueChange={setReason} className="flex flex-col space-y-3 pt-2">
               {cancelReasons.map((r) => (
-                <div key={r} className="flex items-center space-x-2">
-                  <RadioGroupItem value={r} id={r} />
-                  <Label htmlFor={r} className="font-normal cursor-pointer">{r}</Label>
-                </div>
+                <Label 
+                  key={r} 
+                  htmlFor={r} 
+                  className={`flex items-center space-x-3 p-4 rounded-lg border cursor-pointer transition-all ${reason === r ? 'border-destructive/50 bg-destructive/5' : 'border-border hover:bg-accent/50'}`}
+                >
+                  <RadioGroupItem value={r} id={r} className="text-destructive border-muted-foreground/30" />
+                  <span className="font-normal text-base">{r}</span>
+                </Label>
               ))}
             </RadioGroup>
           </div>
         </CardContent>
 
-        <CardFooter className="flex gap-3 justify-end border-t bg-gray-50/50 p-6">
+        <Separator />
+
+        <CardFooter className="flex gap-4 justify-end bg-accent/20 p-6 px-8">
           <Button 
-            variant="outline" 
+            variant="ghost" 
             onClick={() => router.back()}
             disabled={isSubmitting}
+            className="hover:bg-accent/50"
           >
+            <ArrowLeft className="mr-2 h-4 w-4" />
             돌아가기 (구독 유지)
           </Button>
           <Button 
             variant="destructive" 
             onClick={handleCancel}
             disabled={isSubmitting || !reason}
-            className="bg-red-600 hover:bg-red-700"
+            className="bg-destructive hover:bg-destructive/90 px-6 shadow-sm"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 처리 중
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 처리 중...
               </>
             ) : (
-              "해지 예약하기"
+              <>
+                <Trash2 className="mr-2 h-4 w-4" /> 해지 예약하기
+              </>
             )}
           </Button>
         </CardFooter>

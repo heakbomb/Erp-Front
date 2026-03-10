@@ -34,9 +34,12 @@ export const authApi = {
     return res.data;
   },
 
-  loginAdmin: async (data: LoginRequest): Promise<LoginResponse> => {
-    const res = await apiClient.post<LoginResponse>("/auth/login/admin", {
-      username: data.username,
+  // ✅ [수정됨] 관리자 로그인
+  loginAdmin: async (data: { username: string; password: string }): Promise<OwnerLoginResponse> => {
+    // 1. URL 수정: /auth/admin/login
+    // 2. Body 수정: 백엔드 DTO(AdminLoginRequest)가 email 필드를 아이디로 받음 -> email: data.username
+    const res = await apiClient.post<OwnerLoginResponse>("/auth/admin/login", {
+      email: data.username, 
       password: data.password,
     });
     return res.data;
@@ -84,7 +87,6 @@ export const authApi = {
       alert("네이버 로그인은 아직 준비 중입니다.");
       return;
     }
-
     window.location.href = `/api/oauth2/authorization/${provider}`;
   },
 

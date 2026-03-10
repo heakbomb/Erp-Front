@@ -1,132 +1,143 @@
 "use client";
 
 import { useState } from "react";
-// import { useAuth } from "@/contexts/AuthContext"; // [주석] 인증 훅 임시 비활성화
 import { useInquiries } from "./useInquiries";
-import InquiryCreateDialog from "./InquiryCreateDialog";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
-import { Skeleton } from "@/shared/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/shared/ui/accordion";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table";
 import { Badge } from "@/shared/ui/badge";
-import { Trash2 } from "lucide-react";
-import { CommonPagination } from "@/shared/ui/CommonPagination"; // ✅ 추가
-
-// 날짜 포맷팅 헬퍼
-function formatDate(dateValue: any) {
-  if (!dateValue) return "-";
-  if (Array.isArray(dateValue)) {
-    const [year, month, day, hour = 0, minute = 0] = dateValue;
-    return `${year}.${String(month).padStart(2, '0')}.${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-  }
-  return new Date(dateValue).toLocaleString("ko-KR", {
-    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
-  }).replace(/\. /g, ".").replace(":", ":");
-}
+import { Plus, Trash2 } from "lucide-react";
+import InquiryCreateDialog from "./InquiryCreateDialog";
+import InquiryDetailDialog from "./InquiryDetailDialog"; // ✅ 추가됨
+import { CommonPagination } from "@/shared/ui/CommonPagination";
+import { Inquiry } from "./inquiryTypes"; // 타입 import
 
 export default function InquiryList() {
-  // const { user } = useAuth(); // [주석] 기존 인증 로직
-  // const ownerId = user && user.role === 'OWNER' ? user.owner_id : undefined;
+  const { 
+    inquiries, isLoading, totalPages, page, setPage, deleteInquiry 
+  } = useInquiries();
+  
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  
+  // ✅ 상세 팝업 상태 관리
+  const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // ✅ [수정] 테스트를 위해 ownerId를 1로 강제 고정
-  const ownerId = 1;
-  const user = { role: 'OWNER', owner_id: 1 }; // 더미 유저 객체 (필요 시 사용)
+  // ✅ 행 클릭 시 상세 팝업 열기
+  const handleRowClick = (item: Inquiry) => {
+    setSelectedInquiry(item);
+    setIsDetailOpen(true);
+  };
 
-  const [page, setPage] = useState(0);
+  const handleDelete = async (e: React.MouseEvent, id: number) => {
+    e.stopPropagation(); // ✅ 클릭 이벤트가 행(Row)으로 전파되지 않도록 막음
+    if (confirm("정말 이 문의를 삭제하시겠습니까?")) {
+      await deleteInquiry(id);
+    }
+  };
 
-  const { inquiries, totalPages, totalElements, isLoading, createInquiry, isCreating, deleteInquiry } = useInquiries(ownerId, page);
-
-  // ✅ [수정] 로그인 체크 로직 주석 처리 (무조건 통과)
-  /*
-  if (!user || user.role !== 'OWNER' || !ownerId) {
-    return <div className="p-8 text-center">로그인이 필요한 서비스입니다.</div>;
-  }
-  */
-
-  const handlePageChange = (p: number) => { if (p >= 0 && p < totalPages) setPage(p); };
+  const formatDate = (dateValue: any) => {
+    if (!dateValue) return "-";
+    return new Date(dateValue).toLocaleDateString("ko-KR");
+  };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-            <h2 className="text-3xl font-bold tracking-tight">1:1 문의</h2>
-            <p className="text-muted-foreground mt-1">시스템 이용 중 궁금한 점이나 불편사항을 문의해주세요.</p>
-        </div>
-        <InquiryCreateDialog 
-            ownerId={ownerId} 
-            onCreate={async (data) => { await createInquiry(data); setPage(0); }} 
-            isCreating={isCreating} 
-        />
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-bold tracking-tight">1:1 문의 내역</h2>
+        <Button onClick={() => setIsCreateOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> 문의하기
+        </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>문의 내역</CardTitle>
-          <CardDescription>총 {totalElements}건의 문의가 있습니다.</CardDescription>
+          <CardTitle>나의 문의 목록</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-             <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
-          ) : inquiries.length === 0 ? (
-            <div className="text-center py-10 text-gray-500 bg-white rounded-lg border">문의 내역이 없습니다.</div>
-          ) : (
-            <>
-              <Accordion type="single" collapsible className="w-full space-y-2">
-                {inquiries.map((item) => (
-                  <AccordionItem key={item.inquiryId} value={`item-${item.inquiryId}`} className="border rounded-lg px-4 bg-white">
-                    <AccordionTrigger className="hover:no-underline py-4">
-                      <div className="flex flex-1 items-center justify-between mr-4">
-                        <div className="flex items-center gap-3">
-                          <Badge variant={item.status === 'RESPONDED' ? "default" : "secondary"}>
-                            {item.status === 'RESPONDED' ? '답변완료' : '대기중'}
-                          </Badge>
-                          <div className="flex flex-col items-start text-left">
-                            <span className="text-xs text-gray-500 font-normal mb-0.5">[{item.category}] {item.storeName ? `- ${item.storeName}` : ''}</span>
-                            <span className="font-medium text-sm md:text-base">{item.title}</span>
-                          </div>
-                        </div>
-                        <div className="text-xs text-gray-400 font-normal shrink-0">{formatDate(item.createdAt)}</div>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-2 pb-6 border-t mt-2">
-                      <div className="space-y-6">
-                        <div className="bg-gray-50 p-4 rounded-md">
-                          <p className="font-semibold text-sm mb-2 text-gray-700">문의 내용</p>
-                          <p className="text-sm whitespace-pre-wrap text-gray-600">{item.content}</p>
-                        </div>
-                        {item.answer && (
-                          <div className="bg-blue-50 p-4 rounded-md border border-blue-100">
-                            <div className="flex justify-between items-center mb-2">
-                              <p className="font-semibold text-sm text-blue-800">관리자 답변</p>
-                              <span className="text-xs text-blue-600">{formatDate(item.answeredAt)}</span>
-                            </div>
-                            <p className="text-sm whitespace-pre-wrap text-gray-700">{item.answer}</p>
-                          </div>
-                        )}
-                        {/* 삭제 버튼: 로그인 체크 없이 상태만 보고 표시 */}
-                        {item.status === 'PENDING' && (
-                          <div className="flex justify-end">
-                            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => { if(confirm('정말 삭제하시겠습니까?')) deleteInquiry(item.inquiryId); }}>
-                              <Trash2 className="w-4 h-4 mr-1" /> 삭제
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-              
-              {/* ✅ 공통 페이징 컴포넌트 적용 */}
-              <CommonPagination 
-                page={page} 
-                totalPages={totalPages} 
-                onPageChange={handlePageChange} 
-              />
-            </>
-          )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[80px]">번호</TableHead>
+                <TableHead className="w-[100px]">상태</TableHead>
+                <TableHead className="w-[100px]">분류</TableHead>
+                <TableHead>제목</TableHead>
+                <TableHead className="w-[150px]">사업장</TableHead>
+                <TableHead className="w-[120px]">작성일</TableHead>
+                <TableHead className="w-[80px]">관리</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center h-24">
+                    로딩 중...
+                  </TableCell>
+                </TableRow>
+              ) : inquiries.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center h-24">
+                    등록된 문의가 없습니다.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                inquiries.map((item) => (
+                  <TableRow 
+                    key={item.inquiryId} 
+                    className="cursor-pointer hover:bg-muted/50" // ✅ 클릭 가능 표시
+                    onClick={() => handleRowClick(item)} // ✅ 클릭 이벤트 연결
+                  >
+                    <TableCell>{item.inquiryId}</TableCell>
+                    <TableCell>
+                      <Badge variant={item.status === 'RESPONDED' ? "default" : "secondary"}>
+                        {item.status === 'RESPONDED' ? '답변완료' : '대기중'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell className="font-medium">
+                        {item.title}
+                    </TableCell>
+                    <TableCell>{item.storeName || "-"}</TableCell>
+                    <TableCell>{formatDate(item.createdAt)}</TableCell>
+                    <TableCell>
+                      {item.status === 'PENDING' && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={(e) => handleDelete(e, item.inquiryId)} // ✅ e 전달
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+
+          <div className="mt-4">
+            <CommonPagination 
+              page={page} 
+              totalPages={totalPages} 
+              onPageChange={setPage} 
+            />
+          </div>
         </CardContent>
       </Card>
+
+      <InquiryCreateDialog 
+        isOpen={isCreateOpen} 
+        onClose={() => setIsCreateOpen(false)} 
+      />
+      
+      {/* ✅ 상세 보기 팝업 추가 */}
+      <InquiryDetailDialog
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        inquiry={selectedInquiry}
+      />
     </div>
   );
 }
