@@ -16,23 +16,32 @@ export function OwnerStoreGuard({ children }: OwnerStoreGuardProps) {
   const pathname = usePathname();
   const { stores, isLoading, currentStoreId, setCurrentStoreId } = useStore();
 
+  // ✅ 경로 정규화 (끝의 슬래시 제거) 하여 비교를 정확하게 만듦
+  const normalizedPath = pathname.endsWith("/") && pathname !== "/" 
+    ? pathname.slice(0, -1) 
+    : pathname;
+    
+  const isStoreManagementPage = normalizedPath === "/owner/stores";
   const currentStore = stores.find((s) => s.storeId === currentStoreId);
 
   useEffect(() => {
     if (isLoading) return;
 
+    // 1. 매장이 하나도 없는 경우
     if (stores.length === 0) {
-      if (pathname !== "/owner/stores") {
+      if (!isStoreManagementPage) {
         router.replace("/owner/stores");
       }
       return;
     }
 
+    // 2. 매장은 있는데 선택된 매장이 없는 경우 (첫 번째 매장으로 자동 선택)
     if (currentStoreId === null && stores.length > 0) {
       setCurrentStoreId(stores[0].storeId);
     }
-  }, [isLoading, stores, currentStoreId, router, setCurrentStoreId, pathname]);
+  }, [isLoading, stores, currentStoreId, router, setCurrentStoreId, isStoreManagementPage]);
 
+  // 로딩 중 UI
   if (isLoading) {
     return (
       <div className="space-y-4 p-8">
@@ -42,19 +51,16 @@ export function OwnerStoreGuard({ children }: OwnerStoreGuardProps) {
     );
   }
 
-  if (stores.length === 0 && pathname !== "/owner/stores") {
-    return null;
+  // ✅ 매장이 0개일 때 화면 차단 해제 (매장 관리 페이지인 경우 렌더링 허용)
+  if (stores.length === 0) {
+    return isStoreManagementPage ? <>{children}</> : null;
   }
 
-  // =========================================================
-  // [수정] 접근 차단 조건: (승인되지 않음 OR 비활성화 상태) AND (관리 페이지 아님)
-  // =========================================================
+  // 승인되지 않았거나 비활성화된 매장 처리
   const isNotApproved = currentStore && currentStore.status !== "APPROVED";
   const isInactive = currentStore && !currentStore.active;
 
-  if (currentStore && (isNotApproved || isInactive) && pathname !== "/owner/stores") {
-    
-    // 상태에 따른 문구 분기 처리
+  if (currentStore && (isNotApproved || isInactive) && !isStoreManagementPage) {
     let statusLabel = "";
     let guideMessage = "";
 
@@ -77,14 +83,9 @@ export function OwnerStoreGuard({ children }: OwnerStoreGuardProps) {
           <h2 className="text-2xl font-bold tracking-tight">서비스 이용이 제한되었습니다</h2>
           <p className="text-muted-foreground max-w-md whitespace-pre-line">
             현재 선택된 <strong>{currentStore.storeName}</strong> 사업장은 <br />
-            <span className="font-semibold text-foreground">
-              {statusLabel}
-            </span> 
-            상태입니다.
+            <span className="font-semibold text-foreground">{statusLabel}</span> 상태입니다.
           </p>
-          <p className="text-sm text-muted-foreground whitespace-pre-line">
-            {guideMessage}
-          </p>
+          <p className="text-sm text-muted-foreground whitespace-pre-line">{guideMessage}</p>
         </div>
 
         <div className="flex gap-4">

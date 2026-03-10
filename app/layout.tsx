@@ -2,7 +2,7 @@
 import type React from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
+// ❌ [삭제] import { Analytics } from "@vercel/analytics/next";
 import Script from "next/script";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -35,7 +35,7 @@ export default function RootLayout({
             {/* ✅ 공통 챗봇 (플로팅 버튼 + 오버레이) */}
             <ChatLauncher />
 
-            <Analytics />
+            {/* ❌ [삭제] <Analytics /> */}
 
             {/* ✅ 포트원 V2 SDK 스크립트 */}
             <Script
